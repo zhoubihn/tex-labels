@@ -1,8 +1,8 @@
 " tex-labels.vim - Handle labels, bibitems and tags in LaTeX files
 " Maintainer:   Bin Zhou
 " Version:      0.1
-" Upgreaded on: 
-" Last Change:  2025-10-09
+" Upgraded on: 
+" Last change: Thu 2025-10-09 02:08:15 CST (+0800)
 
 " Only load this plugin once
 if exists('g:loaded_tex_labels')
