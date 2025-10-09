@@ -2,8 +2,8 @@
 " 	Provides popup menu for \ref, \eqref, \pageref, and \cite commands
 " Maintainer:   Bin Zhou
 " Version:      0.2
-" Upgraded on: Thu 2025-10-09 21:25:26 CST (+0800)
-" Last change: Thu 2025-10-09 23:16:19 CST (+0800)
+" Upgraded on: Thu 2025-10-09 23:36:24 CST (+0800)
+" Last change: Fri 2025-10-10 00:57:51 CST (+0800)
 
 " Only load once per buffer
 if exists('b:loaded_tex_labels')
@@ -132,6 +132,18 @@ function! s:GetAllReferences()
 
   " Remove duplicates and sort
   return sort(uniq(refs))
+endfunction
+
+" Show the bibliography popup menu
+function! s:ShowBibPopup()
+endfunction
+
+" Check duplicated labels
+function! s:CheckLabels()
+endfunction
+
+" Check duplicated bibitem labels
+function! s:CheckBibitems()
 endfunction
 
 " Popup filter function
