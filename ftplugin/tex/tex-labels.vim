@@ -2,8 +2,8 @@
 " 	Provides popup menu for \ref, \eqref, \pageref, and \cite commands
 " Maintainer:   Bin Zhou
 " Version:      0.2
-" Upgraded on: Thu 2025-10-09 21:19:04 CST (+0800)
-" Last change: Thu 2025-10-09 21:22:25 CST (+0800)
+" Upgraded on: Thu 2025-10-09 21:25:26 CST (+0800)
+" Last change: Thu 2025-10-09 23:16:19 CST (+0800)
 
 " Only load once per buffer
 if exists('b:loaded_tex_labels')
@@ -26,7 +26,7 @@ let b:tex_labels_popup = -1
 " Setup function - called when this ftplugin is loaded
 function! s:SetupTexLabels()
   " Trigger popup when entering insert mode
-  autocmd InsertEnter <buffer> call s:TriggerRefPopup()
+  autocmd InsertEnter <buffer> call s:TriggerCheck()
 
   " Clean up popup when leaving buffer
   autocmd BufLeave <buffer> call s:CleanupPopup()
@@ -35,41 +35,41 @@ function! s:SetupTexLabels()
   command! -buffer TestTexLabelsPopup call s:ShowRefPopup()
 endfunction
 
-" Trigger popup when entering insert mode and cursor is in ref command
-function! s:TriggerRefPopup()
+" Check whether some action should be triggered
+function! s:TriggerCheck()
   let line = getline('.')
   let col = col('.') - 1
 
-  " Quick check: if no { before cursor, return early
+  " Quick check: if no '{' before cursor, return early
   if strridx(strpart(line, 0, col), '{') == -1
     return
   endif
 
-  " Check if cursor is inside reference command braces
-  if s:IsInsideRefCommand(line, col)
-    call s:ShowRefPopup()
-  endif
-endfunction
-
-" Check if cursor is inside a reference command (between the braces)
-function! s:IsInsideRefCommand(line, col)
-  " Find opening brace before cursor
-  let open_brace = strridx(strpart(a:line, 0, a:col), '{')
-  if open_brace == -1
-    return 0
+  " Check if cursor is between '{' and '}'
+  let open_brace = strridx(line, '{', col - 1)
+  let close_brace = strridx(line, '}', col - 1)
+  if open_brace < close_brace
+      return
+  else
+      let close_brace = stridx(line, '}', col)
+      if close_brace == -1
+	  return
+      endif
   endif
 
-  " Find closing brace after cursor
-  let close_brace = stridx(a:line, '}', a:col)
+  " Now the cursor is behide '{', and is before or at '}'.
 
-  " Cursor must be after opening brace and before closing brace
-  if a:col <= open_brace || (close_brace != -1 && a:col >= close_brace)
-    return 0
+  " Check if it's a command like \ref, \eqref, and so on
+  let before_brace = strpart(line, 0, open_brace)
+  if before_brace =~ '\v\\(ref|eqref|pageref)\s*$'
+      call s:ShowRefPopup()
+  elseif before_brace =~ '\v\\cite\s*$'
+      call s:ShowBibPopup()
+  elseif before_brace =~ '\v\\(label|tag)\s*$'
+      call s:CheckLabels()
+  elseif before_brace =~ '\v\\bibitem(\[[^\]]*\])?\s*$'
+      call s:CheckBibitems()
   endif
-
-  " Check if it's a ref command
-  let before_brace = strpart(a:line, 0, open_brace)
-  return before_brace =~ '\v\\(ref|eqref|pageref|cite)\s*$'
 endfunction
 
 " Show the reference popup menu
