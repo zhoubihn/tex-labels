@@ -2,8 +2,8 @@
 " 	Provides popup menu for \ref, \eqref, \pageref, and \cite commands
 " Maintainer:   Bin Zhou
 " Version:      0.2
-" Upgraded on: Thu 2025-10-09 23:36:24 CST (+0800)
-" Last change: Fri 2025-10-10 00:57:51 CST (+0800)
+" Upgraded on: Sat 2025-10-11 02:42:47 CST (+0800)
+" Last change: Sat 2025-10-11 17:32:43 CST (+0800)
 
 " Only load once per buffer
 if exists('b:loaded_tex_labels')
@@ -90,7 +90,7 @@ function! s:ShowRefPopup()
   let popup_config = {
     \ 'line': winline() + 1,
     \ 'col': wincol(),
-    \ 'pos': 'botleft',
+    \ 'pos': 'topleft',
     \ 'height': g:tex_labels_popup_height,
     \ 'wrap': 0,
     \ 'highlight': 'TexLabelsPopup',
