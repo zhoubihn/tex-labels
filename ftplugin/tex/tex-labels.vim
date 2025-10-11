@@ -2,8 +2,8 @@
 " 	Provides popup menu for \ref, \eqref, \pageref, and \cite commands
 " Maintainer:   Bin Zhou
 " Version:      0.2
-" Upgraded on: Sat 2025-10-11 02:42:47 CST (+0800)
-" Last change: Sat 2025-10-11 17:32:43 CST (+0800)
+" Upgraded on: Sat 2025-10-11 22:02:37 CST (+0800)
+" Last change: Sun 2025-10-12 03:54:38 CST (+0800)
 
 " Only load once per buffer
 if exists('b:loaded_tex_labels')
@@ -132,6 +132,65 @@ function! s:GetAllReferences()
 
   " Remove duplicates and sort
   return sort(uniq(refs))
+endfunction
+
+" Function to extract labels and bibitems from a file, with
+"   {type}		'label', 'bibitem' or 'tag'
+function! s:ExtractLabelsBibitemsTags(filename, type)
+    let items = []
+
+    if a:filename == '%'
+	let lines = getbufline('%', 1, '$')
+    elseif filereadable(a:filename)
+	let lines = readfile(a:filename)
+    else
+        return items
+    endif
+
+    for i in range(len(lines))
+        let line = lines[i]
+        let line_num = i + 1
+
+        " Remove comments
+        let clean_line = substitute(line, '%.*$', '', '')
+        if empty(clean_line)
+            continue
+        endif
+
+        if a:type == 'label'
+            " Extract \label commands
+            let matches = matchlist(clean_line, '\\label{\([^}]*\)}')
+            if len(matches) > 1
+                let label = matches[1]
+                let item = {
+                    \ 'idcode': label,
+                    \ 'idnum': '',
+                    \ 'page': '',
+                    \ 'line': line_num,
+                    \ 'file': fnamemodify(a:filename, ':t'),
+                    \ 'full_path': a:filename
+                    \ }
+                call add(items, item)
+            endif
+        elseif a:type == 'bibitem'
+            " Extract \bibitem commands
+            let matches = matchlist(clean_line, '\\bibitem{\([^}]*\)}')
+            if len(matches) > 1
+                let bibitem = matches[1]
+                let item = {
+                    \ 'idcode': bibitem,
+                    \ 'idnum': '',
+                    \ 'page': '',
+                    \ 'line': line_num,
+                    \ 'file': fnamemodify(a:filename, ':t'),
+                    \ 'full_path': a:filename
+                    \ }
+                call add(items, item)
+            endif
+        endif
+    endfor
+
+    return items
 endfunction
 
 " Show the bibliography popup menu
