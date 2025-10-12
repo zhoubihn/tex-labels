@@ -5,8 +5,8 @@
 " Maintainer:   Bin Zhou
 " Version:      0.2
 "
-" Upgraded on: Sun 2025-10-12 04:06:40 CST (+0800)
-" Last change: Sun 2025-10-12 22:30:57 CST (+0800)
+" Upgraded on: Sun 2025-10-12 22:33:52 CST (+0800)
+" Last change: Sun 2025-10-12 23:29:12 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -100,6 +100,8 @@ function! s:ShowRefPopup()
     \ 'borderhighlight': ['TexLabelsPopupBorder'],
     \ 'title': ' References ',
     \ 'titlehighlight': 'TexLabelsPopupTitle',
+    \ 'drag': 'TRUE',
+    \ 'scrollbar': 'TRUE',
     \ 'zindex': 200,
     \ 'filter': function('s:PopupFilter')
   \ }
@@ -109,8 +111,29 @@ endfunction
 
 " Get all references from current buffer
 function! s:GetAllReferences()
+    let refs = s:RefItems_popup("%")
+
+    let main_file = s:FindMainFile("%")
+    let included_files = []
+
+    if strlen(main_file) > 0
+	let refs = refs + s:RefItems_popup(main_file)
+
+	let included_files = s:FindIncludedFiles(main_file)
+	for file in included_files
+	    if simplify(file) != simplify("%")
+		let refs = refs + s:RefItems_popup(file)
+	    endif
+	endfor
+    endif
+
+    return refs
+endfunction
+
+" Function to generate a List for references
+function! s:RefItems_popup(filename)
     let refs = []
-    let items = s:ExtractLabelsBibitemsTags('%', 'label')
+    let items = s:ExtractLabelsBibitemsTags(a:filename, "label")
 
     if !empty(items)
 	for i in items
