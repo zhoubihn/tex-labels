@@ -1,9 +1,14 @@
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " ftplugin/tex/tex-labels.vim - LaTeX reference completion popup
 " 	Provides popup menu for \ref, \eqref, \pageref, and \cite commands
+"
 " Maintainer:   Bin Zhou
 " Version:      0.2
-" Upgraded on: Sat 2025-10-11 22:02:37 CST (+0800)
-" Last change: Sun 2025-10-12 03:54:38 CST (+0800)
+"
+" Upgraded on: Sun 2025-10-12 04:06:40 CST (+0800)
+" Last change: Sun 2025-10-12 22:30:57 CST (+0800)
+"
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 " Only load once per buffer
 if exists('b:loaded_tex_labels')
@@ -75,10 +80,7 @@ endfunction
 " Show the reference popup menu
 function! s:ShowRefPopup()
   " Close any existing popup first
-  if b:tex_labels_popup != -1 && popup_exists(b:tex_labels_popup)
-    call popup_close(b:tex_labels_popup)
-    let b:tex_labels_popup = -1
-  endif
+  call s:CleanupPopup()
 
   " Get all available references
   let refs = s:GetAllReferences()
@@ -107,31 +109,17 @@ endfunction
 
 " Get all references from current buffer
 function! s:GetAllReferences()
-  let refs = []
-  let lines = getbufline('%', 1, '$')
+    let refs = []
+    let items = s:ExtractLabelsBibitemsTags('%', 'label')
 
-  for line in lines
-    " Extract labels
-    let label = matchstr(line, '\\label{\zs[^}]*\ze}')
-    if !empty(label)
-      call add(refs, 'label: ' . label)
+    if !empty(items)
+	for i in items
+	    let ref_item = "(" . i["idnum"] . ")\t{" . i["idcode"] . "} {page: " . i["page"] . "} {line: " . i["line"] . "} {file: " . i["file"] . "}"
+	    call add(refs, ref_item)
+	endfor
     endif
 
-    " Extract bibitems
-    let bibitem = matchstr(line, '\\bibitem{\zs[^}]*\ze}')
-    if !empty(bibitem)
-      call add(refs, 'bib: ' . bibitem)
-    endif
-
-    " Extract tags
-    let tag = matchstr(line, '\\tag{\zs[^}]*\ze}')
-    if !empty(tag)
-      call add(refs, 'tag: ' . tag)
-    endif
-  endfor
-
-  " Remove duplicates and sort
-  return sort(uniq(refs))
+    return refs
 endfunction
 
 " Function to extract labels and bibitems from a file, with
@@ -193,6 +181,67 @@ function! s:ExtractLabelsBibitemsTags(filename, type)
     return items
 endfunction
 
+" Function to find main file specification
+function! s:FindMainFile(filename)
+    if !filereadable(a:filename)
+        return ''
+    endif
+
+    let lines = readfile(a:filename)
+    let limit = min([10, len(lines)])
+
+    for i in range(limit)
+        let line = lines[i]
+        let matches = matchlist(line, '%! Main file:[ \t]*\([^ \t\n\r]*\)')
+        if len(matches) > 1
+            let main_file = matches[2]
+            " Make it absolute path
+            if main_file !~ '^/' && main_file !~ '^~' && main_file !~ '^\$'
+                let main_file = fnamemodify(a:filename, ':h') . '/' . main_file
+            endif
+            return simplify(main_file)
+        endif
+    endfor
+
+    return ''
+endfunction
+
+" Function to find included files recursively
+function! s:FindIncludedFiles(main_file)
+    let included_files = []
+
+    if !filereadable(a:main_file)
+        return included_files
+    endif
+
+    let lines = readfile(a:main_file)
+
+    for line in lines
+        " Remove comments
+        let clean_line = substitute(line, '%.*$', '', '')
+
+        " Check for \include and \input
+        for cmd in ['include', 'input']
+            let matches = matchlist(clean_line, '\\' . cmd . '{\([^}]*\)}')
+            if len(matches) > 1
+                let included_file = matches[1]
+                " Make it absolute path
+                if included_file !~ '^/' && included_file !~ '^~' && included_file !~ '^\$'
+                    let included_file = fnamemodify(a:main_file, ':h') . '/' . included_file
+                endif
+                let included_file = simplify(included_file)
+                call add(included_files, included_file)
+
+                " Recursively find files in the included file
+                let sub_files = s:FindIncludedFiles(included_file)
+                call extend(included_files, sub_files)
+            endif
+        endfor
+    endfor
+
+    return included_files
+endfunction
+
 " Show the bibliography popup menu
 function! s:ShowBibPopup()
 endfunction
@@ -250,7 +299,7 @@ endfunction
 
 " Clean up popup when leaving buffer
 function! s:CleanupPopup()
-  if b:tex_labels_popup != -1 && popup_exists(b:tex_labels_popup)
+  if b:tex_labels_popup != -1
     call popup_close(b:tex_labels_popup)
     let b:tex_labels_popup = -1
   endif
