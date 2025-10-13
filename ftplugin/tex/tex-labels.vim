@@ -5,8 +5,8 @@
 " Maintainer:   Bin Zhou
 " Version:      0.2
 "
-" Upgraded on: Sun 2025-10-12 22:33:52 CST (+0800)
-" Last change: Sun 2025-10-12 23:29:12 CST (+0800)
+" Upgraded on: Mon 2025-10-13 00:48:58 CST (+0800)
+" Last change: Mon 2025-10-13 12:51:13 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -94,7 +94,7 @@ function! s:ShowRefPopup()
     \ 'col': wincol(),
     \ 'pos': 'topleft',
     \ 'height': g:tex_labels_popup_height,
-    \ 'wrap': 0,
+    \ 'wrap': 'TRUE',
     \ 'highlight': 'TexLabelsPopup',
     \ 'border': [1, 1, 1, 1],
     \ 'borderhighlight': ['TexLabelsPopupBorder'],
@@ -102,6 +102,7 @@ function! s:ShowRefPopup()
     \ 'titlehighlight': 'TexLabelsPopupTitle',
     \ 'drag': 'TRUE',
     \ 'scrollbar': 'TRUE',
+    \ 'cursorline': 1,
     \ 'zindex': 200,
     \ 'filter': function('s:PopupFilter')
   \ }
@@ -137,7 +138,7 @@ function! s:RefItems_popup(filename)
 
     if !empty(items)
 	for i in items
-	    let ref_item = "(" . i["idnum"] . ")\t{" . i["idcode"] . "} {page: " . i["page"] . "} {line: " . i["line"] . "} {file: " . i["file"] . "}"
+	    let ref_item = s:FormatMenuItem(i)
 	    call add(refs, ref_item)
 	endfor
     endif
@@ -175,8 +176,8 @@ function! s:ExtractLabelsBibitemsTags(filename, type)
                 let label = matches[1]
                 let item = {
                     \ 'idcode': label,
-                    \ 'idnum': '',
-                    \ 'page': '',
+                    \ 'idnum': '??',
+                    \ 'page': '??',
                     \ 'line': line_num,
                     \ 'file': fnamemodify(a:filename, ':t'),
                     \ 'full_path': a:filename
@@ -190,8 +191,8 @@ function! s:ExtractLabelsBibitemsTags(filename, type)
                 let bibitem = matches[1]
                 let item = {
                     \ 'idcode': bibitem,
-                    \ 'idnum': '',
-                    \ 'page': '',
+                    \ 'idnum': '??',
+                    \ 'page': '??',
                     \ 'line': line_num,
                     \ 'file': fnamemodify(a:filename, ':t'),
                     \ 'full_path': a:filename
@@ -263,6 +264,43 @@ function! s:FindIncludedFiles(main_file)
     endfor
 
     return included_files
+endfunction
+
+" Function to get all relevant files to search
+" !!! Not called.
+function! s:GetFilesToSearch()
+    let files = []
+    let current_file = expand('%:p')
+
+    " Always include current file
+    call add(files, current_file)
+
+    " Check for main file specification
+    let main_file = s:FindMainFile(current_file)
+    if !empty(main_file) && filereadable(main_file)
+        call add(files, main_file)
+
+        " Add included files
+        let included_files = s:FindIncludedFiles(main_file)
+        call extend(files, included_files)
+    endif
+
+    " Remove duplicates
+    let unique_files = []
+    for file in files
+        if index(unique_files, file) == -1
+            call add(unique_files, file)
+        endif
+    endfor
+
+    return unique_files
+endfunction
+
+" Function to format menu item
+function! s:FormatMenuItem(item)
+    return "(" . a:item.idnum . ")\t{" . a:item.idcode . "} " .
+	\ "{page: " . a:item.page . "} {line: " . a:item.line . "} " .
+	\ "{file: " . a:item.file . "}"
 endfunction
 
 " Show the bibliography popup menu
