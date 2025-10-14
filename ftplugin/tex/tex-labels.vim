@@ -5,8 +5,8 @@
 " Maintainer:   Bin Zhou
 " Version:      0.2
 "
-" Upgraded on: Mon 2025-10-13 00:48:58 CST (+0800)
-" Last change: Mon 2025-10-13 12:51:13 CST (+0800)
+" Upgraded on: Tue 2025-10-14 23:34:45 CST (+0800)
+" Last change: Wed 2025-10-15 00:37:23 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -317,24 +317,26 @@ endfunction
 
 " Popup filter function
 function! s:PopupFilter(winid, key)
-  if a:key == "\<CR>" || a:key == "\<Esc>"
-    " Handle Enter and Escape
-    if a:key == "\<CR>"
-      let line = getbufline(winbufnr(a:winid), line('.'))
-      if !empty(line)
-        call s:InsertReference(line[0])
-      endif
-    endif
-    let b:tex_labels_popup = -1
-    return popup_close(a:winid)
-  elseif a:key =~ "\<Up\|\<Down\|\<PageUp\|\<PageDown>"
-    " Let popup handle navigation
-    return 0
-  else
     " Close popup on any other key
+    if a:key == "\<Esc>"
+	let b:tex_labels_popup = -1
+    endif
+
+    " Handle Enter
+    if a:key == "\<CR>"
+	let line = getbufline(winbufnr(a:winid), line('.'))
+	if !empty(line)
+	    call s:InsertReference(line[0])
+	endif
+    endif
+
+    if a:key =~ "\<Up\|\<Down\|\<PageUp\|\<PageDown>"
+	" Let popup handle navigation
+	" return 0
+    endif
+
     let b:tex_labels_popup = -1
     return popup_close(a:winid)
-  endif
 endfunction
 
 " Insert selected reference
