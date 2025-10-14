@@ -5,8 +5,8 @@
 " Maintainer:   Bin Zhou
 " Version:      0.2
 "
-" Upgraded on: Tue 2025-10-14 23:34:45 CST (+0800)
-" Last change: Wed 2025-10-15 00:37:23 CST (+0800)
+" Upgraded on: Wed 2025-10-15 01:47:33 CST (+0800)
+" Last change: Wed 2025-10-15 03:28:26 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -317,26 +317,84 @@ endfunction
 
 " Popup filter function
 function! s:PopupFilter(winid, key)
-    " Close popup on any other key
-    if a:key == "\<Esc>"
-	let b:tex_labels_popup = -1
+    " Store previous key for gg detection
+    if !exists('b:prev_popup_key')
+        let b:prev_popup_key = ''
     endif
 
-    " Handle Enter
-    if a:key == "\<CR>"
-	let line = getbufline(winbufnr(a:winid), line('.'))
-	if !empty(line)
-	    call s:InsertReference(line[0])
-	endif
-    endif
+    " Handle different keys
+    if a:key == 'n' || a:key == 'j'
+        " Move cursor down one line
+        call win_execute(a:winid, 'normal! j')
+        let b:prev_popup_key = (a:key == 'n' ? 'n' : 'j')
+        return 1
 
-    if a:key =~ "\<Up\|\<Down\|\<PageUp\|\<PageDown>"
-	" Let popup handle navigation
-	" return 0
-    endif
+    elseif a:key == 'p' || a:key == 'N' || a:key == 'k'
+        " Move cursor up one line
+        call win_execute(a:winid, 'normal! k')
+        let b:prev_popup_key = (a:key == 'p' ? 'p' : (a:key == 'N' ? 'N' : 'k'))
+        return 1
 
-    let b:tex_labels_popup = -1
-    return popup_close(a:winid)
+    elseif a:key == ' '
+        " Scroll one page downward
+        "call win_execute(a:winid, 'normal! \<PageDown>')
+        call win_execute(a:winid, 'normal! \<C-F>')
+        let b:prev_popup_key = ' '
+        return 1
+
+    elseif a:key == 'B'
+        " Scroll one page backward
+        "call win_execute(a:winid, 'normal! \<PageUp>')
+        call win_execute(a:winid, 'normal! \<C-B>')
+        let b:prev_popup_key = 'B'
+        return 1
+
+    elseif a:key == 'G'
+        " Jump to last item
+        call win_execute(a:winid, 'normal! G')
+        let b:prev_popup_key = 'G'
+        return 1
+
+    elseif a:key == 'g'
+        " Check for gg sequence
+        if b:prev_popup_key == 'g'
+            " Jump to first item
+            call win_execute(a:winid, 'normal! gg')
+            let b:prev_popup_key = ''
+        else
+            let b:prev_popup_key = 'g'
+        endif
+        return 1
+
+    elseif a:key == "\<CR>"
+        " Enter key - select and insert reference
+        let buf = winbufnr(a:winid)
+        let cursor_line = getbufoneline(buf, line('.')[0])
+        if !empty(cursor_line)
+            " Extract label from the line using the same format as s:FormatMenuItem
+            let label = matchstr(cursor_line, '\v\{[^}]+\}')
+            " Remove the braces
+            let label = substitute(label, '[{}]', '', 'g')
+            if !empty(label)
+                call s:InsertReference(label)
+            endif
+        endif
+        let b:tex_labels_popup = -1
+        call popup_close(a:winid)
+        return 1
+
+    elseif a:key == "\<Esc>"
+        " Close popup on Escape
+        let b:tex_labels_popup = -1
+        call popup_close(a:winid)
+        return 1
+
+    else
+        " Close popup on any other key
+        let b:tex_labels_popup = -1
+        call popup_close(a:winid)
+        return 0
+    endif
 endfunction
 
 " Insert selected reference
