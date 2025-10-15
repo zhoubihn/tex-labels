@@ -5,8 +5,8 @@
 " Maintainer:   Bin Zhou
 " Version:      0.2
 "
-" Upgraded on: Wed 2025-10-15 22:55:25 CST (+0800)
-" Last change: Thu 2025-10-16 00:29:15 CST (+0800)
+" Upgraded on: Thu 2025-10-16 00:33:30 CST (+0800)
+" Last change: Thu 2025-10-16 01:11:59 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -414,7 +414,8 @@ function! s:InsertReference(ref)
     " Replace reference and position cursor
     let new_line = strpart(line, 0, start_col) . ref_name . strpart(line, end_col)
     call setline('.', new_line)
-    call cursor(line('.'), start_col + len(ref_name))
+    call feedkeys("\<Esc>", 'n')
+    call cursor(line('.'), start_col + len(ref_name) + 2)
 endfunction
 
 " Clean up popup when leaving buffer
