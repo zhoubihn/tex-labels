@@ -6,7 +6,7 @@
 " Version:      0.2
 "
 " Upgraded on: Wed 2025-10-15 22:55:25 CST (+0800)
-" Last change: Thu 2025-10-16 00:12:53 CST (+0800)
+" Last change: Thu 2025-10-16 00:29:15 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -369,17 +369,18 @@ function! s:PopupFilter(winid, key)
     elseif a:key == "\<CR>"
         " Enter key - select and insert reference
         let buf = winbufnr(a:winid)
-        let cursor_line = getbufoneline(buf, line('.'))
-	let cursor_line = '{DEBUG_test}'
+        let cursor_line = getbufoneline(buf, line('.', a:winid))
         if !empty(cursor_line)
-            " Extract label from the line using the same format as s:FormatMenuItem
+            " Extract label from the line using the same format as in
+	    " s:FormatMenuItem
             let label = matchstr(cursor_line, '\v\{[^}]+\}')
             " Remove the braces
             let label = substitute(label, '[{}]', '', 'g')
-            if !empty(label)
-                call s:InsertReference(label)
-            endif
+	else
+	    let label = ''
         endif
+
+	call s:InsertReference(label)
         let b:tex_labels_popup = -1
         call popup_close(a:winid)
         return 1
