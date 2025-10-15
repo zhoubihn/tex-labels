@@ -5,8 +5,8 @@
 " Maintainer:   Bin Zhou
 " Version:      0.2
 "
-" Upgraded on: Wed 2025-10-15 01:47:33 CST (+0800)
-" Last change: Wed 2025-10-15 03:28:26 CST (+0800)
+" Upgraded on: Wed 2025-10-15 22:55:25 CST (+0800)
+" Last change: Thu 2025-10-16 00:12:53 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -369,7 +369,8 @@ function! s:PopupFilter(winid, key)
     elseif a:key == "\<CR>"
         " Enter key - select and insert reference
         let buf = winbufnr(a:winid)
-        let cursor_line = getbufoneline(buf, line('.')[0])
+        let cursor_line = getbufoneline(buf, line('.'))
+	let cursor_line = '{DEBUG_test}'
         if !empty(cursor_line)
             " Extract label from the line using the same format as s:FormatMenuItem
             let label = matchstr(cursor_line, '\v\{[^}]+\}')
@@ -399,23 +400,20 @@ endfunction
 
 " Insert selected reference
 function! s:InsertReference(ref)
-  let ref_name = matchstr(a:ref, '\v^[^:]+:\s*\zs.*')
-  if empty(ref_name)
-    return
-  endif
+    let ref_name = a:ref
 
-  " Find and replace reference in current line
-  let line = getline('.')
-  let col = col('.') - 1
+    " Find and replace reference in the triggering buffer
+    let line = getline('.')
+    let col = col('.') - 1
 
-  " Find brace boundaries
-  let start_col = strridx(strpart(line, 0, col), '{') + 1
-  let end_col = stridx(line, '}', col)
+    " Find brace boundaries
+    let start_col = strridx(strpart(line, 0, col), '{') + 1
+    let end_col = stridx(line, '}', col)
 
-  " Replace reference and position cursor
-  let new_line = strpart(line, 0, start_col) . ref_name . strpart(line, end_col)
-  call setline('.', new_line)
-  call cursor(line('.'), start_col + len(ref_name))
+    " Replace reference and position cursor
+    let new_line = strpart(line, 0, start_col) . ref_name . strpart(line, end_col)
+    call setline('.', new_line)
+    call cursor(line('.'), start_col + len(ref_name))
 endfunction
 
 " Clean up popup when leaving buffer
