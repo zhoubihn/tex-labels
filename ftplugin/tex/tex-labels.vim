@@ -5,8 +5,8 @@
 " Maintainer:   Bin Zhou
 " Version:      0.2
 "
-" Upgraded on: Thu 2025-10-16 00:33:30 CST (+0800)
-" Last change: Thu 2025-10-16 01:11:59 CST (+0800)
+" Upgraded on: Thu 2025-10-16 10:12:05 CST (+0800)
+" Last change: Thu 2025-10-16 11:33:47 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -114,10 +114,10 @@ endfunction
 function! s:GetAllReferences()
     let refs = s:RefItems_popup("%")
 
-    let main_file = s:FindMainFile("%")
+    let main_file = s:FindMainFile(@%)
     let included_files = []
 
-    if strlen(main_file) > 0
+    if !empty(main_file) > 0
 	let refs = refs + s:RefItems_popup(main_file)
 
 	let included_files = s:FindIncludedFiles(main_file)
@@ -211,14 +211,14 @@ function! s:FindMainFile(filename)
         return ''
     endif
 
-    let lines = readfile(a:filename)
-    let limit = min([10, len(lines)])
+    let lines = readfile(a:filename, '', 16)
+    let limit = len(lines)
 
     for i in range(limit)
         let line = lines[i]
         let matches = matchlist(line, '%! Main file:[ \t]*\([^ \t\n\r]*\)')
         if len(matches) > 1
-            let main_file = matches[2]
+            let main_file = matches[1]
             " Make it absolute path
             if main_file !~ '^/' && main_file !~ '^~' && main_file !~ '^\$'
                 let main_file = fnamemodify(a:filename, ':h') . '/' . main_file
@@ -248,7 +248,10 @@ function! s:FindIncludedFiles(main_file)
         for cmd in ['include', 'input']
             let matches = matchlist(clean_line, '\\' . cmd . '{\([^}]*\)}')
             if len(matches) > 1
-                let included_file = matches[1]
+                let included_file = trim(matches[1])
+		if included_file !~ '\.tex$'
+		    let included_file = included_file . '.tex'
+		endif
                 " Make it absolute path
                 if included_file !~ '^/' && included_file !~ '^~' && included_file !~ '^\$'
                     let included_file = fnamemodify(a:main_file, ':h') . '/' . included_file
