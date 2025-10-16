@@ -5,8 +5,8 @@
 " Maintainer:   Bin Zhou
 " Version:      0.2
 "
-" Upgraded on: Thu 2025-10-16 10:12:05 CST (+0800)
-" Last change: Thu 2025-10-16 11:33:47 CST (+0800)
+" Upgraded on: Thu 2025-10-16 11:40:24 CST (+0800)
+" Last change: Thu 2025-10-16 22:40:59 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -112,7 +112,7 @@ endfunction
 
 " Get all references from current buffer
 function! s:GetAllReferences()
-    let refs = s:RefItems_popup("%")
+    let refs = s:RefItems_popup(@%)
 
     let main_file = s:FindMainFile(@%)
     let included_files = []
@@ -134,7 +134,7 @@ endfunction
 " Function to generate a List for references
 function! s:RefItems_popup(filename)
     let refs = []
-    let items = s:ExtractLabelsBibitemsTags(a:filename, "label")
+    let items = s:ProcessRefSelection(a:filename, "label")
 
     if !empty(items)
 	for i in items
@@ -176,6 +176,7 @@ function! s:ExtractLabelsBibitemsTags(filename, type)
                 let label = matches[1]
                 let item = {
                     \ 'idcode': label,
+		    \ 'counter': '??',
                     \ 'idnum': '??',
                     \ 'page': '??',
                     \ 'line': line_num,
@@ -301,9 +302,68 @@ endfunction
 
 " Function to format menu item
 function! s:FormatMenuItem(item)
-    return "(" . a:item.idnum . ")\t{" . a:item.idcode . "} " .
-	\ "{page: " . a:item.page . "} {line: " . a:item.line . "} " .
-	\ "{file: " . a:item.file . "}"
+    return "(" . a:item.counter . ": " . a:item.idnum . ")\t{" .
+        \ a:item.idcode . "} {page: " . a:item.page . "} {line: " .
+        \ a:item.line . "} {file: " . a:item.file . "}"
+endfunction
+
+" Function to parse auxiliary file for numbering information
+function! s:ParseAuxFile(aux_file)
+    let aux_data = {}
+
+    if !filereadable(a:aux_file)
+        return aux_data
+    endif
+
+    let lines = readfile(a:aux_file)
+
+    for line in lines
+        " Parse \newlabel commands
+	let matches = matchlist(line, '\\newlabel{\([^}]*\)}{{\([^}]*\)}{\([^}]*\)}{\([^}]*\)}{\([^\.]*\)\.')
+        if len(matches) > 3
+            let label = matches[1]
+            let num = matches[2]
+            let page = matches[3]
+	    let counter = matches[5]
+            let aux_data[label] = {'counter': counter, 'idnum': num, 'page': page}
+        endif
+
+        " Parse \bibcite commands
+        let matches = matchlist(line, '\\bibcite{\([^}]*\)}{\([^}]*\)}')
+        if len(matches) > 2
+            let bibitem = matches[1]
+            let num = matches[2]
+            let aux_data[bibitem] = {'counter': 'bibitem', 'idnum': num, 'page': ''}
+        endif
+    endfor
+
+    "?????????????
+    return aux_data
+endfunction
+
+" Function to process selected file
+" DEBUG:
+function! s:ProcessRefSelection(file, type)
+    "let trigger = s:IsInsideTrigger()
+    "let type = (trigger == 'cite') ? 'bibitem' : 'label'
+
+    let items = s:ExtractLabelsBibitemsTags(a:file, a:type)
+
+    " Parse auxiliary file for numbering
+    let aux_file = fnamemodify(a:file, ':r') . '.aux'
+    let aux_data = s:ParseAuxFile(aux_file)
+
+    " Merge auxiliary data
+    for item in items
+        if has_key(aux_data, item.idcode)
+	    let item.counter = aux_data[item.idcode].counter
+            let item.idnum = aux_data[item.idcode].idnum
+            let item.page = aux_data[item.idcode].page
+        endif
+    endfor
+
+    return items
+    "call s:CreatePopupMenu(items, trigger)
 endfunction
 
 " Show the bibliography popup menu
