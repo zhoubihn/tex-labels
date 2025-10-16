@@ -5,8 +5,8 @@
 " Maintainer:   Bin Zhou
 " Version:      0.3
 "
-" Upgraded on: Thu 2025-10-16 23:58:58 CST (+0800)
-" Last change: Fri 2025-10-17 00:47:00 CST (+0800)
+" Upgraded on: Fri 2025-10-17 01:06:38 CST (+0800)
+" Last change: Fri 2025-10-17 01:42:27 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -387,9 +387,22 @@ function! s:PopupFilter(winid, key)
     if !exists('b:prev_popup_key')
         let b:prev_popup_key = ''
     endif
+    if !exists('b:count')
+	let b:count = ""
+    endif
 
     " Handle different keys
-    if a:key == 'n' || a:key == 'j'
+    if a:key >= '0' && a:key <= '9'
+	let b:prev_popup_key = a:key
+	let b:count = b:count . a:key
+	return 1
+
+    elseif !empty(b:count)
+	call win_execute(a:winid, 'normal! ' . b:count . a:key)
+	let b:count = ""
+	return 1
+
+    elseif a:key == 'n' || a:key == 'j'
         " Move cursor down one line
         call win_execute(a:winid, 'normal! j')
         let b:prev_popup_key = (a:key == 'n' ? 'n' : 'j')
