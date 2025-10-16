@@ -3,10 +3,10 @@
 " 	Provides popup menu for \ref, \eqref, \pageref, and \cite commands
 "
 " Maintainer:   Bin Zhou
-" Version:      0.2
+" Version:      0.3
 "
-" Upgraded on: Thu 2025-10-16 22:46:44 CST (+0800)
-" Last change: Thu 2025-10-16 23:58:58 CST (+0800)
+" Upgraded on: Thu 2025-10-16 23:58:58 CST (+0800)
+" Last change: Fri 2025-10-17 00:47:00 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -22,11 +22,20 @@ if !exists('g:tex_labels_popup_bg')
 endif
 
 if !exists('g:tex_labels_popup_height')
-  let g:tex_labels_popup_height = 6
+  let g:tex_labels_popup_height = 8
+endif
+
+if !exists('g:tex_labels_limit')
+    let g:tex_labels_limit = 4 * g:tex_labels_popup_height
+elseif g:tex_labels_limit < max([g:tex_labels_popup_height, 8])
+    let g:tex_labels_limit = max([g:tex_labels_popup_height, 8])
 endif
 
 " Current popup ID (buffer-local)
 let b:tex_labels_popup = -1
+
+" Number of labels
+let b:tex_labels_item_num = 0
 
 " Setup function - called when this ftplugin is loaded
 function! s:SetupTexLabels()
@@ -93,15 +102,13 @@ function! s:ShowRefPopup()
     \ 'line': winline() + 1,
     \ 'col': wincol(),
     \ 'pos': 'topleft',
-    \ 'height': g:tex_labels_popup_height,
-    \ 'wrap': 'TRUE',
+    \ 'maxheight': g:tex_labels_popup_height,
+    \ 'maxwidth': winwidth(0) - 8,
     \ 'highlight': 'TexLabelsPopup',
     \ 'border': [1, 1, 1, 1],
     \ 'borderhighlight': ['TexLabelsPopupBorder'],
-    \ 'title': ' References ',
+    "\ 'title': ' References ',
     \ 'titlehighlight': 'TexLabelsPopupTitle',
-    \ 'drag': 'TRUE',
-    \ 'scrollbar': 'TRUE',
     \ 'cursorline': 1,
     \ 'zindex': 200,
     \ 'filter': function('s:PopupFilter')
