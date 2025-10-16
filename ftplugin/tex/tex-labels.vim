@@ -5,8 +5,8 @@
 " Maintainer:   Bin Zhou
 " Version:      0.2
 "
-" Upgraded on: Thu 2025-10-16 11:40:24 CST (+0800)
-" Last change: Thu 2025-10-16 22:40:59 CST (+0800)
+" Upgraded on: Thu 2025-10-16 22:46:44 CST (+0800)
+" Last change: Thu 2025-10-16 23:58:58 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -342,11 +342,7 @@ function! s:ParseAuxFile(aux_file)
 endfunction
 
 " Function to process selected file
-" DEBUG:
 function! s:ProcessRefSelection(file, type)
-    "let trigger = s:IsInsideTrigger()
-    "let type = (trigger == 'cite') ? 'bibitem' : 'label'
-
     let items = s:ExtractLabelsBibitemsTags(a:file, a:type)
 
     " Parse auxiliary file for numbering
@@ -398,18 +394,16 @@ function! s:PopupFilter(winid, key)
         let b:prev_popup_key = (a:key == 'p' ? 'p' : (a:key == 'N' ? 'N' : 'k'))
         return 1
 
-    elseif a:key == ' '
+    elseif a:key == "\<Space>" || a:key == "\<C-F>"
         " Scroll one page downward
-        "call win_execute(a:winid, 'normal! \<PageDown>')
-        call win_execute(a:winid, 'normal! \<C-F>')
-        let b:prev_popup_key = ' '
+        call win_execute(a:winid, "normal! \<C-F>")
+        let b:prev_popup_key = (a:key == "\<Space>" ? "\<Space>" : "\<C-F>")
         return 1
 
-    elseif a:key == 'B'
+    elseif a:key == 'b' || a:key == "\<C-B>"
         " Scroll one page backward
-        "call win_execute(a:winid, 'normal! \<PageUp>')
-        call win_execute(a:winid, 'normal! \<C-B>')
-        let b:prev_popup_key = 'B'
+        call win_execute(a:winid, "normal! \<C-B>")
+        let b:prev_popup_key = (a:key == 'b' ? 'b' : "\<C-B>")
         return 1
 
     elseif a:key == 'G'
