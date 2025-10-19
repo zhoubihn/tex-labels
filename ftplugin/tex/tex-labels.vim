@@ -5,8 +5,8 @@
 " Maintainer:   Bin Zhou
 " Version:      0.3
 "
-" Upgraded on: Sun 2025-10-19 08:04:18 CST (+0800)
-" Last change: Sun 2025-10-19 10:16:21 CST (+0800)
+" Upgraded on: Sun 2025-10-19 23:00:01 CST (+0800)
+" Last change: Sun 2025-10-19 23:12:26 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -132,15 +132,19 @@ function! s:FindIncludedFiles(main_file, ...)
 		    let included_file = included_file . '.tex'
 		endif
                 " Make it absolute path
-                if included_file !~ '^/' && included_file !~ '^\~' && included_file !~ '^\$'
-                    let included_file = fnamemodify(a:main_file, ':h') . '/' . included_file
+                if included_file !~ '^/' && included_file !~ '^\~' &&
+			    \ included_file !~ '^\$'
+                    let included_file = fnamemodify(a:main_file, ':h')
+				\ . '/' . included_file
                 endif
                 let included_file = simplify(included_file)
                 call add(included_files, included_file)
 
                 " Recursively find files in the included file
-                let sub_files = s:FindIncludedFiles(included_file)
-                call extend(included_files, sub_files)
+		if a:0 > 0
+		    let sub_files = s:FindIncludedFiles(included_file, 1)
+		    call extend(included_files, sub_files)
+		endif
             endif
         endfor
     endfor
