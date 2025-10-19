@@ -5,8 +5,8 @@
 " Maintainer:   Bin Zhou
 " Version:      0.3
 "
-" Upgraded on: Fri 2025-10-17 01:06:38 CST (+0800)
-" Last change: Fri 2025-10-17 01:42:27 CST (+0800)
+" Upgraded on: Fri 2025-10-17 10:58:54 CST (+0800)
+" Last change: Sun 2025-10-19 07:57:35 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -31,132 +31,141 @@ elseif g:tex_labels_limit < max([g:tex_labels_popup_height, 8])
     let g:tex_labels_limit = max([g:tex_labels_popup_height, 8])
 endif
 
-" Current popup ID (buffer-local)
-let b:tex_labels_popup = -1
 
-" Number of labels
-let b:tex_labels_item_num = 0
+" Whether there are too many labels
+let b:tex_labels_item_overflow = 0
 
-" Setup function - called when this ftplugin is loaded
-function! s:SetupTexLabels()
-  " Trigger popup when entering insert mode
-  autocmd InsertEnter <buffer> call s:TriggerCheck()
 
-  " Clean up popup when leaving buffer
-  autocmd BufLeave <buffer> call s:CleanupPopup()
+" Function returning a List with repeated items in {list} removed
+function! s:RemoveDuplicates(list)
+    if empty(a:list)
+	return a:list
+    endif
 
-  " Add test command
-  command! -buffer TestTexLabelsPopup call s:ShowRefPopup()
+    let clean_list = []
+    for item in a:list
+	if index(clean_list, item) == -1
+	    call add(clean_list, item)
+	endif
+    endfor
+
+    return clean_list
 endfunction
 
-" Check whether some action should be triggered
-function! s:TriggerCheck()
-  let line = getline('.')
-  let col = col('.') - 1
+" Function to find main file specification.
+" At most one main file supported.
+function! s:FindMainFile(filename)
+    if !filereadable(a:filename)
+        return ''
+    endif
 
-  " Quick check: if no '{' before cursor, return early
-  if strridx(strpart(line, 0, col), '{') == -1
-    return
-  endif
+    let lines = readfile(a:filename, '', 16)
+    let line_num = len(lines)
 
-  " Check if cursor is between '{' and '}'
-  let open_brace = strridx(line, '{', col - 1)
-  let close_brace = strridx(line, '}', col - 1)
-  if open_brace < close_brace
-      return
-  else
-      let close_brace = stridx(line, '}', col)
-      if close_brace == -1
-	  return
-      endif
-  endif
+    for i in range(line_num)
+        let line = lines[i]
+        let matches = matchlist(line, '%! Main file:[ \t]*\([^ \t\n\r]*\)')
+        if len(matches) > 1
+            let main_file = matches[1]
+            " Make it absolute path
+            if main_file !~ '^/' && main_file !~ '^\~' && main_file !~ "^\$"
+                let main_file = fnamemodify(a:filename, ":h") . "/" . main_file
+            endif
+            return simplify(main_file)
+        endif
+    endfor
 
-  " Now the cursor is behide '{', and is before or at '}'.
-
-  " Check if it's a command like \ref, \eqref, and so on
-  let before_brace = strpart(line, 0, open_brace)
-  if before_brace =~ '\v\\(ref|eqref|pageref)\s*$'
-      call s:ShowRefPopup()
-  elseif before_brace =~ '\v\\cite\s*$'
-      call s:ShowBibPopup()
-  elseif before_brace =~ '\v\\(label|tag)\s*$'
-      call s:CheckLabels()
-  elseif before_brace =~ '\v\\bibitem(\[[^\]]*\])?\s*$'
-      call s:CheckBibitems()
-  endif
+    return ''
 endfunction
 
-" Show the reference popup menu
-function! s:ShowRefPopup()
-  " Close any existing popup first
-  call s:CleanupPopup()
+" File name of the main LaTeX file
+if !exists('b:tex_labels_MainFile')
+    let b:tex_labels_MainFile = s:FindMainFile(@%)
+endif
 
-  " Get all available references
-  let refs = s:GetAllReferences()
-  if empty(refs)
-    return
-  endif
 
-  " Create popup menu
-  let popup_config = {
-    \ 'line': winline() + 1,
-    \ 'col': wincol(),
-    \ 'pos': 'topleft',
-    \ 'maxheight': g:tex_labels_popup_height,
-    \ 'maxwidth': winwidth(0) - 8,
-    \ 'highlight': 'TexLabelsPopup',
-    \ 'border': [1, 1, 1, 1],
-    \ 'borderhighlight': ['TexLabelsPopupBorder'],
-    "\ 'title': ' References ',
-    \ 'titlehighlight': 'TexLabelsPopupTitle',
-    \ 'cursorline': 1,
-    \ 'zindex': 200,
-    \ 'filter': function('s:PopupFilter')
-  \ }
-
-  let b:tex_labels_popup = popup_create(refs, popup_config)
-endfunction
-
-" Get all references from current buffer
-function! s:GetAllReferences()
-    let refs = s:RefItems_popup(@%)
-
-    let main_file = s:FindMainFile(@%)
+" Function to find included files recursively
+function! s:FindIncludedFiles(main_file)
     let included_files = []
 
-    if !empty(main_file) > 0
-	let refs = refs + s:RefItems_popup(main_file)
-
-	let included_files = s:FindIncludedFiles(main_file)
-	for file in included_files
-	    if simplify(file) != simplify("%")
-		let refs = refs + s:RefItems_popup(file)
-	    endif
-	endfor
+    if !filereadable(a:main_file)
+        return included_files
     endif
 
-    return refs
+    let lines = readfile(a:main_file)
+
+    for line in lines
+        " Remove comments
+        let clean_line = substitute(line, '%.*$', '', '')
+
+        " Check for \include and \input
+        for cmd in ['include', 'input']
+            let matches = matchlist(clean_line, '\\' . cmd . '{\([^}]*\)}')
+            if len(matches) > 1
+                let included_file = trim(matches[1])
+		if included_file !~ '\.tex$'
+		    let included_file = included_file . '.tex'
+		endif
+                " Make it absolute path
+                if included_file !~ '^/' && included_file !~ '^\~' && included_file !~ '^\$'
+                    let included_file = fnamemodify(a:main_file, ':h') . '/' . included_file
+                endif
+                let included_file = simplify(included_file)
+                call add(included_files, included_file)
+
+                " Recursively find files in the included file
+                let sub_files = s:FindIncludedFiles(included_file)
+                call extend(included_files, sub_files)
+            endif
+        endfor
+    endfor
+
+    return s:RemoveDuplicates(included_files)
 endfunction
 
-" Function to generate a List for references
-function! s:RefItems_popup(filename)
-    let refs = []
-    let items = s:ProcessRefSelection(a:filename, "label")
+" Function to get all relevant files to search
+function! s:GetFilesToSearch(...)
+    let files = []
 
-    if !empty(items)
-	for i in items
-	    let ref_item = s:FormatMenuItem(i)
-	    call add(refs, ref_item)
-	endfor
+    if a:0 > 0
+	let main_file = a:1
+    else
+	let main_file = b:tex_labels_MainFile
     endif
 
-    return refs
+    " Check for main file specification
+    if empty(main_file)
+	return files
+    endif
+
+    if getftype(main_file) == "link"
+	main_file = resolve(main_file)
+    endif
+
+    if filereadable(main_file)
+        call add(files, main_file)
+	call extend(files, s:FindIncludedFiles(main_file))
+    endif
+
+    " Always include current file
+    let current_file = expand('%:p')
+    call add(files, current_file)
+    call extend(files, s:FindIncludedFiles(current_file))
+
+    " Remove duplicates
+    return s:RemoveDuplicates(files)
 endfunction
 
 " Function to extract labels and bibitems from a file, with
 "   {type}		'label', 'bibitem' or 'tag'
-function! s:ExtractLabelsBibitemsTags(filename, type)
+" For the first time to call it, do the following:
+"   unlet! b:residue
+function! s:ExtractLabelsBibitemsTags(filename, type, limit)
     let items = []
+
+    if !exists('b:residue')
+	let b:residue = a:limit
+    endif
 
     if a:filename == '%'
 	let lines = getbufline('%', 1, '$')
@@ -164,6 +173,10 @@ function! s:ExtractLabelsBibitemsTags(filename, type)
 	let lines = readfile(a:filename)
     else
         return items
+    endif
+
+    if empty(lines)
+	return items
     endif
 
     for i in range(len(lines))
@@ -191,6 +204,13 @@ function! s:ExtractLabelsBibitemsTags(filename, type)
                     \ 'full_path': a:filename
                     \ }
                 call add(items, item)
+
+		let b:residue = b:residue - 1
+		if b:residue == 0 && i < len(lines)
+		    let b:tex_labels_item_overflow = 1
+		    call remove(items, 0, -1)
+		    return items
+		endif
             endif
         elseif a:type == 'bibitem'
             " Extract \bibitem commands
@@ -206,6 +226,34 @@ function! s:ExtractLabelsBibitemsTags(filename, type)
                     \ 'full_path': a:filename
                     \ }
                 call add(items, item)
+
+		let b:residue = b:residue - 1
+		if b:residue == 0 && i < len(lines)
+		    let b:tex_labels_item_overflow = 1
+		    call remove(items, 0, -1)
+		    return items
+		endif
+            endif
+	elseif a:type == 'tag'
+            " Extract \tag commands
+	    " ??????????????????????????????
+            let matches = matchlist(clean_line, '\\tag{\([^}]*\)}')
+            if len(matches) > 1
+                let label = matches[1]
+                let item = {
+		    \ 'tag': '??',
+                    \ 'line': line_num,
+                    \ 'file': fnamemodify(a:filename, ':t'),
+                    \ 'full_path': a:filename
+                    \ }
+                call add(items, item)
+
+		let b:residue = b:residue - 1
+		if b:residue == 0 && i < len(lines)
+		    let b:tex_labels_item_overflow = 1
+		    call remove(items, 0, -1)
+		    return items
+		endif
             endif
         endif
     endfor
@@ -213,105 +261,22 @@ function! s:ExtractLabelsBibitemsTags(filename, type)
     return items
 endfunction
 
-" Function to find main file specification
-function! s:FindMainFile(filename)
-    if !filereadable(a:filename)
-        return ''
-    endif
+" Function to get all relevant files containing \label or \bibitem
+"   {type}	either "label" or "bibitem"
+function! s:GetFilesWithRefs(type)
+    let label_files = []
+    let b:tex_labels_item_overflow = 0
 
-    let lines = readfile(a:filename, '', 16)
-    let limit = len(lines)
-
-    for i in range(limit)
-        let line = lines[i]
-        let matches = matchlist(line, '%! Main file:[ \t]*\([^ \t\n\r]*\)')
-        if len(matches) > 1
-            let main_file = matches[1]
-            " Make it absolute path
-            if main_file !~ '^/' && main_file !~ '^~' && main_file !~ '^\$'
-                let main_file = fnamemodify(a:filename, ':h') . '/' . main_file
-            endif
-            return simplify(main_file)
-        endif
+    for file in s:GetFilesToSearch()
+	unlet! b:residue
+	call s:ExtractLabelsBibitemsTags(file, a:type, 1)
+	if b:tex_labels_item_overflow
+	    call add(label_files, file)
+	    let b:tex_labels_item_overflow = 0
+	endif
     endfor
 
-    return ''
-endfunction
-
-" Function to find included files recursively
-function! s:FindIncludedFiles(main_file)
-    let included_files = []
-
-    if !filereadable(a:main_file)
-        return included_files
-    endif
-
-    let lines = readfile(a:main_file)
-
-    for line in lines
-        " Remove comments
-        let clean_line = substitute(line, '%.*$', '', '')
-
-        " Check for \include and \input
-        for cmd in ['include', 'input']
-            let matches = matchlist(clean_line, '\\' . cmd . '{\([^}]*\)}')
-            if len(matches) > 1
-                let included_file = trim(matches[1])
-		if included_file !~ '\.tex$'
-		    let included_file = included_file . '.tex'
-		endif
-                " Make it absolute path
-                if included_file !~ '^/' && included_file !~ '^~' && included_file !~ '^\$'
-                    let included_file = fnamemodify(a:main_file, ':h') . '/' . included_file
-                endif
-                let included_file = simplify(included_file)
-                call add(included_files, included_file)
-
-                " Recursively find files in the included file
-                let sub_files = s:FindIncludedFiles(included_file)
-                call extend(included_files, sub_files)
-            endif
-        endfor
-    endfor
-
-    return included_files
-endfunction
-
-" Function to get all relevant files to search
-" !!! Not called.
-function! s:GetFilesToSearch()
-    let files = []
-    let current_file = expand('%:p')
-
-    " Always include current file
-    call add(files, current_file)
-
-    " Check for main file specification
-    let main_file = s:FindMainFile(current_file)
-    if !empty(main_file) && filereadable(main_file)
-        call add(files, main_file)
-
-        " Add included files
-        let included_files = s:FindIncludedFiles(main_file)
-        call extend(files, included_files)
-    endif
-
-    " Remove duplicates
-    let unique_files = []
-    for file in files
-        if index(unique_files, file) == -1
-            call add(unique_files, file)
-        endif
-    endfor
-
-    return unique_files
-endfunction
-
-" Function to format menu item
-function! s:FormatMenuItem(item)
-    return "(" . a:item.counter . ": " . a:item.idnum . ")\t{" .
-        \ a:item.idcode . "} {page: " . a:item.page . "} {line: " .
-        \ a:item.line . "} {file: " . a:item.file . "}"
+    return label_files
 endfunction
 
 " Function to parse auxiliary file for numbering information
@@ -349,8 +314,16 @@ function! s:ParseAuxFile(aux_file)
 endfunction
 
 " Function to process selected file
-function! s:ProcessRefSelection(file, type)
-    let items = s:ExtractLabelsBibitemsTags(a:file, a:type)
+function! s:ProcessRefSelection(file, type, limit)
+    unlet! b:residue
+    let items = s:ExtractLabelsBibitemsTags(a:file, a:type, a:limit)
+
+    if empty(items)
+	return items
+    elseif b:tex_labels_item_overflow
+	call remove(items, 0, -1)
+	return []
+    endif
 
     " Parse auxiliary file for numbering
     let aux_file = fnamemodify(a:file, ':r') . '.aux'
@@ -366,7 +339,378 @@ function! s:ProcessRefSelection(file, type)
     endfor
 
     return items
-    "call s:CreatePopupMenu(items, trigger)
+endfunction
+
+" Function to generate a List for references
+function! s:RefItems_popup(filename, limit)
+    let refs = []
+    let items = s:ProcessRefSelection(a:filename, "label", a:limit)
+
+    if empty(items)
+	return refs
+    elseif b:tex_labels_item_overflow
+	call remove(items, 0, -1)
+	return refs
+    endif
+
+    if !empty(items)
+	for i in items
+	    let ref_item = s:FormatMenuItem(i)
+	    call add(refs, ref_item)
+	endfor
+    endif
+
+    return refs
+endfunction
+
+" Function to format menu item
+function! s:FormatMenuItem(item)
+    return "(" . a:item.counter . ": " . a:item.idnum . ")\t{" .
+        \ a:item.idcode . "} {page: " . a:item.page . "} {line: " .
+        \ a:item.line . "} {file: " . a:item.file . "}"
+endfunction
+
+" Behaving like GNU make, the function s:Update_InclFile([filename]) updates
+" the auxiliary file
+"   substitute(filename, '\.tex$', '\.incl', '').
+" If {filename} is omitted, its default value is b:tex_labels_MainFile.
+function! s:Update_InclFile(...)
+    if a:0 > 0
+	let filename = a:1
+    else
+	let filename = b:tex_labels_MainFile
+    endif
+
+    if empty(filename)
+	return
+    endif
+
+    let target = substitute(filename, '\.tex$', '\.incl', '')
+    let included_files = []
+
+    if getftype(filename) == "link"
+	let filename = resolve(filename)
+    endif
+
+    if !filereadable(filename)
+	return
+    endif
+
+    if empty(getfperm(target))
+	let included_files = s:GetFilesToSearch(filename)
+	call writefile(included_files, target)
+	return
+    endif
+
+    " Here {included_files} is still empty, and
+    " there has been the file {target}.
+    let update_needed = 0
+    let lines = readfile(target)
+    let mtime = getftime(target)
+
+    if empty(lines)
+	return
+    endif
+
+    for file in lines
+	if getftime(file) > mtime
+	    let update_needed = 1
+	endif
+    endfor
+
+    if update_needed
+	let included_files = s:GetFilesToSearch(filename)
+	call writefile(included_files, target)
+    endif
+endfunction
+
+" Behaving like GNU make, the function s:Update_AuxFiles([type [, filename]])
+" updates the auxiliary files <file.type> when {type} is given as "label",
+" "bibitem" or "tag", and {file} is
+"   substitute(filename, '\.tex$', '.' . type, '')
+" when {filename} is also given.
+" When {filename} is omitted, each file (except for the current file)
+" listed in the file
+"   substitute(b:tex_labels_MainFile, '\.tex$', '\.incl', '')
+" is checked and updated, if necessary.
+" When {type} is not given, either, files with postfix ".label" and ".bibitem"
+" are all updated, if necessary.
+"
+"   {type}	"label", "bibitem" or "tag"
+function! s:Update_AuxFiles(...)
+    let current_file = fnamemodify('%', ':p')
+
+    if a:0 >= 2
+	if a:1 != 'label' &&  a:1 != 'bibitem' && a:1 != 'tag'
+	    echo "Unknown value of {type} \'" . a:1 . "\'.  Nothing done."
+	    return
+	endif
+
+	let aux_file = substitute(a:2, '\.tex$', '.' . a:1, '')
+
+	if getftype(a:2) == "link"
+	    let filename = resolve(a:2)
+	else
+	    let filename = a:2
+	endif
+
+	if filereadable(filename) && ( empty(getfperm(aux_file)) ||
+		    \ getftime(filename) > getftime(aux_file)
+		    \ )
+	    if a:1 == "label"
+		let items = s:RefItems_popup(a:2, 0)
+
+	    elseif a:1 == "bibitem"
+		let items = ["Under construction..."]
+
+	    else
+		let items = ["Under construction..."]
+
+	    endif
+
+	    call writefile(items, aux_file)
+	endif
+
+	return
+
+    elseif a:0 == 1
+	call s:Update_InclFile()
+
+	if !empty(b:tex_labels_MainFile)
+	    let main_file = b:tex_labels_MainFile
+	else
+	    let main_file = current_file
+	endif
+
+	let incl_file = substitute(main_file, '\.tex$', '\.incl', '')
+	if filereadable(incl_file)
+	    let searched_files = readfile(incl_file)
+	else
+	    echo "File <" . incl_file . "> does not exist or is not readble."
+	    return
+	endif
+
+	for file in searched_files
+	    " Auxiliary files related to the current file are not updated:
+	    "if fnamemodify(file, ':p') == current_file
+	"	continue
+	    "endif
+
+	    call s:Update_AuxFiles(a:1, file)
+	endfor
+
+	return
+
+    else
+	for type in ["label", "bibitem", "tag"]
+	    call s:Update_AuxFiles(type)
+	endfor
+
+	return
+    endif
+endfunction
+
+
+
+" List of files recursively included/input by the main LaTeX file
+if exists('b:tex_labels_IncludedFiles')
+    unlet b:tex_labels_IncludedFiles
+endif
+
+if !empty(b:tex_labels_MainFile)
+    call s:Update_AuxFiles()
+    let b:tex_labels_IncludedFiles = readfile(substitute(b:tex_labels_MainFile,
+		\ '\.tex$', '\.incl', ''))
+endif
+for type in ["label", "bibitem", "tag"]
+    call s:Update_InclFile(@%)
+    call s:Update_AuxFiles(type, @%)
+endfor
+
+" List of files containing \label, \bibitem or \tag
+if !exists('b:tex_labels_files_with_label')
+    let b:tex_labels_files_with_label = s:GetFilesWithRefs("label")
+endif
+if !exists('b:tex_labels_files_with_bibitem')
+    let b:tex_labels_files_with_bibitem = s:GetFilesWithRefs("bibitem")
+endif
+if !exists('b:tex_labels_files_with_tag')
+    let b:tex_labels_files_with_tag = s:GetFilesWithRefs("tag")
+endif
+
+
+" Setup function - called when this ftplugin is loaded
+function! s:SetupTexLabels()
+  " Trigger popup when entering insert mode
+  autocmd InsertEnter <buffer> call s:TriggerCheck()
+
+  " Clean up popup when leaving buffer
+  autocmd BufLeave <buffer> call s:CleanupPopup()
+
+  " Add test command
+  command! -buffer TestTexLabelsPopup call s:ShowRefPopup(g:tex_labels_limit)
+endfunction
+
+" Check whether some action should be triggered
+function! s:TriggerCheck()
+    let line = getline('.')
+    let col = col('.') - 1
+
+    " Quick check: if no '{' before cursor, return early
+    if strridx(strpart(line, 0, col), '{') == -1
+	return
+    endif
+
+    " Check if cursor is between '{' and '}'
+    let open_brace = strridx(line, '{', col - 1)
+    let close_brace = strridx(line, '}', col - 1)
+    if open_brace < close_brace
+	return
+    else
+	let close_brace = stridx(line, '}', col)
+	if close_brace == -1
+	    return
+	endif
+    endif
+
+    " Now the cursor is behide '{', and is before or at '}'.
+
+    " Check if it's a command like \ref, \eqref, and so on
+    let before_brace = strpart(line, 0, open_brace)
+    if before_brace =~ '\v\\(ref|eqref|pageref)\s*$'
+	call s:ShowRefPopup(g:tex_labels_limit)
+    elseif before_brace =~ '\v\\cite\s*$'
+	call s:ShowBibPopup(g:tex_labels_limit)
+    elseif before_brace =~ '\v\\(label|tag)\s*$'
+	call s:CheckLabels()
+    elseif before_brace =~ '\v\\bibitem(\[[^\]]*\])?\s*$'
+	call s:CheckBibitems()
+    endif
+endfunction
+
+
+" Current popup ID (buffer-local)
+let b:tex_labels_popup = -1
+
+" Show the reference popup menu
+function! s:ShowRefPopup(limit)
+    " Close any existing popup first
+    call s:CleanupPopup()
+
+    " Get all variables ready
+    let b:tex_labels_item_overflow = 0
+    let refs = s:GetAllReferences(a:limit)
+    unlet! b:residue
+
+    if b:tex_labels_item_overflow
+	let b:tex_labels_item_overflow = 0
+	if !empty(refs)
+	    call remove(refs, 0, -1)
+	endif
+
+	if !empty(b:tex_labels_IncludedFiles)
+	    call add(refs, "Select according to files\t(Press Ctrl-F)")
+	    call add(refs, "Select according to counters\t(Press Ctrl-C)")
+
+	    let popup_config = {
+			\ 'line': winline() + 1,
+			\ 'col': wincol(),
+			\ 'pos': 'topleft',
+			\ 'maxheight': g:tex_labels_popup_height,
+			\ 'maxwidth': winwidth(0) - 8,
+			\ 'highlight': 'TexLabelsPopup',
+			\ 'border': [1, 1, 1, 1],
+			\ 'borderhighlight': ['TexLabelsPopupBorder'],
+			"\ 'title': ' References ',
+			\ 'titlehighlight': 'TexLabelsPopupTitle',
+			\ 'cursorline': 1,
+			\ 'zindex': 200,
+			\ 'filter': function('s:PopupFilter_guide')
+			\ }
+	else
+	    call s:popup_counters()
+	    return
+	endif
+    elseif empty(refs)
+	" Create error message
+	call s:ShowWarningMessage("No labels found.")
+	return
+    else
+    	let popup_config = {
+		    \ 'line': winline() + 1,
+		    \ 'col': wincol(),
+		    \ 'pos': 'topleft',
+		    \ 'maxheight': g:tex_labels_popup_height,
+		    \ 'maxwidth': winwidth(0) - 8,
+		    \ 'highlight': 'TexLabelsPopup',
+		    \ 'border': [1, 1, 1, 1],
+		    \ 'borderhighlight': ['TexLabelsPopupBorder'],
+		    "\ 'title': ' References ',
+    		    \ 'titlehighlight': 'TexLabelsPopupTitle',
+		    \ 'cursorline': 1,
+		    \ 'zindex': 200,
+		    \ 'filter': function('s:PopupFilter')
+		    \ }
+    endif
+
+    " Create popup menu
+    let b:tex_labels_popup = popup_create(refs, popup_config)
+endfunction
+
+function! s:ShowWarningMessage(message)
+    let text = []
+    call add(text, a:message)
+    call add(text, "")
+    call add(text, "Press any key to close this window.")
+
+    let popup_config = {
+		\ 'line': winline() + 1,
+		\ 'col': wincol(),
+		\ 'pos': 'topleft',
+		\ 'maxheight': 4,
+		\ 'maxwidth': winwidth(0) - 8,
+		\ 'highlight': 'TexLabelsPopup',
+		\ 'border': [1, 1, 1, 1],
+		\ 'borderhighlight': ['TexLabelsPopupBorder'],
+		\ 'title': ' Warning ',
+		\ 'titlehighlight': 'TexLabelsPopupTitle',
+		"\ 'cursorline': 1,
+		\ 'zindex': 200,
+		\ 'filter': function('s:PopupFilter_void')
+		\ }
+    call popup_create(text, popup_config)
+endfunction
+
+" Get all references from current buffer
+function! s:GetAllReferences(limit)
+    let refs = s:RefItems_popup(@%, a:limit)
+
+    if empty(refs)
+	return refs
+    elseif b:tex_labels_item_overflow
+	call remove(refs, 0, -1)
+	return refs
+    endif
+
+    if !empty(b:tex_labels_MainFile) > 0
+	let refs = refs + s:RefItems_popup(b:tex_labels_MainFile, a:limit)
+	if b:tex_labels_item_overflow
+	    call remove(refs, 0, -1)
+	    return refs
+	endif
+
+	for file in b:tex_labels_IncludedFiles
+	    if simplify(file) != simplify("%")
+		let refs = refs + s:RefItems_popup(file, a:limit)
+		if b:tex_labels_item_overflow
+		    call remove(refs, 0, -1)
+		    return refs
+		endif
+	    endif
+	endfor
+    endif
+
+    return refs
 endfunction
 
 " Show the bibliography popup menu
@@ -387,6 +731,8 @@ function! s:PopupFilter(winid, key)
     if !exists('b:prev_popup_key')
         let b:prev_popup_key = ''
     endif
+
+    " Store a digital number for repeated command
     if !exists('b:count')
 	let b:count = ""
     endif
@@ -476,6 +822,68 @@ function! s:PopupFilter(winid, key)
     endif
 endfunction
 
+" Popup filter function
+function! s:PopupFilter_guide(winid, key)
+    " Store previous key for gg detection
+    if !exists('b:menu_selection')
+        let b:menu_selection = 'F'
+    endif
+
+    " Handle different keys
+    if a:key == 'j'
+        " Move cursor down one line
+        call win_execute(a:winid, 'normal! j')
+        let b:menu_selection = 'C'
+        return 1
+
+    elseif a:key == 'k'
+        " Move cursor up one line
+        call win_execute(a:winid, 'normal! k')
+        let b:menu_selection = 'F'
+        return 1
+
+    elseif a:key == "\<CR>"
+        let b:tex_labels_popup = -1
+        call popup_close(a:winid)
+
+	if b:menu_selection == 'F'
+	    call s:popup_files()
+	elseif b:menu_selection == 'C'
+	    call s:popup_counters()
+	endif
+
+        return 1
+
+    elseif a:key == "\<C-F>"
+        let b:tex_labels_popup = -1
+        call popup_close(a:winid)
+	call s:popup_files()
+	return 1
+
+    elseif a:key == "\<C-C>"
+        let b:tex_labels_popup = -1
+        call popup_close(a:winid)
+	call s:popup_counters()
+	return 1
+
+    elseif a:key == "\<Esc>"
+        let b:tex_labels_popup = -1
+        call popup_close(a:winid)
+	return 1
+
+    else
+        return 1
+    endif
+endfunction
+
+" Popup filter function when no labels found
+function! s:PopupFilter_void(winid, key)
+    " Close popup on any other key
+    "let b:tex_labels_popup = -1
+    call popup_close(a:winid)
+    return 1
+endfunction
+
 " Insert selected reference
 function! s:InsertReference(ref)
     let ref_name = a:ref
@@ -501,6 +909,68 @@ function! s:CleanupPopup()
     call popup_close(b:tex_labels_popup)
     let b:tex_labels_popup = -1
   endif
+endfunction
+
+" Open the file-selection popup window
+" {type}	being "label" or "bibitem" only
+function! s:popup_files(type)
+    " Close any existing popup first
+    call s:CleanupPopup()
+
+    if a:type == "label"
+	if empty(b:tex_labels_files_with_label)
+	    call s:ShowWarningMessage("No files containing \\label")
+	    return
+	else
+	    let files = b:tex_labels_files_with_label
+
+	    let popup_config = {
+			\ 'line': winline() + 1,
+			\ 'col': wincol(),
+			\ 'pos': 'topleft',
+			\ 'maxheight': g:tex_labels_popup_height,
+			\ 'maxwidth': winwidth(0) - 8,
+			\ 'highlight': 'TexLabelsPopup',
+			\ 'border': [1, 1, 1, 1],
+			\ 'borderhighlight': ['TexLabelsPopupBorder'],
+			\ 'title': ' Search in one of these files: ',
+			\ 'titlehighlight': 'TexLabelsPopupTitle',
+			\ 'cursorline': 1,
+			\ 'zindex': 200,
+			\ 'filter': function('s:PopupFilter_file')
+			\ }
+	endif
+    elseif a:type == "bibitem"
+	if empty(b:tex_labels_files_with_bibitem)
+	    call s:ShowWarningMessage("No files containing \\bibitem")
+	    return
+	else
+	    let files = b:tex_labels_files_with_bibitem
+
+	    let popup_config = {
+			\ 'line': winline() + 1,
+			\ 'col': wincol(),
+			\ 'pos': 'topleft',
+			\ 'maxheight': g:tex_labels_popup_height,
+			\ 'maxwidth': winwidth(0) - 8,
+			\ 'highlight': 'TexLabelsPopup',
+			\ 'border': [1, 1, 1, 1],
+			\ 'borderhighlight': ['TexLabelsPopupBorder'],
+			\ 'title': ' Search in one of these files: ',
+			\ 'titlehighlight': 'TexLabelsPopupTitle',
+			\ 'cursorline': 1,
+			\ 'zindex': 200,
+			\ 'filter': function('s:PopupFilter_bibitem')
+			\ }
+	endif
+    endif
+
+    " Create popup menu
+    let b:tex_labels_popup = popup_create(files, popup_config)
+endfunction
+
+" Open the counter-selection popup window
+function! s:popup_counters()
 endfunction
 
 " Set up highlighting (only once globally)
