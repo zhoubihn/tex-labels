@@ -5,8 +5,8 @@
 " Maintainer:   Bin Zhou
 " Version:      0.3
 "
-" Upgraded on: Sun 2025-10-19 23:00:01 CST (+0800)
-" Last change: Sun 2025-10-19 23:12:26 CST (+0800)
+" Upgraded on: Sun 2025-10-19 23:20:11 CST (+0800)
+" Last change: Mon 2025-10-20 00:36:35 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -167,19 +167,19 @@ function! s:GetFilesToSearch(...)
 	return files
     endif
 
-    if getftype(main_file) == "link"
-	main_file = resolve(main_file)
-    endif
+"    if getftype(main_file) == "link"
+"	main_file = resolve(main_file)
+"    endif
 
     if filereadable(main_file)
         call add(files, main_file)
-	call extend(files, s:FindIncludedFiles(main_file))
+	call extend(files, s:FindIncludedFiles(main_file), 1)
     endif
 
     " Always include current file
     let current_file = expand('%:p')
     call add(files, current_file)
-    call extend(files, s:FindIncludedFiles(current_file))
+    call extend(files, s:FindIncludedFiles(current_file), 1)
 
     " Remove duplicates
     return s:RemoveDuplicates(files)
@@ -417,40 +417,32 @@ function! s:Update_InclFile(...)
     let target = substitute(filename, '\.tex$', '\.incl', '')
     let included_files = []
 
-    if getftype(filename) == "link"
-	let filename = resolve(filename)
-    endif
+"    if getftype(filename) == "link"
+"	let filename = resolve(filename)
+"    endif
 
     if !filereadable(filename)
 	return
     endif
 
-    if empty(getfperm(target))
-	let included_files = s:GetFilesToSearch(filename)
+    if empty(getfperm(target)) || getftime(filename) > getftime(target)
+	"let included_files = s:GetFilesToSearch(filename)
+	let included_files = s:FindIncludedFiles(filename)
 	call writefile(included_files, target)
 	return
     endif
 
-    " Here {included_files} is still empty, and
-    " there has been the file {target}.
-    let update_needed = 0
     let lines = readfile(target)
-    let mtime = getftime(target)
 
     if empty(lines)
 	return
     endif
 
     for file in lines
-	if getftime(file) > mtime
-	    let update_needed = 1
+	if !empty(file)
+	    call s:Update_InclFile(file)
 	endif
     endfor
-
-    if update_needed
-	let included_files = s:GetFilesToSearch(filename)
-	call writefile(included_files, target)
-    endif
 endfunction
 
 " Behaving like GNU make, the function s:Update_AuxFiles([type [, filename]])
