@@ -5,8 +5,8 @@
 " Maintainer:   Bin Zhou
 " Version:      0.3
 "
-" Upgraded on: Fri 2025-10-17 10:58:54 CST (+0800)
-" Last change: Sun 2025-10-19 07:57:35 CST (+0800)
+" Upgraded on: Sun 2025-10-19 08:04:18 CST (+0800)
+" Last change: Sun 2025-10-19 10:16:21 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -52,6 +52,28 @@ function! s:RemoveDuplicates(list)
     return clean_list
 endfunction
 
+" Function returning a string with TeX comments removed from the string {text}
+function! s:RemoveTeXComment(text)
+    let i = stridx(a:text, '%')
+    if i == 0
+	return ""
+    elseif i < 0
+	return a:text
+    endif
+
+    " Now there is '%' in {text} somewhere not in the beginning:
+    while i > 0
+	if  strpart(a:text, i - 1, 1) != '\'
+	    return strpart(a:text, 0, i)
+	else
+	    let length = i
+	    let i = stridx(a:text, '%', i + 1)
+	endif
+    endwhile
+
+    return a:text
+endfunction
+
 " Function to find main file specification.
 " At most one main file supported.
 function! s:FindMainFile(filename)
@@ -75,17 +97,20 @@ function! s:FindMainFile(filename)
         endif
     endfor
 
+    " Maybe {filename} should be returned instead?
     return ''
 endfunction
 
 " File name of the main LaTeX file
+" Maybe always updated?
 if !exists('b:tex_labels_MainFile')
     let b:tex_labels_MainFile = s:FindMainFile(@%)
 endif
 
 
 " Function to find included files recursively
-function! s:FindIncludedFiles(main_file)
+" The second parameter triggers a recursive search.
+function! s:FindIncludedFiles(main_file, ...)
     let included_files = []
 
     if !filereadable(a:main_file)
@@ -96,7 +121,7 @@ function! s:FindIncludedFiles(main_file)
 
     for line in lines
         " Remove comments
-        let clean_line = substitute(line, '%.*$', '', '')
+        let clean_line = s:RemoveTeXComment(line)
 
         " Check for \include and \input
         for cmd in ['include', 'input']
@@ -184,7 +209,7 @@ function! s:ExtractLabelsBibitemsTags(filename, type, limit)
         let line_num = i + 1
 
         " Remove comments
-        let clean_line = substitute(line, '%.*$', '', '')
+        let clean_line = s:RemoveTeXComment(line)
         if empty(clean_line)
             continue
         endif
