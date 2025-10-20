@@ -5,8 +5,8 @@
 " Maintainer:   Bin Zhou
 " Version:      0.3
 "
-" Upgraded on: Sun 2025-10-19 23:20:11 CST (+0800)
-" Last change: Mon 2025-10-20 00:36:35 CST (+0800)
+" Upgraded on: Mon 2025-10-20 00:53:28 CST (+0800)
+" Last change: Mon 2025-10-20 21:41:17 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -117,7 +117,14 @@ function! s:FindIncludedFiles(main_file, ...)
         return included_files
     endif
 
-    let lines = readfile(a:main_file)
+    if v:os == 'win32' || ( &modified &&
+	    \ fnamemodify(a:main_file, ":p") ==# fnamemodify(expand("%"), ":p")
+	    \ )
+	let lines = readfile(a:main_file)
+    else
+	let lines = systemlist('grep \include{ ' . a:main_file)
+	let lines = extend(lines, systemlist('grep \input{ ' . a:main_file))
+    endif
 
     for line in lines
         " Remove comments
