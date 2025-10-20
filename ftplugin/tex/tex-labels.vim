@@ -5,8 +5,8 @@
 " Maintainer:   Bin Zhou
 " Version:      0.3
 "
-" Upgraded on: Mon 2025-10-20 21:49:32 CST (+0800)
-" Last change: Mon 2025-10-20 22:39:21 CST (+0800)
+" Upgraded on: Mon 2025-10-20 23:51:50 CST (+0800)
+" Last change: Tue 2025-10-21 01:09:12 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -160,6 +160,7 @@ function! s:FindIncludedFiles(main_file, ...)
 endfunction
 
 " Function to get all relevant files to search
+" call s:GetFilesToSearch([main_file])
 function! s:GetFilesToSearch(...)
     let files = []
 
@@ -170,7 +171,7 @@ function! s:GetFilesToSearch(...)
     endif
 
     " Check for main file specification
-    if empty(main_file)
+    if empty(main_file) || !filereadable(main_file)
 	return files
     endif
 
@@ -178,15 +179,27 @@ function! s:GetFilesToSearch(...)
 "	main_file = resolve(main_file)
 "    endif
 
-    if filereadable(main_file)
-        call add(files, main_file)
-	call extend(files, s:FindIncludedFiles(main_file), 1)
-    endif
 
-    " Always include current file
+    " Always include current file, together with files included by current
+    " file
     let current_file = expand('%:p')
-    call add(files, current_file)
-    call extend(files, s:FindIncludedFiles(current_file), 1)
+    for root in [main_file, current_file]
+	call s:Update_InclFile(root)
+
+	let root_incl = substitute(root, '\.tex$', '\.incl', '')
+	if !filereadable(root_incl)
+	    continue
+	endif
+
+	call add(files, root)
+
+	let included_files = readfile(root_incl)
+	call extend(files, included_files)
+
+	for file in included_files
+	    call extend(files, s:Update_InclFile(file))
+	endfor
+    endfor
 
     " Remove duplicates
     return s:RemoveDuplicates(files)
