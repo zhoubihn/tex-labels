@@ -5,8 +5,8 @@
 " Maintainer:   Bin Zhou
 " Version:      0.3
 "
-" Upgraded on: Mon 2025-10-20 00:53:28 CST (+0800)
-" Last change: Mon 2025-10-20 21:41:17 CST (+0800)
+" Upgraded on: Mon 2025-10-20 21:49:32 CST (+0800)
+" Last change: Mon 2025-10-20 22:39:21 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -117,7 +117,7 @@ function! s:FindIncludedFiles(main_file, ...)
         return included_files
     endif
 
-    if v:os == 'win32' || ( &modified &&
+    if has("win64") || has("win32") || ( &modified &&
 	    \ fnamemodify(a:main_file, ":p") ==# fnamemodify(expand("%"), ":p")
 	    \ )
 	let lines = readfile(a:main_file)
