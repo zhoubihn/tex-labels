@@ -5,8 +5,8 @@
 " Maintainer:   Bin Zhou
 " Version:      0.3
 "
-" Upgraded on: Tue 2025-10-21 01:10:02 CST (+0800)
-" Last change: Tue 2025-10-21 01:11:29 CST (+0800)
+" Upgraded on: Tue 2025-10-21 01:12:19 CST (+0800)
+" Last change: Tue 2025-10-21 01:38:39 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -171,27 +171,29 @@ function! s:GetFilesToSearch(...)
     endif
 
     " Check for main file specification
-    if empty(main_file) || !filereadable(main_file)
-	return files
+    if !empty(main_file) && filereadable(main_file)
+	let roots = [main_file]
+    else
+	let roots = []
     endif
-
-"    if getftype(main_file) == "link"
-"	main_file = resolve(main_file)
-"    endif
-
 
     " Always include current file, together with files included by current
     " file
     let current_file = expand('%:p')
-    for root in [main_file, current_file]
-	call s:Update_InclFile(root)
+    if fnamemodify(main_file, ':p') != fnamemodify(b:tex_labels_MainFile, ':p')
+		\ && fnamemodify(main_file, ':p') != fnamemodify(current_file, ':p')
+	call add(roots, current_file)
+    endif
 
-	let root_incl = substitute(root, '\.tex$', '\.incl', '')
+    for root_file in roots
+	call s:Update_InclFile(root_file)
+
+	let root_incl = substitute(root_file, '\.tex$', '\.incl', '')
 	if !filereadable(root_incl)
 	    continue
 	endif
 
-	call add(files, root)
+	call add(files, root_file)
 
 	let included_files = readfile(root_incl)
 	call extend(files, included_files)
@@ -553,15 +555,8 @@ endfunction
 
 
 
-" List of files recursively included/input by the main LaTeX file
-if exists('b:tex_labels_IncludedFiles')
-    unlet b:tex_labels_IncludedFiles
-endif
-
 if !empty(b:tex_labels_MainFile)
     call s:Update_AuxFiles()
-    let b:tex_labels_IncludedFiles = readfile(substitute(b:tex_labels_MainFile,
-		\ '\.tex$', '\.incl', ''))
 endif
 for type in ["label", "bibitem", "tag"]
     call s:Update_InclFile(@%)
@@ -649,7 +644,8 @@ function! s:ShowRefPopup(limit)
 	    call remove(refs, 0, -1)
 	endif
 
-	if !empty(b:tex_labels_IncludedFiles)
+	let included_files = s:GetFilesToSearch()
+	if !empty(included_files)
 	    call add(refs, "Select according to files\t(Press Ctrl-F)")
 	    call add(refs, "Select according to counters\t(Press Ctrl-C)")
 
@@ -740,7 +736,7 @@ function! s:GetAllReferences(limit)
 	    return refs
 	endif
 
-	for file in b:tex_labels_IncludedFiles
+	for file in s:GetFilesToSearch()
 	    if simplify(file) != simplify("%")
 		let refs = refs + s:RefItems_popup(file, a:limit)
 		if b:tex_labels_item_overflow
