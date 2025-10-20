@@ -5,8 +5,8 @@
 " Maintainer:   Bin Zhou
 " Version:      0.3
 "
-" Upgraded on: Mon 2025-10-20 23:51:50 CST (+0800)
-" Last change: Tue 2025-10-21 01:09:12 CST (+0800)
+" Upgraded on: Tue 2025-10-21 01:10:02 CST (+0800)
+" Last change: Tue 2025-10-21 01:11:29 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -197,7 +197,7 @@ function! s:GetFilesToSearch(...)
 	call extend(files, included_files)
 
 	for file in included_files
-	    call extend(files, s:Update_InclFile(file))
+	    call extend(files, s:GetFilesToSearch(file))
 	endfor
     endfor
 
