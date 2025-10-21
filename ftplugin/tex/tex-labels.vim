@@ -5,8 +5,8 @@
 " Maintainer:   Bin Zhou
 " Version:      0.3
 "
-" Upgraded on: Wed 2025-10-22 00:36:58 CST (+0800)
-" Last change: Wed 2025-10-22 01:01:13 CST (+0800)
+" Upgraded on: Wed 2025-10-22 01:11:10 CST (+0800)
+" Last change: Wed 2025-10-22 01:14:21 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -188,6 +188,52 @@ function! s:FindIncludedFiles(main_file, ...)
     endfor
 
     return s:RemoveDuplicates(included_files)
+endfunction
+
+" Behaving like GNU make, the function s:Update_InclFile([filename]) updates
+" the auxiliary file
+"   substitute(filename, '\.tex$', '\.incl', '').
+" If {filename} is omitted, its default value is b:tex_labels_MainFile.
+function! s:Update_InclFile(...)
+    if a:0 > 0
+	let filename = a:1
+    else
+	let filename = b:tex_labels_MainFile
+    endif
+
+    if empty(filename)
+	return
+    endif
+
+    let target = substitute(filename, '\.tex$', '\.incl', '')
+    let included_files = []
+
+"    if getftype(filename) == "link"
+"	let filename = resolve(filename)
+"    endif
+
+    if !filereadable(filename)
+	return
+    endif
+
+    if empty(getfperm(target)) || getftime(filename) > getftime(target)
+	"let included_files = s:GetFilesToSearch(filename)
+	let included_files = s:FindIncludedFiles(filename)
+	call writefile(included_files, target)
+	return
+    endif
+
+    let lines = readfile(target)
+
+    if empty(lines)
+	return
+    endif
+
+    for file in lines
+	if !empty(file)
+	    call s:Update_InclFile(file)
+	endif
+    endfor
 endfunction
 
 " Function to get all relevant files to search
@@ -450,52 +496,6 @@ function! s:FormatMenuItem(item)
     return "(" . a:item.counter . ": " . a:item.idnum . ")\t{" .
         \ a:item.idcode . "} {page: " . a:item.page . "} {line: " .
         \ a:item.line . "} {file: " . a:item.file . "}"
-endfunction
-
-" Behaving like GNU make, the function s:Update_InclFile([filename]) updates
-" the auxiliary file
-"   substitute(filename, '\.tex$', '\.incl', '').
-" If {filename} is omitted, its default value is b:tex_labels_MainFile.
-function! s:Update_InclFile(...)
-    if a:0 > 0
-	let filename = a:1
-    else
-	let filename = b:tex_labels_MainFile
-    endif
-
-    if empty(filename)
-	return
-    endif
-
-    let target = substitute(filename, '\.tex$', '\.incl', '')
-    let included_files = []
-
-"    if getftype(filename) == "link"
-"	let filename = resolve(filename)
-"    endif
-
-    if !filereadable(filename)
-	return
-    endif
-
-    if empty(getfperm(target)) || getftime(filename) > getftime(target)
-	"let included_files = s:GetFilesToSearch(filename)
-	let included_files = s:FindIncludedFiles(filename)
-	call writefile(included_files, target)
-	return
-    endif
-
-    let lines = readfile(target)
-
-    if empty(lines)
-	return
-    endif
-
-    for file in lines
-	if !empty(file)
-	    call s:Update_InclFile(file)
-	endif
-    endfor
 endfunction
 
 " Behaving like GNU make, the function s:Update_AuxFiles([type [, filename]])
