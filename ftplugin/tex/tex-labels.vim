@@ -5,8 +5,8 @@
 " Maintainer:   Bin Zhou
 " Version:      0.3
 "
-" Upgraded on: Wed 2025-10-22 01:11:10 CST (+0800)
-" Last change: Wed 2025-10-22 01:14:21 CST (+0800)
+" Upgraded on: Wed 2025-10-22 01:19:13 CST (+0800)
+" Last change: Wed 2025-10-22 01:45:22 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -193,15 +193,22 @@ endfunction
 " Behaving like GNU make, the function s:Update_InclFile([filename]) updates
 " the auxiliary file
 "   substitute(filename, '\.tex$', '\.incl', '').
-" If {filename} is omitted, its default value is b:tex_labels_MainFile.
+" If {filename} is omitted or empty, its default value is
+"	b:tex_labels_MainFile when it is nonempty; or
+"	the current file provided that b:tex_labels_MainFile is empty.
 function! s:Update_InclFile(...)
-    if a:0 > 0
-	let filename = a:1
-    else
+    " Set the value of {filename}
+    if a:0 > 0 && !empty(a:1)
+	let filename = s:GetAbsolutePath(a:1)
+    elseif !empty(b:tex_labels_MainFile)
 	let filename = b:tex_labels_MainFile
+    else
+	let filename = s:GetAbsolutePath("%")
     endif
 
-    if empty(filename)
+    if filename !~ '\.tex$'
+	echo "s:Update_InclFile: File name <" . filename . "> without postfix <.tex>?"
+	echo "s:Update_InclFile stops."
 	return
     endif
 
@@ -213,23 +220,24 @@ function! s:Update_InclFile(...)
 "    endif
 
     if !filereadable(filename)
+	echo "s:Update_InclFile: file <" . filename . "> not readable."
+	echo "s:Update_InclFile stops."
 	return
     endif
 
     if empty(getfperm(target)) || getftime(filename) > getftime(target)
-	"let included_files = s:GetFilesToSearch(filename)
 	let included_files = s:FindIncludedFiles(filename)
 	call writefile(included_files, target)
 	return
     endif
 
-    let lines = readfile(target)
+    let included_files = readfile(target)
 
-    if empty(lines)
+    if empty(included_files)
 	return
     endif
 
-    for file in lines
+    for file in included_files
 	if !empty(file)
 	    call s:Update_InclFile(file)
 	endif
