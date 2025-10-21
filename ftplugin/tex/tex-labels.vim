@@ -6,7 +6,7 @@
 " Version:      0.3
 "
 " Upgraded on: Tue 2025-10-21 02:05:02 CST (+0800)
-" Last change: Tue 2025-10-21 20:10:07 CST (+0800)
+" Last change: Tue 2025-10-21 21:41:43 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -102,7 +102,9 @@ function! s:FindMainFile(filename)
 	    elseif main_file !~ '^/'
                 let main_file = fnamemodify(a:filename, ":h") . "/" . main_file
             endif
-            return simplify(main_file)
+
+	    let main_file = simplify(main_file)
+            return fnamemodify(main_file, ':p')
         endif
     endfor
 
@@ -154,6 +156,7 @@ function! s:FindIncludedFiles(main_file, ...)
 				\ . '/' . included_file
                 endif
                 let included_file = simplify(included_file)
+                let included_file = fnamemodify(included_file, ':p')
                 call add(included_files, included_file)
 
                 " Recursively find files in the included file
