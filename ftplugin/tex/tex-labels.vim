@@ -5,8 +5,8 @@
 " Maintainer:   Bin Zhou
 " Version:      0.3
 "
-" Upgraded on: Tue 2025-10-21 21:42:58 CST (+0800)
-" Last change: Wed 2025-10-22 00:25:57 CST (+0800)
+" Upgraded on: Wed 2025-10-22 00:27:08 CST (+0800)
+" Last change: Wed 2025-10-22 00:34:30 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -97,7 +97,7 @@ function! s:GetAbsolutePath(filename, ...)
     endif
 
     " relative path calculated:
-    let path = fnamemodify(relative, ":p:h") . path
+    let path = fnamemodify(relative, ":p:h") . "/" . path
     return simplify(path)
 endfunction
 
