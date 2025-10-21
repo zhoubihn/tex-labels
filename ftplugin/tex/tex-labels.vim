@@ -6,7 +6,7 @@
 " Version:      0.3
 "
 " Upgraded on: Tue 2025-10-21 21:42:58 CST (+0800)
-" Last change: Wed 2025-10-22 00:19:42 CST (+0800)
+" Last change: Wed 2025-10-22 00:25:57 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -116,15 +116,11 @@ function! s:FindMainFile(filename)
         let matches = matchlist(line, '%! Main file:[ \t]*\([^ \t\n\r]*\)')
         if len(matches) > 1
             let main_file = matches[1]
-            " Make it an absolute path
-	    if main_file =~ '^\~' || main_file =~ '^\$'
-		let main_file = expand(main_file)
-	    elseif main_file !~ '^/'
-                let main_file = fnamemodify(a:filename, ":h") . "/" . main_file
-            endif
-
-	    let main_file = simplify(main_file)
-            return fnamemodify(main_file, ':p')
+	    if empty(main_file)
+		continue
+	    else
+		return s:GetAbsolutePath(main_file, a:filename)
+	    endif
         endif
     endfor
 
