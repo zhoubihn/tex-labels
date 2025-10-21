@@ -5,8 +5,8 @@
 " Maintainer:   Bin Zhou
 " Version:      0.3
 "
-" Upgraded on: Wed 2025-10-22 00:27:08 CST (+0800)
-" Last change: Wed 2025-10-22 00:34:30 CST (+0800)
+" Upgraded on: Wed 2025-10-22 00:36:58 CST (+0800)
+" Last change: Wed 2025-10-22 01:01:13 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -139,21 +139,27 @@ endif
 " The second parameter triggers a recursive search.
 function! s:FindIncludedFiles(main_file, ...)
     let included_files = []
+    let main_file = s:GetAbsolutePath(a:main_file)
+    let current_file = s:GetAbsolutePath("%")
 
-    if !filereadable(a:main_file)
+    if !filereadable(main_file)
         return included_files
     endif
 
-    if has("win64") || has("win32") || ( &modified &&
-	    \ fnamemodify(a:main_file, ":p") ==# fnamemodify(expand("%"), ":p")
-	    \ )
-	let lines = readfile(a:main_file)
+    " If the OS is MS Windows, or
+    " if {main_file} is the current file and is modified:
+    if has("win64") || has("win32") || (
+		\ &modified && main_file ==# current_file
+		\ )
+	let lines_read = readfile(main_file)
     else
-	let lines = systemlist('grep \include{ ' . a:main_file)
-	let lines = extend(lines, systemlist('grep \input{ ' . a:main_file))
+	let lines_read = systemlist('grep \include{ ' . main_file)
+	let lines_read = extend(lines_read,
+		    \ systemlist('grep \input{ ' . main_file)
+		    \ )
     endif
 
-    for line in lines
+    for line in lines_read
         " Remove comments
         let clean_line = s:RemoveTeXComment(line)
 
@@ -162,17 +168,14 @@ function! s:FindIncludedFiles(main_file, ...)
             let matches = matchlist(clean_line, '\\' . cmd . '{\([^}]*\)}')
             if len(matches) > 1
                 let included_file = trim(matches[1])
+		if empty(included_file)
+		    continue
+		endif
+
 		if included_file !~ '\.tex$'
 		    let included_file = included_file . '.tex'
 		endif
-                " Make it absolute path
-                if included_file !~ '^/' && included_file !~ '^\~' &&
-			    \ included_file !~ '^\$'
-                    let included_file = fnamemodify(a:main_file, ':h')
-				\ . '/' . included_file
-                endif
-                let included_file = simplify(included_file)
-                let included_file = fnamemodify(included_file, ':p')
+                let included_file = s:GetAbsolutePath(included_file, main_file)
                 call add(included_files, included_file)
 
                 " Recursively find files in the included file
