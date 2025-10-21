@@ -5,8 +5,8 @@
 " Maintainer:   Bin Zhou
 " Version:      0.3
 "
-" Upgraded on: Tue 2025-10-21 02:05:02 CST (+0800)
-" Last change: Tue 2025-10-21 21:41:43 CST (+0800)
+" Upgraded on: Tue 2025-10-21 21:42:58 CST (+0800)
+" Last change: Wed 2025-10-22 00:19:42 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -79,6 +79,26 @@ function! s:RemoveTeXComment(text)
     endwhile
 
     return a:text
+endfunction
+
+" Function to obtain the absolute path of {filename}, with respect to {a:1}
+" if it presents.
+function! s:GetAbsolutePath(filename, ...)
+    let path = expand(a:filename)
+
+    if path =~ '^/'
+	return simplify(path)
+    endif
+
+    if a:0 > 0 && !empty(a:1)
+	let relative = expand(a:1)
+    else
+	let relative = expand("%")
+    endif
+
+    " relative path calculated:
+    let path = fnamemodify(relative, ":p:h") . path
+    return simplify(path)
 endfunction
 
 " Function to find main file specification.
