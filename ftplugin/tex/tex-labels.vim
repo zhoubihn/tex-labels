@@ -5,8 +5,8 @@
 " Maintainer:   Bin Zhou
 " Version:      0.3
 "
-" Upgraded on: Tue 2025-10-21 01:12:19 CST (+0800)
-" Last change: Tue 2025-10-21 01:38:39 CST (+0800)
+" Upgraded on: Tue 2025-10-21 02:05:02 CST (+0800)
+" Last change: Tue 2025-10-21 20:10:07 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -31,12 +31,19 @@ elseif g:tex_labels_limit < max([g:tex_labels_popup_height, 8])
     let g:tex_labels_limit = max([g:tex_labels_popup_height, 8])
 endif
 
+" Searching for '%! Main file: ...' only in the top
+" {g:tex_labels_mainfile_scope} lines of the current file.
+if !exists('g:tex_labels_mainfile_scope')
+    let g:tex_labels_mainfile_scope = 16
+endif
+
 
 " Whether there are too many labels
 let b:tex_labels_item_overflow = 0
 
 
-" Function returning a List with repeated items in {list} removed
+" Function returning a List with repeated items in {list} removed.
+" Note that uniq() removes adjacent repeated items only.
 function! s:RemoveDuplicates(list)
     if empty(a:list)
 	return a:list
@@ -52,7 +59,7 @@ function! s:RemoveDuplicates(list)
     return clean_list
 endfunction
 
-" Function returning a string with TeX comments removed from the string {text}
+" Function returning a string with TeX comments removed from the string {text}.
 function! s:RemoveTeXComment(text)
     let i = stridx(a:text, '%')
     if i == 0
@@ -81,7 +88,7 @@ function! s:FindMainFile(filename)
         return ''
     endif
 
-    let lines = readfile(a:filename, '', 16)
+    let lines = readfile(a:filename, '', g:tex_labels_mainfile_scope)
     let line_num = len(lines)
 
     for i in range(line_num)
@@ -89,8 +96,10 @@ function! s:FindMainFile(filename)
         let matches = matchlist(line, '%! Main file:[ \t]*\([^ \t\n\r]*\)')
         if len(matches) > 1
             let main_file = matches[1]
-            " Make it absolute path
-            if main_file !~ '^/' && main_file !~ '^\~' && main_file !~ "^\$"
+            " Make it an absolute path
+	    if main_file =~ '^\~' || main_file =~ '^\$'
+		let main_file = expand(main_file)
+	    elseif main_file !~ '^/'
                 let main_file = fnamemodify(a:filename, ":h") . "/" . main_file
             endif
             return simplify(main_file)
@@ -884,9 +893,9 @@ function! s:PopupFilter_guide(winid, key)
         call popup_close(a:winid)
 
 	if b:menu_selection == 'F'
-	    call s:popup_files()
+	    call s:popup_files('label')
 	elseif b:menu_selection == 'C'
-	    call s:popup_counters()
+	    call s:popup_counters('label')
 	endif
 
         return 1
@@ -894,13 +903,13 @@ function! s:PopupFilter_guide(winid, key)
     elseif a:key == "\<C-F>"
         let b:tex_labels_popup = -1
         call popup_close(a:winid)
-	call s:popup_files()
+	call s:popup_files('label')
 	return 1
 
     elseif a:key == "\<C-C>"
         let b:tex_labels_popup = -1
         call popup_close(a:winid)
-	call s:popup_counters()
+	call s:popup_counters('label')
 	return 1
 
     elseif a:key == "\<Esc>"
@@ -1004,6 +1013,202 @@ function! s:popup_files(type)
 
     " Create popup menu
     let b:tex_labels_popup = popup_create(files, popup_config)
+endfunction
+
+" Popup filter function for file selection
+" ???????????????????????????????????????????????????!!!!!!!!!!!!!!
+function! s:PopupFilter_file(winid, key)
+    " Store previous key for gg detection
+    if !exists('b:prev_popup_key')
+        let b:prev_popup_key = ''
+    endif
+
+    " Store a digital number for repeated command
+    if !exists('b:count')
+	let b:count = ""
+    endif
+
+    " Handle different keys
+    if a:key >= '0' && a:key <= '9'
+	let b:prev_popup_key = a:key
+	let b:count = b:count . a:key
+	return 1
+
+    elseif !empty(b:count)
+	call win_execute(a:winid, 'normal! ' . b:count . a:key)
+	let b:count = ""
+	return 1
+
+    elseif a:key == 'n' || a:key == 'j'
+        " Move cursor down one line
+        call win_execute(a:winid, 'normal! j')
+        let b:prev_popup_key = (a:key == 'n' ? 'n' : 'j')
+        return 1
+
+    elseif a:key == 'p' || a:key == 'N' || a:key == 'k'
+        " Move cursor up one line
+        call win_execute(a:winid, 'normal! k')
+        let b:prev_popup_key = (a:key == 'p' ? 'p' : (a:key == 'N' ? 'N' : 'k'))
+        return 1
+
+    elseif a:key == "\<Space>" || a:key == "\<C-F>"
+        " Scroll one page downward
+        call win_execute(a:winid, "normal! \<C-F>")
+        let b:prev_popup_key = (a:key == "\<Space>" ? "\<Space>" : "\<C-F>")
+        return 1
+
+    elseif a:key == 'b' || a:key == "\<C-B>"
+        " Scroll one page backward
+        call win_execute(a:winid, "normal! \<C-B>")
+        let b:prev_popup_key = (a:key == 'b' ? 'b' : "\<C-B>")
+        return 1
+
+    elseif a:key == 'G'
+        " Jump to last item
+        call win_execute(a:winid, 'normal! G')
+        let b:prev_popup_key = 'G'
+        return 1
+
+    elseif a:key == 'g'
+        " Check for gg sequence
+        if b:prev_popup_key == 'g'
+            " Jump to first item
+            call win_execute(a:winid, 'normal! gg')
+            let b:prev_popup_key = ''
+        else
+            let b:prev_popup_key = 'g'
+        endif
+        return 1
+
+    elseif a:key == "\<CR>"
+        " Enter key - select and insert reference
+        let buf = winbufnr(a:winid)
+        let cursor_line = getbufoneline(buf, line('.', a:winid))
+        if !empty(cursor_line)
+            " Extract label from the line using the same format as in
+	    " s:FormatMenuItem
+            let label = matchstr(cursor_line, '\v\{[^}]+\}')
+            " Remove the braces
+            let label = substitute(label, '[{}]', '', 'g')
+	else
+	    let label = ''
+        endif
+
+	call s:InsertReference(label)
+        let b:tex_labels_popup = -1
+        call popup_close(a:winid)
+        return 1
+
+    elseif a:key == "\<Esc>"
+        " Close popup on Escape
+        let b:tex_labels_popup = -1
+        call popup_close(a:winid)
+        return 1
+
+    else
+        " Close popup on any other key
+        let b:tex_labels_popup = -1
+        call popup_close(a:winid)
+        return 0
+    endif
+endfunction
+
+" Popup filter function
+" ??????????????????????????????????????????????!!!!!!!!!!!!!!!!!!!!!
+function! s:PopupFilter_bibitem(winid, key)
+    " Store previous key for gg detection
+    if !exists('b:prev_popup_key')
+        let b:prev_popup_key = ''
+    endif
+
+    " Store a digital number for repeated command
+    if !exists('b:count')
+	let b:count = ""
+    endif
+
+    " Handle different keys
+    if a:key >= '0' && a:key <= '9'
+	let b:prev_popup_key = a:key
+	let b:count = b:count . a:key
+	return 1
+
+    elseif !empty(b:count)
+	call win_execute(a:winid, 'normal! ' . b:count . a:key)
+	let b:count = ""
+	return 1
+
+    elseif a:key == 'n' || a:key == 'j'
+        " Move cursor down one line
+        call win_execute(a:winid, 'normal! j')
+        let b:prev_popup_key = (a:key == 'n' ? 'n' : 'j')
+        return 1
+
+    elseif a:key == 'p' || a:key == 'N' || a:key == 'k'
+        " Move cursor up one line
+        call win_execute(a:winid, 'normal! k')
+        let b:prev_popup_key = (a:key == 'p' ? 'p' : (a:key == 'N' ? 'N' : 'k'))
+        return 1
+
+    elseif a:key == "\<Space>" || a:key == "\<C-F>"
+        " Scroll one page downward
+        call win_execute(a:winid, "normal! \<C-F>")
+        let b:prev_popup_key = (a:key == "\<Space>" ? "\<Space>" : "\<C-F>")
+        return 1
+
+    elseif a:key == 'b' || a:key == "\<C-B>"
+        " Scroll one page backward
+        call win_execute(a:winid, "normal! \<C-B>")
+        let b:prev_popup_key = (a:key == 'b' ? 'b' : "\<C-B>")
+        return 1
+
+    elseif a:key == 'G'
+        " Jump to last item
+        call win_execute(a:winid, 'normal! G')
+        let b:prev_popup_key = 'G'
+        return 1
+
+    elseif a:key == 'g'
+        " Check for gg sequence
+        if b:prev_popup_key == 'g'
+            " Jump to first item
+            call win_execute(a:winid, 'normal! gg')
+            let b:prev_popup_key = ''
+        else
+            let b:prev_popup_key = 'g'
+        endif
+        return 1
+
+    elseif a:key == "\<CR>"
+        " Enter key - select and insert reference
+        let buf = winbufnr(a:winid)
+        let cursor_line = getbufoneline(buf, line('.', a:winid))
+        if !empty(cursor_line)
+            " Extract label from the line using the same format as in
+	    " s:FormatMenuItem
+            let label = matchstr(cursor_line, '\v\{[^}]+\}')
+            " Remove the braces
+            let label = substitute(label, '[{}]', '', 'g')
+	else
+	    let label = ''
+        endif
+
+	call s:InsertReference(label)
+        let b:tex_labels_popup = -1
+        call popup_close(a:winid)
+        return 1
+
+    elseif a:key == "\<Esc>"
+        " Close popup on Escape
+        let b:tex_labels_popup = -1
+        call popup_close(a:winid)
+        return 1
+
+    else
+        " Close popup on any other key
+        let b:tex_labels_popup = -1
+        call popup_close(a:winid)
+        return 0
+    endif
 endfunction
 
 " Open the counter-selection popup window
