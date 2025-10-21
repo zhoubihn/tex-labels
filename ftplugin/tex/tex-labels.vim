@@ -5,8 +5,8 @@
 " Maintainer:   Bin Zhou
 " Version:      0.3
 "
-" Upgraded on: Wed 2025-10-22 01:19:13 CST (+0800)
-" Last change: Wed 2025-10-22 01:45:22 CST (+0800)
+" Upgraded on: Wed 2025-10-22 01:50:20 CST (+0800)
+" Last change: Wed 2025-10-22 04:49:50 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -209,9 +209,10 @@ function! s:Update_InclFile(...)
     if filename !~ '\.tex$'
 	echo "s:Update_InclFile: File name <" . filename . "> without postfix <.tex>?"
 	echo "s:Update_InclFile stops."
-	return
+	return -1
     endif
 
+    " The file <xxx.incl> is in the same directory of <xxx.tex>.
     let target = substitute(filename, '\.tex$', '\.incl', '')
     let included_files = []
 
@@ -222,41 +223,46 @@ function! s:Update_InclFile(...)
     if !filereadable(filename)
 	echo "s:Update_InclFile: file <" . filename . "> not readable."
 	echo "s:Update_InclFile stops."
-	return
+	return -1
     endif
 
     if empty(getfperm(target)) || getftime(filename) > getftime(target)
 	let included_files = s:FindIncludedFiles(filename)
 	call writefile(included_files, target)
-	return
     endif
 
     let included_files = readfile(target)
 
     if empty(included_files)
-	return
+	return 0
     endif
 
     for file in included_files
-	if !empty(file)
-	    call s:Update_InclFile(file)
+	if !empty(file) && s:Update_InclFile(file) < 0
+	    return -1
 	endif
     endfor
+    return 0
 endfunction
 
 " Function to get all relevant files to search
 " call s:GetFilesToSearch([main_file])
 function! s:GetFilesToSearch(...)
+    let current_file = s:GetAbsolutePath("%")
     let files = []
 
-    if a:0 > 0
-	let main_file = a:1
-    else
+    if a:0 > 0 && !empty(a:1)
+	let main_file = s:GetAbsolutePath(a:1)
+    elseif !empty(b:tex_labels_MainFile)
 	let main_file = b:tex_labels_MainFile
+    else
+	let main_file = current_file
     endif
 
+    " Now {main_file} is nonempty
+
     " Check for main file specification
-    if !empty(main_file) && filereadable(main_file)
+    if filereadable(main_file)
 	let roots = [main_file]
     else
 	let roots = []
@@ -264,14 +270,14 @@ function! s:GetFilesToSearch(...)
 
     " Always include current file, together with files included by current
     " file
-    let current_file = expand('%:p')
-    if fnamemodify(main_file, ':p') != fnamemodify(b:tex_labels_MainFile, ':p')
-		\ && fnamemodify(main_file, ':p') != fnamemodify(current_file, ':p')
+    if main_file != current_file && main_file != b:tex_labels_MainFile
 	call add(roots, current_file)
     endif
 
     for root_file in roots
-	call s:Update_InclFile(root_file)
+	if s:Update_InclFile(root_file) < 0
+	    return []
+	endif
 
 	let root_incl = substitute(root_file, '\.tex$', '\.incl', '')
 	if !filereadable(root_incl)
