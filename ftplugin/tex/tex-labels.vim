@@ -5,8 +5,8 @@
 " Maintainer:   Bin Zhou
 " Version:      0.3
 "
-" Upgraded on: Wed 2025-10-22 16:45:42 CST (+0800)
-" Last change: Wed 2025-10-22 17:26:08 CST (+0800)
+" Upgraded on: Wed 2025-10-22 17:28:41 CST (+0800)
+" Last change: Wed 2025-10-22 23:43:27 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -348,7 +348,7 @@ function! s:ExtractLabelsBibitemsTags(filename, type, limit)
 
             let item = {
 			\ 'idcode': label,
-			\ 'counter': '??',
+			\ 'counter': a:type == 'tag' ? 'tag' : '??',
 			\ 'idnum': '??',
 			\ 'page': '??',
 			\ 'line': line_num,
@@ -420,7 +420,14 @@ function! s:ParseAuxFile(aux_file)
 endfunction
 
 " Function to process selected file
-function! s:ProcessRefSelection(file, type, limit)
+function! s:CompleteLabelInfo(file, type, limit)
+    if a:type == "tag"
+	return []
+    elseif a:type != "label" && a:type != "bibitem"
+	echo "s:CompleteLabelInfo: Unknown type " . a:type . "."
+	return []
+    endif
+
     let file = s:GetAbsolutePath(a:file)
     let items = s:ExtractLabelsBibitemsTags(file, a:type, a:limit)
 
@@ -449,43 +456,53 @@ function! s:ProcessRefSelection(file, type, limit)
     return items
 endfunction
 
-" Behaving like GNU make, the function s:Update_AuxFiles([type [, filename]])
-" updates the auxiliary files <file.type> when {type} is given as "label",
-" "bibitem" or "tag", and {file} is
-"   substitute(filename, '\.tex$', '.' . type, '')
+" Behaving like GNU make, the function
+"	s:Update_AuxFiles([type [, filename]])
+" updates auxiliary files <file.type> when {type} is given as "label", "bibitem"
+" or "tag", and {file} is
+"	substitute(filename, '\.tex$', '.' . type, '')
 " when {filename} is also given.
 " When {filename} is omitted, each file (except for the current file)
 " listed in the file
-"   substitute(b:tex_labels_MainFile, '\.tex$', '\.incl', '')
+" 	substitute(b:tex_labels_MainFile, '\.tex$', '\.incl', '')
 " is checked and updated, if necessary.
 " When {type} is not given, either, files with postfix ".label" and ".bibitem"
 " are all updated, if necessary.
 "
 "   {type}	"label", "bibitem" or "tag"
 function! s:Update_AuxFiles(...)
-    let current_file = fnamemodify('%', ':p')
+    let current_file = s:GetAbsolutePath('%')
+    let type = ''
 
     if a:0 >= 2
 	if a:1 != 'label' &&  a:1 != 'bibitem' && a:1 != 'tag'
-	    echo "Unknown value of {type} \'" . a:1 . "\'.  Nothing done."
+	    echo "s:Update_AuxFiles: Unknown  type \'" . a:1 . "\'.  Nothing done."
+	    return
+	else
+	    let type = a:1
+	endif
+
+	if !empty(a:2)
+	    let filename = s:GetAbsolutePath(a:2)
+	    let aux_file = substitute(filename, '\.tex$', '.' . type, '')
+	else
+	    call s:Update_AuxFiles(type)
 	    return
 	endif
 
-	let aux_file = substitute(a:2, '\.tex$', '.' . a:1, '')
-
-	if getftype(a:2) == "link"
-	    let filename = resolve(a:2)
-	else
-	    let filename = a:2
-	endif
+"	if getftype(a:2) == "link"
+"	    let filename = resolve(a:2)
+"	else
+"	    let filename = a:2
+"	endif
 
 	if filereadable(filename) && ( empty(getfperm(aux_file)) ||
 		    \ getftime(filename) > getftime(aux_file)
 		    \ )
-	    if a:1 == "label"
-		let items = s:RefItems_popup(a:2, 0)
+	    if type == "label"
+		let items = s:RefItems_popup(filename, 0)
 
-	    elseif a:1 == "bibitem"
+	    elseif type == "bibitem"
 		let items = ["Under construction..."]
 
 	    else
@@ -560,7 +577,7 @@ endif
 " Function to generate a List for references
 function! s:RefItems_popup(filename, limit)
     let refs = []
-    let items = s:ProcessRefSelection(a:filename, "label", a:limit)
+    let items = s:CompleteLabelInfo(a:filename, "label", a:limit)
 
     if empty(items)
 	return refs
