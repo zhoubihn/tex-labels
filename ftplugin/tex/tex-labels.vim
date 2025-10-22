@@ -5,8 +5,8 @@
 " Maintainer:   Bin Zhou
 " Version:      0.3
 "
-" Upgraded on: Wed 2025-10-22 01:50:20 CST (+0800)
-" Last change: Wed 2025-10-22 04:49:50 CST (+0800)
+" Upgraded on: Wed 2025-10-22 04:52:10 CST (+0800)
+" Last change: Wed 2025-10-22 15:57:24 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -146,11 +146,10 @@ function! s:FindIncludedFiles(main_file, ...)
         return included_files
     endif
 
-    " If the OS is MS Windows, or
-    " if {main_file} is the current file and is modified:
-    if has("win64") || has("win32") || (
-		\ &modified && main_file ==# current_file
-		\ )
+    if main_file ==# current_file && &modified
+	" {main_file} is the current file and is modified:
+	let lines_read = getbufline('%', 1, '$')
+    elseif has("win64") || has("win32")
 	let lines_read = readfile(main_file)
     else
 	let lines_read = systemlist('grep \include{ ' . main_file)
@@ -300,21 +299,33 @@ endfunction
 
 " Function to extract labels and bibitems from a file, with
 "   {type}		'label', 'bibitem' or 'tag'
+"   {limit}		returns all extracted items when {limit} == 0, and
+"   			returns [] when {limit} > 0 with extracted items more
+"   			than {limit}
 " For the first time to call it, do the following:
 "   unlet! b:residue
 function! s:ExtractLabelsBibitemsTags(filename, type, limit)
     let items = []
+    let filename = s:GetAbsolutePath(a:filename)
+    let current_file = s:GetAbsolutePath("%")
 
-    if !exists('b:residue')
-	let b:residue = a:limit
+"    if !exists('b:residue')
+"	let b:residue = a:limit
+"    endif
+
+    if empty(a:filename) || !filereadable(filename)
+	return items
     endif
 
-    if a:filename == '%'
+    let grep_called = 0
+    if filename ==# current_file && &modified
+	" {main_file} is the current file and is modified:
 	let lines = getbufline('%', 1, '$')
-    elseif filereadable(a:filename)
-	let lines = readfile(a:filename)
+    elseif has("win64") || has("win32")
+	let lines = readfile(filename)
     else
-        return items
+	let lines = systemlist('grep -n \\' . a:type . '{ ' . filename)
+	let grep_called = 1
     endif
 
     if empty(lines)
@@ -331,73 +342,32 @@ function! s:ExtractLabelsBibitemsTags(filename, type, limit)
             continue
         endif
 
-        if a:type == 'label'
-            " Extract \label commands
-            let matches = matchlist(clean_line, '\\label{\([^}]*\)}')
-            if len(matches) > 1
-                let label = matches[1]
-                let item = {
-                    \ 'idcode': label,
-		    \ 'counter': '??',
-                    \ 'idnum': '??',
-                    \ 'page': '??',
-                    \ 'line': line_num,
-                    \ 'file': fnamemodify(a:filename, ':t'),
-                    \ 'full_path': a:filename
-                    \ }
-                call add(items, item)
+        " Extract \label commands
+        let matches = matchlist(clean_line, '\\' . a:type . '{\([^}]*\)}')
+	if len(matches) > 1
+	    let label = matches[1]
 
-		let b:residue = b:residue - 1
-		if b:residue == 0 && i < len(lines)
-		    let b:tex_labels_item_overflow = 1
-		    call remove(items, 0, -1)
-		    return items
-		endif
-            endif
-        elseif a:type == 'bibitem'
-            " Extract \bibitem commands
-            let matches = matchlist(clean_line, '\\bibitem{\([^}]*\)}')
-            if len(matches) > 1
-                let bibitem = matches[1]
-                let item = {
-                    \ 'idcode': bibitem,
-                    \ 'idnum': '??',
-                    \ 'page': '??',
-                    \ 'line': line_num,
-                    \ 'file': fnamemodify(a:filename, ':t'),
-                    \ 'full_path': a:filename
-                    \ }
-                call add(items, item)
+	    if grep_called
+		let line_num = matchlist(clean_line, '^.*:')[1]
+	    endif
 
-		let b:residue = b:residue - 1
-		if b:residue == 0 && i < len(lines)
-		    let b:tex_labels_item_overflow = 1
-		    call remove(items, 0, -1)
-		    return items
-		endif
-            endif
-	elseif a:type == 'tag'
-            " Extract \tag commands
-	    " ??????????????????????????????
-            let matches = matchlist(clean_line, '\\tag{\([^}]*\)}')
-            if len(matches) > 1
-                let label = matches[1]
-                let item = {
-		    \ 'tag': '??',
-                    \ 'line': line_num,
-                    \ 'file': fnamemodify(a:filename, ':t'),
-                    \ 'full_path': a:filename
-                    \ }
-                call add(items, item)
+            let item = {
+			\ 'idcode': label,
+			\ 'counter': '',
+			\ 'idnum': '??',
+			\ 'page': '??',
+			\ 'line': line_num,
+			\ 'file': fnamemodify(a:filename, ':t'),
+			\ 'full_path': a:filename
+			\ }
+	    call add(items, item)
 
-		let b:residue = b:residue - 1
-		if b:residue == 0 && i < len(lines)
-		    let b:tex_labels_item_overflow = 1
-		    call remove(items, 0, -1)
-		    return items
-		endif
-            endif
-        endif
+	    if len(items) == a:limit && i + 1 < len(lines)
+		let b:tex_labels_item_overflow = 1
+		call remove(items, 0, -1)
+		return items
+	    endif
+	endif
     endfor
 
     return items
