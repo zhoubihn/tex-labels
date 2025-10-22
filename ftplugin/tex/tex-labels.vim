@@ -5,8 +5,8 @@
 " Maintainer:   Bin Zhou
 " Version:      0.3
 "
-" Upgraded on: Wed 2025-10-22 04:52:10 CST (+0800)
-" Last change: Wed 2025-10-22 15:57:24 CST (+0800)
+" Upgraded on: Wed 2025-10-22 16:45:42 CST (+0800)
+" Last change: Wed 2025-10-22 17:26:08 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -303,15 +303,10 @@ endfunction
 "   			returns [] when {limit} > 0 with extracted items more
 "   			than {limit}
 " For the first time to call it, do the following:
-"   unlet! b:residue
 function! s:ExtractLabelsBibitemsTags(filename, type, limit)
     let items = []
     let filename = s:GetAbsolutePath(a:filename)
     let current_file = s:GetAbsolutePath("%")
-
-"    if !exists('b:residue')
-"	let b:residue = a:limit
-"    endif
 
     if empty(a:filename) || !filereadable(filename)
 	return items
@@ -353,7 +348,7 @@ function! s:ExtractLabelsBibitemsTags(filename, type, limit)
 
             let item = {
 			\ 'idcode': label,
-			\ 'counter': '',
+			\ 'counter': '??',
 			\ 'idnum': '??',
 			\ 'page': '??',
 			\ 'line': line_num,
@@ -375,12 +370,12 @@ endfunction
 
 " Function to get all relevant files containing \label or \bibitem
 "   {type}	either "label" or "bibitem"
+" obsolete
 function! s:GetFilesWithRefs(type)
     let label_files = []
     let b:tex_labels_item_overflow = 0
 
     for file in s:GetFilesToSearch()
-	unlet! b:residue
 	call s:ExtractLabelsBibitemsTags(file, a:type, 1)
 	if b:tex_labels_item_overflow
 	    call add(label_files, file)
@@ -399,12 +394,12 @@ function! s:ParseAuxFile(aux_file)
         return aux_data
     endif
 
-    let lines = readfile(a:aux_file)
+    let aux_lines = readfile(a:aux_file)
 
-    for line in lines
+    for line in aux_lines
         " Parse \newlabel commands
 	let matches = matchlist(line, '\\newlabel{\([^}]*\)}{{\([^}]*\)}{\([^}]*\)}{\([^}]*\)}{\([^\.]*\)\.')
-        if len(matches) > 3
+        if len(matches) > 6
             let label = matches[1]
             let num = matches[2]
             let page = matches[3]
@@ -414,21 +409,20 @@ function! s:ParseAuxFile(aux_file)
 
         " Parse \bibcite commands
         let matches = matchlist(line, '\\bibcite{\([^}]*\)}{\([^}]*\)}')
-        if len(matches) > 2
+        if len(matches) > 3
             let bibitem = matches[1]
             let num = matches[2]
             let aux_data[bibitem] = {'counter': 'bibitem', 'idnum': num, 'page': ''}
         endif
     endfor
 
-    "?????????????
     return aux_data
 endfunction
 
 " Function to process selected file
 function! s:ProcessRefSelection(file, type, limit)
-    unlet! b:residue
-    let items = s:ExtractLabelsBibitemsTags(a:file, a:type, a:limit)
+    let file = s:GetAbsolutePath(a:file)
+    let items = s:ExtractLabelsBibitemsTags(file, a:type, a:limit)
 
     if empty(items)
 	return items
@@ -446,40 +440,13 @@ function! s:ProcessRefSelection(file, type, limit)
         if has_key(aux_data, item.idcode)
 	    let item.counter = aux_data[item.idcode].counter
             let item.idnum = aux_data[item.idcode].idnum
-            let item.page = aux_data[item.idcode].page
+	    if a:type == "label"
+		let item.page = aux_data[item.idcode].page
+	    endif
         endif
     endfor
 
     return items
-endfunction
-
-" Function to generate a List for references
-function! s:RefItems_popup(filename, limit)
-    let refs = []
-    let items = s:ProcessRefSelection(a:filename, "label", a:limit)
-
-    if empty(items)
-	return refs
-    elseif b:tex_labels_item_overflow
-	call remove(items, 0, -1)
-	return refs
-    endif
-
-    if !empty(items)
-	for i in items
-	    let ref_item = s:FormatMenuItem(i)
-	    call add(refs, ref_item)
-	endfor
-    endif
-
-    return refs
-endfunction
-
-" Function to format menu item
-function! s:FormatMenuItem(item)
-    return "(" . a:item.counter . ": " . a:item.idnum . ")\t{" .
-        \ a:item.idcode . "} {page: " . a:item.page . "} {line: " .
-        \ a:item.line . "} {file: " . a:item.file . "}"
 endfunction
 
 " Behaving like GNU make, the function s:Update_AuxFiles([type [, filename]])
@@ -590,6 +557,35 @@ if !exists('b:tex_labels_files_with_tag')
 endif
 
 
+" Function to generate a List for references
+function! s:RefItems_popup(filename, limit)
+    let refs = []
+    let items = s:ProcessRefSelection(a:filename, "label", a:limit)
+
+    if empty(items)
+	return refs
+    elseif b:tex_labels_item_overflow
+	call remove(items, 0, -1)
+	return refs
+    endif
+
+    if !empty(items)
+	for i in items
+	    let ref_item = s:FormatMenuItem(i)
+	    call add(refs, ref_item)
+	endfor
+    endif
+
+    return refs
+endfunction
+
+" Function to format menu item
+function! s:FormatMenuItem(item)
+    return "(" . a:item.counter . ": " . a:item.idnum . ")\t{" .
+        \ a:item.idcode . "} {page: " . a:item.page . "} {line: " .
+        \ a:item.line . "} {file: " . a:item.file . "}"
+endfunction
+
 " Setup function - called when this ftplugin is loaded
 function! s:SetupTexLabels()
   " Trigger popup when entering insert mode
@@ -651,7 +647,6 @@ function! s:ShowRefPopup(limit)
     " Get all variables ready
     let b:tex_labels_item_overflow = 0
     let refs = s:GetAllReferences(a:limit)
-    unlet! b:residue
 
     if b:tex_labels_item_overflow
 	let b:tex_labels_item_overflow = 0
