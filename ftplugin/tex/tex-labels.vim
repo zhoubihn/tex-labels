@@ -5,8 +5,8 @@
 " Maintainer:   Bin Zhou
 " Version:      0.3
 "
-" Upgraded on: Wed 2025-10-22 17:28:41 CST (+0800)
-" Last change: Wed 2025-10-22 23:43:27 CST (+0800)
+" Upgraded on: Wed 2025-10-22 23:52:28 CST (+0800)
+" Last change: Thu 2025-10-23 00:23:02 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -456,6 +456,45 @@ function! s:CompleteLabelInfo(file, type, limit)
     return items
 endfunction
 
+" Function to format menu item
+"   {item}	a List returned by s:CompleteLabelInfo(file, type, limit)
+"   {type}	'label', 'bibitem' or 'tag'
+function! s:FormatMenuItem(item, type)
+    if empty(a:item)
+	return ''
+    endif
+
+    if a:type == "label"
+	return "(" . a:item.counter . ": " . a:item.idnum . ")\t{" .
+		    \ a:item.idcode . "} {page: " . a:item.page . "} {line: " .
+		    \ a:item.line . "} {file: " . a:item.file . "}"
+
+    elseif a:type == "bibitem"
+	if a:item.counter != "bibitem"
+	    echo "s:FormatMenuItem: corrupted data.  Nothing returned."
+	    return ''
+	endif
+
+	return "Ref. [" . a:item.idnum . "]\t{" .
+		    \ a:item.idcode . "} {page: " . a:item.page . "} {line: " .
+		    \ a:item.line . "} {file: " . a:item.file . "}"
+
+    elseif a:type == "tag"
+	if a:item.counter != "tag"
+	    echo "s:FormatMenuItem: corrupted data.  Nothing returned."
+	    return ''
+	endif
+
+	return "(tag: " . a:item.idnum . ")\t{page: " .
+		    \ a:item.page . "} {line: " .
+		    \ a:item.line . "} {file: " . a:item.file . "}"
+
+    else
+	echo "s:FormatMenuItem: Unknown type " . a:type . ".  Nothing returned."
+	return ''
+    endif
+endfunction
+
 " Behaving like GNU make, the function
 "	s:Update_AuxFiles([type [, filename]])
 " updates auxiliary files <file.type> when {type} is given as "label", "bibitem"
@@ -594,13 +633,6 @@ function! s:RefItems_popup(filename, limit)
     endif
 
     return refs
-endfunction
-
-" Function to format menu item
-function! s:FormatMenuItem(item)
-    return "(" . a:item.counter . ": " . a:item.idnum . ")\t{" .
-        \ a:item.idcode . "} {page: " . a:item.page . "} {line: " .
-        \ a:item.line . "} {file: " . a:item.file . "}"
 endfunction
 
 " Setup function - called when this ftplugin is loaded
