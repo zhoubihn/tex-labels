@@ -5,8 +5,8 @@
 " Maintainer:   Bin Zhou
 " Version:      0.3
 "
-" Upgraded on: Thu 2025-10-23 00:49:15 CST (+0800)
-" Last change: Thu 2025-10-23 22:52:51 CST (+0800)
+" Upgraded on: Thu 2025-10-23 22:53:29 CST (+0800)
+" Last change: Thu 2025-10-23 22:57:27 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -114,9 +114,9 @@ function! s:MatchCurlyBrace(text, ...)
 	if level == 0 && char == '}'
 	    let right_ind = i
 	    break
-	elseif char == '{'
+	elseif char == '{' && strpart(a:text, i - 1, 1) != '\'
 	    let level = level + 1
-	elseif char == '}'
+	elseif char == '}' && strpart(a:text, i - 1, 1) != '\'
 	    let level = level - 1
 	endif
     endfor
