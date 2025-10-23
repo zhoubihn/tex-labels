@@ -5,8 +5,8 @@
 " Maintainer:   Bin Zhou
 " Version:      0.3
 "
-" Upgraded on: Wed 2025-10-22 23:52:28 CST (+0800)
-" Last change: Thu 2025-10-23 00:23:02 CST (+0800)
+" Upgraded on: Thu 2025-10-23 00:49:15 CST (+0800)
+" Last change: Thu 2025-10-23 22:52:51 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -79,6 +79,54 @@ function! s:RemoveTeXComment(text)
     endwhile
 
     return a:text
+endfunction
+
+" Function to match curly braces.
+"	s:MatchCurlyBrace(text[, start])
+"   {text}	string
+"   {start}	offset where the search begins
+function! s:MatchCurlyBrace(text, ...)
+    let positions = []
+    let text_len = len(a:text)
+
+    if a:0 > 0
+	let start = a:1
+    else
+	let start = 0
+    endif
+
+    if start >= text_len
+	" Starting position is so far away that no '}' can be found.
+	return positions
+    endif
+
+    let left_ind = match(a:text, '{', start)
+    if left_ind < 0 || left_ind == text_len - 1
+	" No '{' found, or no '}' found
+	return positions
+    endif
+
+    " The first '{' has been found, not at the end.
+    let level = 0
+    let right_ind = -1
+    for i in range(left_ind + 1, text_len - 1)
+	let char = strpart(a:text, i, 1)
+	if level == 0 && char == '}'
+	    let right_ind = i
+	    break
+	elseif char == '{'
+	    let level = level + 1
+	elseif char == '}'
+	    let level = level - 1
+	endif
+    endfor
+
+    if right_ind < 0
+	return positions
+    else
+	call extend(positions, [left_ind, right_ind])
+	return positions
+    endif
 endfunction
 
 " Function to obtain the absolute path of {filename}, with respect to {a:1}
@@ -343,7 +391,7 @@ function! s:ExtractLabelsBibitemsTags(filename, type, limit)
 	    let label = matches[1]
 
 	    if grep_called
-		let line_num = matchlist(clean_line, '^.*:')[1]
+		let line_num = matchlist(clean_line, '^\([^:]*\):')[1]
 	    endif
 
             let item = {
@@ -457,7 +505,10 @@ function! s:CompleteLabelInfo(file, type, limit)
 endfunction
 
 " Function to format menu item
-"   {item}	a List returned by s:CompleteLabelInfo(file, type, limit)
+"   {item}	a Dictionary in a List returned by
+" 			s:CompleteLabelInfo(file, type, limit)
+" 		or
+" 			s:ExtractLabelsBibitemsTags(file, type, limit)
 "   {type}	'label', 'bibitem' or 'tag'
 function! s:FormatMenuItem(item, type)
     if empty(a:item)
@@ -472,7 +523,7 @@ function! s:FormatMenuItem(item, type)
     elseif a:type == "bibitem"
 	if a:item.counter != "bibitem"
 	    echo "s:FormatMenuItem: corrupted data.  Nothing returned."
-	    return ''
+	    "return ''
 	endif
 
 	return "Ref. [" . a:item.idnum . "]\t{" .
@@ -485,8 +536,7 @@ function! s:FormatMenuItem(item, type)
 	    return ''
 	endif
 
-	return "(tag: " . a:item.idnum . ")\t{page: " .
-		    \ a:item.page . "} {line: " .
+	return "(tag: " . a:item.idcode . ")\t{line: " .
 		    \ a:item.line . "} {file: " . a:item.file . "}"
 
     else
@@ -511,12 +561,14 @@ endfunction
 "   {type}	"label", "bibitem" or "tag"
 function! s:Update_AuxFiles(...)
     let current_file = s:GetAbsolutePath('%')
+    let target_items = []
     let type = ''
+    let status = 0
 
     if a:0 >= 2
 	if a:1 != 'label' &&  a:1 != 'bibitem' && a:1 != 'tag'
 	    echo "s:Update_AuxFiles: Unknown  type \'" . a:1 . "\'.  Nothing done."
-	    return
+	    return -1
 	else
 	    let type = a:1
 	endif
@@ -525,8 +577,7 @@ function! s:Update_AuxFiles(...)
 	    let filename = s:GetAbsolutePath(a:2)
 	    let aux_file = substitute(filename, '\.tex$', '.' . type, '')
 	else
-	    call s:Update_AuxFiles(type)
-	    return
+	    return s:Update_AuxFiles(type)
 	endif
 
 "	if getftype(a:2) == "link"
@@ -538,21 +589,26 @@ function! s:Update_AuxFiles(...)
 	if filereadable(filename) && ( empty(getfperm(aux_file)) ||
 		    \ getftime(filename) > getftime(aux_file)
 		    \ )
-	    if type == "label"
-		let items = s:RefItems_popup(filename, 0)
-
-	    elseif type == "bibitem"
-		let items = ["Under construction..."]
+	    if type == "label" || type == "bibitem"
+		"let items = s:RefItems_popup(filename, 0)
+		let info_items = s:CompleteLabelInfo(filename, type, 0)
 
 	    else
-		let items = ["Under construction..."]
+		" type == 'tag'
+		let info_items = s:ExtractLabelsBibitemsTags(filename, "tag", 0)
 
 	    endif
 
-	    call writefile(items, aux_file)
+	    if len(info_items) > 0
+		for item in info_items
+		    call add(target_items, s:FormatMenuItem(item, type))
+		endfor
+	    endif
+
+	    return writefile(target_items, aux_file)
 	endif
 
-	return
+	return 0
 
     elseif a:0 == 1
 	call s:Update_InclFile()
@@ -567,8 +623,8 @@ function! s:Update_AuxFiles(...)
 	if filereadable(incl_file)
 	    let searched_files = readfile(incl_file)
 	else
-	    echo "File <" . incl_file . "> does not exist or is not readble."
-	    return
+	    echo "s:Update_AuxFiles: File <" . incl_file . "> does not exist or is not readble."
+	    return -1
 	endif
 
 	for file in searched_files
@@ -577,17 +633,21 @@ function! s:Update_AuxFiles(...)
 	"	continue
 	    "endif
 
-	    call s:Update_AuxFiles(a:1, file)
+	    if s:Update_AuxFiles(a:1, file) < 0
+		let status = -1
+	    endif
 	endfor
 
-	return
+	return status
 
     else
 	for type in ["label", "bibitem", "tag"]
-	    call s:Update_AuxFiles(type)
+	    if s:Update_AuxFiles(type) < 0
+		let status = -1
+	    endif
 	endfor
 
-	return
+	return status
     endif
 endfunction
 
@@ -627,7 +687,7 @@ function! s:RefItems_popup(filename, limit)
 
     if !empty(items)
 	for i in items
-	    let ref_item = s:FormatMenuItem(i)
+	    let ref_item = s:FormatMenuItem(i, "label")
 	    call add(refs, ref_item)
 	endfor
     endif
