@@ -5,8 +5,8 @@
 " Maintainer:   Bin Zhou
 " Version:      0.3
 "
-" Upgraded on: Thu 2025-10-23 22:53:29 CST (+0800)
-" Last change: Thu 2025-10-23 22:57:27 CST (+0800)
+" Upgraded on: Thu 2025-10-23 22:57:27 CST (+0800)
+" Last change: Fri 2025-10-24 00:25:18 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -212,9 +212,17 @@ function! s:FindIncludedFiles(main_file, ...)
 
         " Check for \include and \input
         for cmd in ['include', 'input']
-            let matches = matchlist(clean_line, '\\' . cmd . '{\([^}]*\)}')
-            if len(matches) > 1
-                let included_file = trim(matches[1])
+	    let start = match(clean_line, '\\' . cmd)
+	    if start < 0
+		continue
+	    endif
+
+	    let curlybrace_at = s:MatchCurlyBrace(clean_line, start)
+	    if !empty(curlybrace_at)
+		let included_file = strpart(clean_line, curlybrace_at[0] + 1,
+			    \ curlybrace_at[1] - curlybrace_at[0] - 1
+			    \ )
+                let included_file = trim(included_file)
 		if empty(included_file)
 		    continue
 		endif
@@ -385,13 +393,22 @@ function! s:ExtractLabelsBibitemsTags(filename, type, limit)
             continue
         endif
 
-        " Extract \label commands
-        let matches = matchlist(clean_line, '\\' . a:type . '{\([^}]*\)}')
-	if len(matches) > 1
-	    let label = matches[1]
+        " Search commands \label, \bibitem or \tag
+        let start = match(clean_line, '\\' . a:type)
+	if start < 0
+	    continue
+	endif
+
+	let curlybrace_at = s:MatchCurlyBrace(clean_line, start)
+	if !empty(curlybrace_at)
+	    let label = strpart(clean_line, curlybrace_at[0] + 1,
+			\ curlybrace_at[1] - curlybrace_at[0] - 1
+			\ )
 
 	    if grep_called
-		let line_num = matchlist(clean_line, '^\([^:]*\):')[1]
+		let line_num = matchstr(clean_line, '^\([^:]*\):')
+	    else
+		let line_num = i + 1
 	    endif
 
             let item = {
@@ -446,21 +463,53 @@ function! s:ParseAuxFile(aux_file)
 
     for line in aux_lines
         " Parse \newlabel commands
-	let matches = matchlist(line, '\\newlabel{\([^}]*\)}{{\([^}]*\)}{\([^}]*\)}{\([^}]*\)}{\([^\.]*\)\.')
-        if len(matches) > 6
-            let label = matches[1]
-            let num = matches[2]
-            let page = matches[3]
-	    let counter = matches[5]
-            let aux_data[label] = {'counter': counter, 'idnum': num, 'page': page}
+
+	let start = match(line, '\\newlabel')
+	if start < 0
+	    continue
+	endif
+
+	let curlybrace_at = s:MatchCurlyBrace(line, start)
+	if !empty(curlybrace_at)
+	    let label = strpart(line, curlybrace_at[0] + 1,
+			\ curlybrace_at[1] - curlybrace_at[0] - 1
+			\ )
+
+	    let start = curlybrace_at[1] + 2
+	    let curlybrace_at = s:MatchCurlyBrace(line, start)
+	    let num = strpart(line, curlybrace_at[0] + 1,
+			\ curlybrace_at[1] - curlybrace_at[0] - 1
+			\ )
+
+	    let start = curlybrace_at[1] + 1
+	    let matches = matchlist(line, '{\([^}]*\)}{\([^}]*\)}{\([^\.]*\)\.', start)
+
+	    if len(matches) > 3
+		let page = matches[1]
+		let counter = matches[3]
+		let aux_data[label] = {'counter': counter, 'idnum': num, 'page': page}
+	    endif
         endif
 
         " Parse \bibcite commands
-        let matches = matchlist(line, '\\bibcite{\([^}]*\)}{\([^}]*\)}')
-        if len(matches) > 3
-            let bibitem = matches[1]
-            let num = matches[2]
-            let aux_data[bibitem] = {'counter': 'bibitem', 'idnum': num, 'page': ''}
+
+	let start = match(line, '\\bibcite')
+	if start < 0
+	    continue
+	endif
+
+	let curlybrace_at = s:MatchCurlyBrace(line, start)
+	if !empty(curlybrace_at)
+	    let bibitem = strpart(line, curlybrace_at[0] + 1,
+			\ curlybrace_at[1] - curlybrace_at[0] - 1
+			\ )
+	    let start = curlybrace_at[1] + 1
+
+	    let matches = matchlist(line, '{\([^}]*\)}', start)
+	    if len(matches) > 1
+		let num = matches[1]
+		let aux_data[bibitem] = {'counter': 'bibitem', 'idnum': num, 'page': ''}
+	    endif
         endif
     endfor
 
