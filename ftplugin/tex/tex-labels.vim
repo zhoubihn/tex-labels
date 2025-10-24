@@ -5,8 +5,8 @@
 " Maintainer:   Bin Zhou
 " Version:      0.3
 "
-" Upgraded on: Fri 2025-10-24 22:53:18 CST (+0800)
-" Last change: Sat 2025-10-25 03:38:14 CST (+0800)
+" Upgraded on: Sat 2025-10-25 03:40:31 CST (+0800)
+" Last change: Sat 2025-10-25 05:36:20 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -330,16 +330,20 @@ function! s:GetFilesToSearch(...)
     endif
 
     for root_file in roots
-	if s:Update_InclFile(root_file) < 0
-	    return []
-	endif
+	call add(files, root_file)
 
-	let root_incl = substitute(root_file, '\.tex$', '\.incl', '')
-	if !filereadable(root_incl)
+	if s:Update_InclFile(root_file) < 0
 	    continue
 	endif
 
-	call add(files, root_file)
+	if root_file =~ '\.tex$'
+	    let root_incl = substitute(root_file, '\.tex$', '\.incl', '')
+	else
+	    let root_incl = root_file . '\.incl'
+	endif
+	if !filereadable(root_incl)
+	    continue
+	endif
 
 	let included_files = readfile(root_incl)
 	call extend(files, included_files)
@@ -433,24 +437,6 @@ function! s:ExtractLabelsBibitemsTags(filename, type, limit)
     return items
 endfunction
 
-" Function to get all relevant files containing \label or \bibitem
-"   {type}	either "label" or "bibitem"
-" obsolete
-function! s:GetFilesWithRefs(type)
-    let label_files = []
-    let b:tex_labels_item_overflow = 0
-
-    for file in s:GetFilesToSearch()
-	call s:ExtractLabelsBibitemsTags(file, a:type, 1)
-	if b:tex_labels_item_overflow
-	    call add(label_files, file)
-	    let b:tex_labels_item_overflow = 0
-	endif
-    endfor
-
-    return label_files
-endfunction
-
 " Function to parse auxiliary file for numbering information
 function! s:ParseAuxFile(aux_file)
     let label_data = {}
@@ -524,6 +510,7 @@ function! s:CompleteLabelInfo(file, type, limit)
     endif
 
     let file = s:GetAbsolutePath(a:file)
+    let b:tex_labels_item_overflow = 0
     let items = s:ExtractLabelsBibitemsTags(file, a:type, a:limit)
 
     if empty(items)
@@ -641,6 +628,10 @@ function! s:Update_AuxFiles(...)
 	if filereadable(filename) && ( empty(getfperm(aux_file)) ||
 		    \ getftime(filename) > getftime(aux_file)
 		    \ )
+	    if s:Update_InclFile(filename) < 0
+		return -1
+	    endif
+
 	    if type == "label" || type == "bibitem"
 		"let items = s:RefItems_popup(filename, 0)
 		let info_items = s:CompleteLabelInfo(filename, type, 0)
@@ -709,22 +700,60 @@ if !empty(b:tex_labels_MainFile)
     call s:Update_AuxFiles()
 endif
 
+" Necessary when {b:tex_labels_MainFile} is empty
 call s:Update_InclFile(@%)
-
 for type in ["label", "bibitem", "tag"]
     call s:Update_AuxFiles(type, @%)
 endfor
 
-" List of files containing \label, \bibitem or \tag
-if !exists('b:tex_labels_files_with_label')
-    let b:tex_labels_files_with_label = s:GetFilesWithRefs("label")
-endif
-if !exists('b:tex_labels_files_with_bibitem')
-    let b:tex_labels_files_with_bibitem = s:GetFilesWithRefs("bibitem")
-endif
-if !exists('b:tex_labels_files_with_tag')
-    let b:tex_labels_files_with_tag = s:GetFilesWithRefs("tag")
-endif
+
+"	s:GetFilesWithCommand({type}[, {filename}])
+" Function to get all relevant files containing \label, \bibitem or \tag
+"   {type}	either "label", "bibitem" or "tag"
+function! s:GetFilesWithCommand(type, ...)
+    if a:type != "label" && a:type != "bibitem" && a:type != "tag"
+	echo 's:GetFilesWithCommand: unknown type "' . a:type . '"'
+	return -1
+    endif
+
+    if a:0 > 0
+	let filename = a:1
+	if s:Update_AuxFiles(a:type, filename) < 0
+	    echo 's:GetFilesWithCommand: error form s:Update_AuxFiles'
+	    return -1
+	endif
+
+    else
+	let filename = ''
+	if s:Update_AuxFiles(a:type) < 0
+	    echo 's:GetFilesWithCommand: error form s:Update_AuxFiles'
+	    return -1
+	endif
+    endif
+
+
+    let effective_files = []
+    let b:tex_labels_item_overflow = 0
+    if empty(filename)
+	let files = s:GetFilesToSearch()
+    else
+	let files = s:GetFilesToSearch(filename)
+    endif
+
+    for file in files
+	if file =~ '\.tex$'
+	    let aux_file = substitute(file, 'tex$', a:type, '')
+	else
+	    let aux_file = file . '\.' . a:type
+	endif
+
+	if getfsize(file) >= 0 || getfsize(file) == -2
+	    call add(effective_files, file)
+	endif
+    endfor
+
+    return effective_files
+endfunction
 
 
 " Function to generate a List for references
@@ -1127,56 +1156,54 @@ function! s:popup_files(type)
     " Close any existing popup first
     call s:CleanupPopup()
 
+    let files = s:GetFilesWithCommand(a:type)
+    if empty(files)
+	call s:ShowWarningMessage('No files containing "\' . a:type . '"')
+	return -1
+    endif
+
     if a:type == "label"
-	if empty(b:tex_labels_files_with_label)
-	    call s:ShowWarningMessage("No files containing \\label")
-	    return
-	else
-	    let files = b:tex_labels_files_with_label
+	let popup_config = {
+		    \ 'line': winline() + 1,
+		    \ 'col': wincol(),
+		    \ 'pos': 'topleft',
+		    \ 'maxheight': g:tex_labels_popup_height,
+		    \ 'maxwidth': winwidth(0) - 8,
+		    \ 'highlight': 'TexLabelsPopup',
+		    \ 'border': [1, 1, 1, 1],
+		    \ 'borderhighlight': ['TexLabelsPopupBorder'],
+		    \ 'title': ' Search in one of these files: ',
+		    \ 'titlehighlight': 'TexLabelsPopupTitle',
+		    \ 'cursorline': 1,
+		    \ 'zindex': 200,
+		    \ 'filter': function('s:PopupFilter_file')
+		    \ }
 
-	    let popup_config = {
-			\ 'line': winline() + 1,
-			\ 'col': wincol(),
-			\ 'pos': 'topleft',
-			\ 'maxheight': g:tex_labels_popup_height,
-			\ 'maxwidth': winwidth(0) - 8,
-			\ 'highlight': 'TexLabelsPopup',
-			\ 'border': [1, 1, 1, 1],
-			\ 'borderhighlight': ['TexLabelsPopupBorder'],
-			\ 'title': ' Search in one of these files: ',
-			\ 'titlehighlight': 'TexLabelsPopupTitle',
-			\ 'cursorline': 1,
-			\ 'zindex': 200,
-			\ 'filter': function('s:PopupFilter_file')
-			\ }
-	endif
     elseif a:type == "bibitem"
-	if empty(b:tex_labels_files_with_bibitem)
-	    call s:ShowWarningMessage("No files containing \\bibitem")
-	    return
-	else
-	    let files = b:tex_labels_files_with_bibitem
-
-	    let popup_config = {
-			\ 'line': winline() + 1,
-			\ 'col': wincol(),
-			\ 'pos': 'topleft',
-			\ 'maxheight': g:tex_labels_popup_height,
-			\ 'maxwidth': winwidth(0) - 8,
-			\ 'highlight': 'TexLabelsPopup',
-			\ 'border': [1, 1, 1, 1],
-			\ 'borderhighlight': ['TexLabelsPopupBorder'],
-			\ 'title': ' Search in one of these files: ',
-			\ 'titlehighlight': 'TexLabelsPopupTitle',
-			\ 'cursorline': 1,
-			\ 'zindex': 200,
-			\ 'filter': function('s:PopupFilter_bibitem')
-			\ }
-	endif
+	let popup_config = {
+		    \ 'line': winline() + 1,
+		    \ 'col': wincol(),
+		    \ 'pos': 'topleft',
+		    \ 'maxheight': g:tex_labels_popup_height,
+		    \ 'maxwidth': winwidth(0) - 8,
+		    \ 'highlight': 'TexLabelsPopup',
+		    \ 'border': [1, 1, 1, 1],
+		    \ 'borderhighlight': ['TexLabelsPopupBorder'],
+		    \ 'title': ' Search in one of these files: ',
+		    \ 'titlehighlight': 'TexLabelsPopupTitle',
+		    \ 'cursorline': 1,
+		    \ 'zindex': 200,
+		    \ 'filter': function('s:PopupFilter_bibitem')
+		    \ }
+    else
+	echo 's:popup_files({type}): type "' . a:type . '" not supported'
+	return -1
     endif
 
     " Create popup menu
     let b:tex_labels_popup = popup_create(files, popup_config)
+
+    return 0
 endfunction
 
 " Popup filter function for file selection
