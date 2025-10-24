@@ -5,8 +5,8 @@
 " Maintainer:   Bin Zhou
 " Version:      0.3
 "
-" Upgraded on: Thu 2025-10-23 22:57:27 CST (+0800)
-" Last change: Fri 2025-10-24 00:25:18 CST (+0800)
+" Upgraded on: Fri 2025-10-24 22:53:18 CST (+0800)
+" Last change: Sat 2025-10-25 03:38:14 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -375,7 +375,7 @@ function! s:ExtractLabelsBibitemsTags(filename, type, limit)
     elseif has("win64") || has("win32")
 	let lines = readfile(filename)
     else
-	let lines = systemlist('grep -n \\' . a:type . '{ ' . filename)
+	let lines = systemlist('grep -n \' . a:type . '{ ' . filename)
 	let grep_called = 1
     endif
 
@@ -413,7 +413,7 @@ function! s:ExtractLabelsBibitemsTags(filename, type, limit)
 
             let item = {
 			\ 'idcode': label,
-			\ 'counter': a:type == 'tag' ? 'tag' : '??',
+			\ 'counter': a:type == 'label' ? '??' : a:type,
 			\ 'idnum': '??',
 			\ 'page': '??',
 			\ 'line': line_num,
@@ -453,10 +453,11 @@ endfunction
 
 " Function to parse auxiliary file for numbering information
 function! s:ParseAuxFile(aux_file)
-    let aux_data = {}
+    let label_data = {}
+    let bib_data = {}
 
     if !filereadable(a:aux_file)
-        return aux_data
+        return []
     endif
 
     let aux_lines = readfile(a:aux_file)
@@ -465,56 +466,53 @@ function! s:ParseAuxFile(aux_file)
         " Parse \newlabel commands
 
 	let start = match(line, '\\newlabel')
-	if start < 0
-	    continue
-	endif
-
-	let curlybrace_at = s:MatchCurlyBrace(line, start)
-	if !empty(curlybrace_at)
-	    let label = strpart(line, curlybrace_at[0] + 1,
-			\ curlybrace_at[1] - curlybrace_at[0] - 1
-			\ )
-
-	    let start = curlybrace_at[1] + 2
+	if start >= 0
 	    let curlybrace_at = s:MatchCurlyBrace(line, start)
-	    let num = strpart(line, curlybrace_at[0] + 1,
-			\ curlybrace_at[1] - curlybrace_at[0] - 1
-			\ )
+	    if !empty(curlybrace_at)
+		let label = strpart(line, curlybrace_at[0] + 1,
+			    \ curlybrace_at[1] - curlybrace_at[0] - 1
+			    \ )
 
-	    let start = curlybrace_at[1] + 1
-	    let matches = matchlist(line, '{\([^}]*\)}{\([^}]*\)}{\([^\.]*\)\.', start)
+		let start = curlybrace_at[1] + 2
+		let curlybrace_at = s:MatchCurlyBrace(line, start)
+		let num = strpart(line, curlybrace_at[0] + 1,
+			    \ curlybrace_at[1] - curlybrace_at[0] - 1
+			    \ )
 
-	    if len(matches) > 3
-		let page = matches[1]
-		let counter = matches[3]
-		let aux_data[label] = {'counter': counter, 'idnum': num, 'page': page}
+		let start = curlybrace_at[1] + 1
+		let matches = matchlist(line, '{\([^}]*\)}{\([^}]*\)}{\([^\.]*\)\.', start)
+
+		if len(matches) > 3
+		    let page = matches[1]
+		    let counter = matches[3]
+		    let label_data[label] = {'counter': counter, 'idnum': num, 'page': page}
+		endif
 	    endif
-        endif
+	endif
 
         " Parse \bibcite commands
 
 	let start = match(line, '\\bibcite')
-	if start < 0
-	    continue
-	endif
+	if start >= 0
+	    let curlybrace_at = s:MatchCurlyBrace(line, start)
+	    if !empty(curlybrace_at)
+		let bibitem = strpart(line, curlybrace_at[0] + 1,
+			    \ curlybrace_at[1] - curlybrace_at[0] - 1
+			    \ )
+		let start = curlybrace_at[1] + 1
 
-	let curlybrace_at = s:MatchCurlyBrace(line, start)
-	if !empty(curlybrace_at)
-	    let bibitem = strpart(line, curlybrace_at[0] + 1,
-			\ curlybrace_at[1] - curlybrace_at[0] - 1
-			\ )
-	    let start = curlybrace_at[1] + 1
-
-	    let matches = matchlist(line, '{\([^}]*\)}', start)
-	    if len(matches) > 1
-		let num = matches[1]
-		let aux_data[bibitem] = {'counter': 'bibitem', 'idnum': num, 'page': ''}
+		let matches = matchlist(line, '{\([^}]*\)}', start)
+		if len(matches) > 1
+		    let num = matches[1]
+		    let bib_data[bibitem] = {'counter': 'bibitem', 'idnum': num, 'page': ''}
+		endif
 	    endif
         endif
     endfor
 
-    return aux_data
+    return [label_data, bib_data]
 endfunction
+
 
 " Function to process selected file
 function! s:CompleteLabelInfo(file, type, limit)
@@ -537,14 +535,19 @@ function! s:CompleteLabelInfo(file, type, limit)
 
     " Parse auxiliary file for numbering
     let aux_file = fnamemodify(a:file, ':r') . '.aux'
-    let aux_data = s:ParseAuxFile(aux_file)
+    let data_ParseAuxFile = s:ParseAuxFile(aux_file)
+    if a:type == 'label'
+	let aux_data = data_ParseAuxFile[0]
+    else
+	let aux_data = data_ParseAuxFile[1]
+    endif
 
     " Merge auxiliary data
     for item in items
         if has_key(aux_data, item.idcode)
-	    let item.counter = aux_data[item.idcode].counter
             let item.idnum = aux_data[item.idcode].idnum
 	    if a:type == "label"
+		let item.counter = aux_data[item.idcode].counter
 		let item.page = aux_data[item.idcode].page
 	    endif
         endif
@@ -576,8 +579,8 @@ function! s:FormatMenuItem(item, type)
 	endif
 
 	return "Ref. [" . a:item.idnum . "]\t{" .
-		    \ a:item.idcode . "} {page: " . a:item.page . "} {line: " .
-		    \ a:item.line . "} {file: " . a:item.file . "}"
+		    \ a:item.idcode . "} {line: " . a:item.line .  "} {file: " .
+		    \ a:item.file . "}"
 
     elseif a:type == "tag"
 	if a:item.counter != "tag"
@@ -705,8 +708,10 @@ endfunction
 if !empty(b:tex_labels_MainFile)
     call s:Update_AuxFiles()
 endif
+
+call s:Update_InclFile(@%)
+
 for type in ["label", "bibitem", "tag"]
-    call s:Update_InclFile(@%)
     call s:Update_AuxFiles(type, @%)
 endfor
 
