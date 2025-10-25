@@ -3,10 +3,10 @@
 " 	Provides popup menu for \ref, \eqref, \pageref, and \cite commands
 "
 " Maintainer:   Bin Zhou
-" Version:      0.3.6
+" Version:      0.3.7
 "
-" Upgraded on: Sat 2025-10-25 18:47:29 CST (+0800)
-" Last change: Sat 2025-10-25 18:55:43 CST (+0800)
+" Upgraded on: Sat 2025-10-25 19:00:49 CST (+0800)
+" Last change: Sat 2025-10-25 19:06:46 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -828,18 +828,6 @@ function! s:RefItems_popup(filename, type)
     endif
 endfunction
 
-" Setup function - called when this ftplugin is loaded
-function! s:SetupTexLabels()
-  " Trigger popup when entering insert mode
-  autocmd InsertEnter <buffer> call s:TriggerCheck()
-
-  " Clean up popup when leaving buffer
-  autocmd BufLeave <buffer> call s:CleanupPopup()
-
-  " Add test command
-  command! -buffer TestTexLabelsPopup call s:ShowRefPopup(g:tex_labels_limit)
-endfunction
-
 " Check whether some action should be triggered
 function! s:TriggerCheck()
     let line = getline('.')
@@ -1472,6 +1460,18 @@ if !exists('g:tex_labels_highlighted')
   highlight default TexLabelsPopupBorder guibg=gray guifg=black ctermbg=240 ctermfg=0
   highlight default TexLabelsPopupTitle guibg=darkgray guifg=white ctermbg=238 ctermfg=255
 endif
+
+" Setup function - called when this ftplugin is loaded
+function! s:SetupTexLabels()
+  " Trigger popup when entering insert mode
+  autocmd InsertEnter <buffer> call s:TriggerCheck()
+
+  " Clean up popup when leaving buffer
+  autocmd BufLeave <buffer> call s:CleanupPopup()
+
+  " Add test command
+  command! -buffer TestTexLabelsPopup call s:ShowRefPopup(g:tex_labels_limit)
+endfunction
 
 " Initialize the plugin
 call s:SetupTexLabels()
