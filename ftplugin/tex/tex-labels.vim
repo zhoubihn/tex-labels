@@ -3,10 +3,10 @@
 " 	Provides popup menu for \ref, \eqref, \pageref, and \cite commands
 "
 " Maintainer:   Bin Zhou
-" Version:      0.3.2
+" Version:      0.3.3
 "
-" Upgraded on: Sat 2025-10-25 16:44:45 CST (+0800)
-" Last change: Sat 2025-10-25 17:17:46 CST (+0800)
+" Upgraded on: Sat 2025-10-25 17:24:53 CST (+0800)
+" Last change: Sat 2025-10-25 17:31:38 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -88,7 +88,7 @@ function! s:GetAbsolutePath(filename, ...)
     endif
 
     " relative path calculated:
-    let path = fnamemodify(relative, ":p:h") . "/" . path
+    let path = fnamemodify(relative, ":p:h") .. "/" .. path
     return simplify(path)
 endfunction
 
@@ -227,9 +227,9 @@ function! s:FindIncludedFiles(main_file, ...)
     elseif has("win64") || has("win32")
 	let lines_read = readfile(main_file)
     else
-	let lines_read = systemlist('grep \include{ ' . shellescape(main_file))
+	let lines_read = systemlist('grep \include{ ' .. shellescape(main_file))
 	let lines_read = extend(lines_read,
-		    \ systemlist('grep \input{ ' . shellescape(main_file))
+		    \ systemlist('grep \input{ ' .. shellescape(main_file))
 		    \ )
     endif
 
@@ -239,7 +239,7 @@ function! s:FindIncludedFiles(main_file, ...)
 
         " Check for \include and \input
         for cmd in ['include', 'input']
-	    let start = match(clean_line, '\\' . cmd)
+	    let start = match(clean_line, '\\' .. cmd)
 	    if start < 0
 		continue
 	    endif
@@ -255,7 +255,7 @@ function! s:FindIncludedFiles(main_file, ...)
 		endif
 
 		if included_file !~ '\.tex$'
-		    let included_file = included_file . '.tex'
+		    let included_file = included_file .. '.tex'
 		endif
                 let included_file = s:GetAbsolutePath(included_file, main_file)
                 call add(included_files, included_file)
@@ -289,7 +289,8 @@ function! s:Update_InclFile(...)
     endif
 
     if filename !~ '\.tex$'
-	echo "s:Update_InclFile: File name <" . filename . "> without postfix <.tex>?"
+	echo "s:Update_InclFile: File name <" .. filename ..
+		    \ "> without postfix <.tex>?"
 	echo "s:Update_InclFile stops."
 	return -1
     endif
@@ -303,7 +304,7 @@ function! s:Update_InclFile(...)
 "    endif
 
     if !filereadable(filename)
-	echo "s:Update_InclFile: file <" . filename . "> not readable."
+	echo "s:Update_InclFile: file <" .. filename .. "> not readable."
 	echo "s:Update_InclFile stops."
 	return -1
     endif
@@ -366,7 +367,7 @@ function! s:GetFilesToSearch(...)
 	if root_file =~ '\.tex$'
 	    let root_incl = substitute(root_file, '\.tex$', '\.incl', '')
 	else
-	    let root_incl = root_file . '\.incl'
+	    let root_incl = root_file .. '\.incl'
 	endif
 	if !filereadable(root_incl)
 	    continue
@@ -406,7 +407,7 @@ function! s:ExtractLabelsBibitemsTags(filename, type, limit)
     elseif has("win64") || has("win32")
 	let lines = readfile(filename)
     else
-	let lines = systemlist('grep -n \' . a:type . '{ ' .
+	let lines = systemlist('grep -n \' .. a:type .. '{ ' ..
 		    \ shellescape(filename))
 	let grep_called = 1
     endif
@@ -426,7 +427,7 @@ function! s:ExtractLabelsBibitemsTags(filename, type, limit)
         endif
 
         " Search commands \label, \bibitem or \tag
-        let start = match(clean_line, '\\' . a:type)
+        let start = match(clean_line, '\\' .. a:type)
 	if start < 0
 	    continue
 	endif
@@ -533,7 +534,7 @@ function! s:CompleteLabelInfo(file, type, limit)
     if a:type == "tag"
 	return []
     elseif a:type != "label" && a:type != "bibitem"
-	echo "s:CompleteLabelInfo: Unknown type " . a:type . "."
+	echo "s:CompleteLabelInfo: Unknown type " .. a:type .. "."
 	return []
     endif
 
@@ -549,7 +550,7 @@ function! s:CompleteLabelInfo(file, type, limit)
     endif
 
     " Parse auxiliary file for numbering
-    let aux_file = fnamemodify(a:file, ':r') . '.aux'
+    let aux_file = fnamemodify(a:file, ':r') .. '.aux'
     let data_ParseAuxFile = s:ParseAuxFile(aux_file)
     if a:type == 'label'
 	let aux_data = data_ParseAuxFile[0]
@@ -583,9 +584,10 @@ function! s:FormatMenuItem(item, type)
     endif
 
     if a:type == "label"
-	return "(" . a:item.counter . ": " . a:item.idnum . ")\t{" .
-		    \ a:item.idcode . "} {page: " . a:item.page . "} {line: " .
-		    \ a:item.line . "} {file: " . a:item.file . "}"
+	return "(" .. a:item.counter .. ": " .. a:item.idnum .. ")\t{" ..
+		    \ a:item.idcode .. "} {page: " .. a:item.page ..
+		    \ "} {line: " .. a:item.line .. "} {file: " ..
+		    \ a:item.file .. "}"
 
     elseif a:type == "bibitem"
 	if a:item.counter != "bibitem"
@@ -593,9 +595,9 @@ function! s:FormatMenuItem(item, type)
 	    "return ''
 	endif
 
-	return "Ref. [" . a:item.idnum . "]\t{" .
-		    \ a:item.idcode . "} {line: " . a:item.line .  "} {file: " .
-		    \ a:item.file . "}"
+	return "Ref. [" .. a:item.idnum .. "]\t{" ..
+		    \ a:item.idcode .. "} {line: " .. a:item.line ..
+		    \ "} {file: " .. a:item.file .. "}"
 
     elseif a:type == "tag"
 	if a:item.counter != "tag"
@@ -603,11 +605,12 @@ function! s:FormatMenuItem(item, type)
 	    return ''
 	endif
 
-	return "(tag: " . a:item.idcode . ")\t{line: " .
-		    \ a:item.line . "} {file: " . a:item.file . "}"
+	return "(tag: " .. a:item.idcode .. ")\t{line: " ..
+		    \ a:item.line .. "} {file: " .. a:item.file .. "}"
 
     else
-	echo "s:FormatMenuItem: Unknown type " . a:type . ".  Nothing returned."
+	echo "s:FormatMenuItem: Unknown type " .. a:type ..
+		    \ ".  Nothing returned."
 	return ''
     endif
 endfunction
@@ -616,7 +619,7 @@ endfunction
 "	s:Update_AuxFiles([type [, filename]])
 " updates auxiliary files <file.type> when {type} is given as "label", "bibitem"
 " or "tag", and {file} is
-"	substitute(filename, '\.tex$', '.' . type, '')
+"	substitute(filename, '\.tex$', '.' .. type, '')
 " when {filename} is also given.
 " When {filename} is omitted, each file (except for the current file)
 " listed in the file
@@ -634,7 +637,8 @@ function! s:Update_AuxFiles(...)
 
     if a:0 >= 2
 	if a:1 != 'label' &&  a:1 != 'bibitem' && a:1 != 'tag'
-	    echo "s:Update_AuxFiles: Unknown  type \'" . a:1 . "\'.  Nothing done."
+	    echo "s:Update_AuxFiles: Unknown  type \'" .. a:1 ..
+			\ "\'.  Nothing done."
 	    return -1
 	else
 	    let type = a:1
@@ -642,7 +646,7 @@ function! s:Update_AuxFiles(...)
 
 	if !empty(a:2)
 	    let filename = s:GetAbsolutePath(a:2)
-	    let aux_file = substitute(filename, '\.tex$', '.' . type, '')
+	    let aux_file = substitute(filename, '\.tex$', '.' .. type, '')
 	else
 	    return s:Update_AuxFiles(type)
 	endif
@@ -694,7 +698,8 @@ function! s:Update_AuxFiles(...)
 	if filereadable(incl_file)
 	    let searched_files = readfile(incl_file)
 	else
-	    echo "s:Update_AuxFiles: File <" . incl_file . "> does not exist or is not readble."
+	    echo "s:Update_AuxFiles: File <" .. incl_file ..
+			\ "> does not exist or is not readble."
 	    return -1
 	endif
 
@@ -740,7 +745,7 @@ endfor
 "   {type}	either "label", "bibitem" or "tag"
 function! s:GetFilesWithCommand(type, ...)
     if a:type != "label" && a:type != "bibitem" && a:type != "tag"
-	echo 's:GetFilesWithCommand: unknown type "' . a:type . '"'
+	echo 's:GetFilesWithCommand: unknown type "' .. a:type .. '"'
 	return -1
     endif
 
@@ -772,7 +777,7 @@ function! s:GetFilesWithCommand(type, ...)
 	if file =~ '\.tex$'
 	    let aux_file = substitute(file, 'tex$', a:type, '')
 	else
-	    let aux_file = file . '\.' . a:type
+	    let aux_file = file .. '\.' .. a:type
 	endif
 
 	if getfsize(file) >= 0 || getfsize(file) == -2
@@ -1013,11 +1018,11 @@ function! s:PopupFilter(winid, key)
     " Handle different keys
     if a:key >= '0' && a:key <= '9'
 	let b:prev_popup_key = a:key
-	let b:count = b:count . a:key
+	let b:count = b:count .. a:key
 	return 1
 
     elseif !empty(b:count)
-	call win_execute(a:winid, 'normal! ' . b:count . a:key)
+	call win_execute(a:winid, 'normal! ' .. b:count .. a:key)
 	let b:count = ""
 	return 1
 
@@ -1170,7 +1175,8 @@ function! s:InsertReference(ref)
     let end_col = stridx(line, '}', col)
 
     " Replace reference and position cursor
-    let new_line = strpart(line, 0, start_col) . ref_name . strpart(line, end_col)
+    let new_line = strpart(line, 0, start_col) .. ref_name ..
+		\ strpart(line, end_col)
     call setline('.', new_line)
     call feedkeys("\<Esc>", 'n')
     call cursor(line('.'), start_col + len(ref_name) + 2)
@@ -1192,7 +1198,7 @@ function! s:popup_files(type)
 
     let files = s:GetFilesWithCommand(a:type)
     if empty(files)
-	call s:ShowWarningMessage('No files containing "\' . a:type . '"')
+	call s:ShowWarningMessage('No files containing "\' .. a:type .. '"')
 	return -1
     endif
 
@@ -1230,7 +1236,7 @@ function! s:popup_files(type)
 		    \ 'filter': function('s:PopupFilter_bibitem')
 		    \ }
     else
-	echo 's:popup_files({type}): type "' . a:type . '" not supported'
+	echo 's:popup_files({type}): type "' .. a:type .. '" not supported'
 	return -1
     endif
 
@@ -1256,11 +1262,11 @@ function! s:PopupFilter_file(winid, key)
     " Handle different keys
     if a:key >= '0' && a:key <= '9'
 	let b:prev_popup_key = a:key
-	let b:count = b:count . a:key
+	let b:count = b:count .. a:key
 	return 1
 
     elseif !empty(b:count)
-	call win_execute(a:winid, 'normal! ' . b:count . a:key)
+	call win_execute(a:winid, 'normal! ' .. b:count .. a:key)
 	let b:count = ""
 	return 1
 
@@ -1354,11 +1360,11 @@ function! s:PopupFilter_bibitem(winid, key)
     " Handle different keys
     if a:key >= '0' && a:key <= '9'
 	let b:prev_popup_key = a:key
-	let b:count = b:count . a:key
+	let b:count = b:count .. a:key
 	return 1
 
     elseif !empty(b:count)
-	call win_execute(a:winid, 'normal! ' . b:count . a:key)
+	call win_execute(a:winid, 'normal! ' .. b:count .. a:key)
 	let b:count = ""
 	return 1
 
@@ -1445,10 +1451,11 @@ if !exists('g:tex_labels_highlighted')
   let g:tex_labels_highlighted = 1
 
   if has('gui_running')
-    execute 'highlight TexLabelsPopup guibg=' . g:tex_labels_popup_bg . ' guifg=black'
+    execute 'highlight TexLabelsPopup guibg=' .. g:tex_labels_popup_bg ..
+		\ ' guifg=black'
   else
     let cterm_color = g:tex_labels_popup_bg == 'LightMagenta' ? '219' : (g:tex_labels_popup_bg == 'pink' ? '218' : 'magenta')
-    execute 'highlight TexLabelsPopup ctermbg=' . cterm_color . ' ctermfg=0'
+    execute 'highlight TexLabelsPopup ctermbg=' .. cterm_color .. ' ctermfg=0'
   endif
 
   highlight default TexLabelsPopupBorder guibg=gray guifg=black ctermbg=240 ctermfg=0
