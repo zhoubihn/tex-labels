@@ -3,10 +3,10 @@
 " 	Provides popup menu for \ref, \eqref, \pageref, and \cite commands
 "
 " Maintainer:   Bin Zhou
-" Version:      0.3.5
+" Version:      0.3.6
 "
-" Upgraded on: Sat 2025-10-25 17:41:02 CST (+0800)
-" Last change: Sat 2025-10-25 18:42:24 CST (+0800)
+" Upgraded on: Sat 2025-10-25 18:47:29 CST (+0800)
+" Last change: Sat 2025-10-25 18:55:43 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -387,11 +387,8 @@ endfunction
 
 " Function to extract labels and bibitems from a file, with
 "   {type}		'label', 'bibitem' or 'tag'
-"   {limit}		returns all extracted items when {limit} == 0, and
-"   			returns [] when {limit} > 0 with extracted items more
-"   			than {limit}
 " For the first time to call it, do the following:
-function! s:ExtractLabelsBibitemsTags(filename, type, limit)
+function! s:ExtractLabelsBibitemsTags(filename, type)
     let items = []
     let filename = s:GetAbsolutePath(a:filename)
     let current_file = s:GetAbsolutePath("%")
@@ -454,12 +451,6 @@ function! s:ExtractLabelsBibitemsTags(filename, type, limit)
 			\ 'full_path': a:filename
 			\ }
 	    call add(items, item)
-
-	    if len(items) == a:limit && i + 1 < len(lines)
-		let b:tex_labels_item_overflow = 1
-		call remove(items, 0, -1)
-		return items
-	    endif
 	endif
     endfor
 
@@ -530,7 +521,7 @@ endfunction
 
 
 " Function to process selected file
-function! s:CompleteLabelInfo(file, type, limit)
+function! s:CompleteLabelInfo(file, type)
     if a:type != "label" && a:type != "bibitem" && a:type != "tag"
 	echo "s:CompleteLabelInfo: Unknown type " .. a:type .. "."
 	return []
@@ -538,7 +529,7 @@ function! s:CompleteLabelInfo(file, type, limit)
 
     let file = s:GetAbsolutePath(a:file)
     let b:tex_labels_item_overflow = 0
-    let items = s:ExtractLabelsBibitemsTags(file, a:type, a:limit)
+    let items = s:ExtractLabelsBibitemsTags(file, a:type)
 
     if empty(items)
 	return items
@@ -576,9 +567,9 @@ endfunction
 
 " Function to format menu item
 "   {item}	a Dictionary in a List returned by
-" 			s:CompleteLabelInfo(file, type, limit)
+" 			s:CompleteLabelInfo(file, type)
 " 		or
-" 			s:ExtractLabelsBibitemsTags(file, type, limit)
+" 			s:ExtractLabelsBibitemsTags(file, type)
 "   {type}	'label', 'bibitem' or 'tag'
 function! s:FormatMenuItem(item, type)
     if empty(a:item)
@@ -667,12 +658,11 @@ function! s:Update_AuxFiles(...)
 	    endif
 
 	    if type == "label" || type == "bibitem"
-		"let items = s:RefItems_popup(filename, 0)
-		let info_items = s:CompleteLabelInfo(filename, type, 0)
+		let info_items = s:CompleteLabelInfo(filename, type)
 
 	    else
 		" type == 'tag'
-		let info_items = s:ExtractLabelsBibitemsTags(filename, "tag", 0)
+		let info_items = s:ExtractLabelsBibitemsTags(filename, "tag")
 
 	    endif
 
@@ -817,7 +807,7 @@ function! s:RefItems_popup(filename, type)
 
     let refs = []
     if filename == current_file && &modified
-	let items = s:CompleteLabelInfo(a:filename, a:type, 0)
+	let items = s:CompleteLabelInfo(a:filename, a:type)
 
 	if empty(items)
 	    return refs
@@ -833,6 +823,7 @@ function! s:RefItems_popup(filename, type)
     elseif !filereadable(aux_file)
 	return refs
     else
+	call s:Update_AuxFiles(a:type, filename)
 	return = readfile(aux_file)
     endif
 endfunction
@@ -981,7 +972,7 @@ endfunction
 
 " Get all references from current buffer
 function! s:GetAllReferences(limit)
-    let refs = s:RefItems_popup(@%, a:limit)
+    let refs = s:RefItems_popup(@%, a:limit) "??????????????!!!!!!!!!!!!!
 
     if empty(refs)
 	return refs
@@ -991,7 +982,7 @@ function! s:GetAllReferences(limit)
     endif
 
     if !empty(b:tex_labels_MainFile) > 0
-	let refs = refs + s:RefItems_popup(b:tex_labels_MainFile, a:limit)
+	let refs = refs + s:RefItems_popup(b:tex_labels_MainFile) "?????????!!!!
 	if b:tex_labels_item_overflow
 	    call remove(refs, 0, -1)
 	    return refs
@@ -999,7 +990,7 @@ function! s:GetAllReferences(limit)
 
 	for file in s:GetFilesToSearch()
 	    if simplify(file) != simplify("%")
-		let refs = refs + s:RefItems_popup(file, a:limit)
+		let refs = refs + s:RefItems_popup(file, a:limit) "???????!!!!!!
 		if b:tex_labels_item_overflow
 		    call remove(refs, 0, -1)
 		    return refs
