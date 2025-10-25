@@ -3,10 +3,10 @@
 " 	Provides popup menu for \ref, \eqref, \pageref, and \cite commands
 "
 " Maintainer:   Bin Zhou
-" Version:      0.3.12
+" Version:      0.3.13
 "
 " Upgraded on: Sun 2025-10-26 00:03:54 CST (+0800)
-" Last change: Sun 2025-10-26 00:05:00 CST (+0800)
+" Last change: Sun 2025-10-26 00:10:25 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -786,9 +786,9 @@ endfunction
 " Function to generate a List for \ref , \eqref , \pageref , \cite ,
 " \label , \bibitem or \tag
 "   {type}	"label", "bibitem" or "tag"
-function! s:GetRefCiteItems(filename, type)
+function! s:GetRefItems(filename, type)
     if a:type != "label" && a:type != "bibitem" && a:type != "tag"
-	echo "s:GetRefCiteItems: unknown type \"" .. a:type .. "\""
+	echo "s:GetRefItems: unknown type \"" .. a:type .. "\""
 	return []
     endif
 
@@ -845,7 +845,7 @@ endfunction
 
 " Get all references from current buffer
 function! s:GetAllReferences(limit)
-    let refs = s:GetRefCiteItems(@%, "label") "??????????????!!!!!!!!!!!!!
+    let refs = s:GetRefItems(@%, "label") "??????????????!!!!!!!!!!!!!
 
     if empty(refs)
 	return refs
@@ -855,7 +855,7 @@ function! s:GetAllReferences(limit)
     endif
 
     if !empty(b:tex_labels_MainFile) > 0
-	let refs = refs + s:GetRefCiteItems(b:tex_labels_MainFile, "label") "?????????!!!!
+	let refs = refs + s:GetRefItems(b:tex_labels_MainFile, "label") "?????????!!!!
 	if b:tex_labels_item_overflow
 	    call remove(refs, 0, -1)
 	    return refs
@@ -863,7 +863,7 @@ function! s:GetAllReferences(limit)
 
 	for file in s:GetFilesToSearch()
 	    if simplify(file) != simplify("%")
-		let refs = refs + s:GetRefCiteItems(file, "label") "???????!!!!!!
+		let refs = refs + s:GetRefItems(file, "label") "???????!!!!!!
 		if b:tex_labels_item_overflow
 		    call remove(refs, 0, -1)
 		    return refs
