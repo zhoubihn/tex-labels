@@ -3,10 +3,10 @@
 " 	Provides popup menu for \ref, \eqref, \pageref, and \cite commands
 "
 " Maintainer:   Bin Zhou
-" Version:      0.3.10
+" Version:      0.3.11
 "
-" Upgraded on: Sat 2025-10-25 22:21:56 CST (+0800)
-" Last change: Sat 2025-10-25 22:23:13 CST (+0800)
+" Upgraded on: Sat 2025-10-25 22:24:31 CST (+0800)
+" Last change: Sun 2025-10-26 00:01:25 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -735,8 +735,8 @@ for type in ["label", "bibitem", "tag"]
 endfor
 
 
-"	s:GetFilesContainingCommand({type}[, {mainfile}])
 " Function to get all relevant files containing \label, \bibitem or \tag
+"   s:GetFilesContainingCommand({type}[, {mainfile}])
 "   {type}	either "label", "bibitem" or "tag"
 function! s:GetFilesContainingCommand(type, ...)
     if a:type != "label" && a:type != "bibitem" && a:type != "tag"
@@ -783,13 +783,6 @@ function! s:GetFilesContainingCommand(type, ...)
     return effective_files
 endfunction
 
-
-""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-"
-"	Functions and related buffer parameters for this plugin only
-"
-""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-
 " Function to generate a List for \ref , \eqref , \pageref , \cite ,
 " \label , \bibitem or \tag
 "   {type}	"label", "bibitem" or "tag"
@@ -831,54 +824,16 @@ function! s:RefItems_popup(filename, type)
     endif
 endfunction
 
-" Check whether some action should be triggered
-function! s:TriggerCheck()
-    let line = getline('.')
-    let offset = col('.') - 1
 
-    " Quick check: if no '{' before cursor, return early
-    let start = strridx(strpart(line, 0, offset), '{')
-    if start == -1
-	return
-    endif
-
-    " Check if cursor is between '{' and '}' .
-    " Note that '{' at offset {start} might be part of '\{'.
-    " Hence it is necessary to search matched curly braces from {start} - 1 .
-    " It does not matter when {start} == 0 .
-    let curlybrace_at = s:MatchCurlyBrace(line, start - 1)
-    if empty(curlybrace_at)
-	return
-    endif
-
-    " {open_brace_at} >= start and offset > start
-    let open_brace_at = curlybrace_at[0]
-    let close_brace_at = curlybrace_at[1]
-    if  open_brace_at >= offset || close_brace_at < offset
-	return
-    endif
-
-    " Now the cursor is behide '{', and is before or at '}'.  That is,
-    "	open_brace_at < offset <= close_brace_at .
-
-    " Check if it's a command like \ref, \eqref, and so on
-    let before_brace = strpart(line, 0, open_brace_at)
-    if before_brace =~ '\v\\(ref|eqref|pageref)\s*$'
-	call s:ShowRefPopup(g:tex_labels_limit)
-    elseif before_brace =~ '\v\\cite\s*$'
-	call s:ShowBibPopup(g:tex_labels_limit)
-    elseif before_brace =~ '\v\\(label|tag)\s*$'
-	call s:CheckLabels()
-    elseif before_brace =~ '\v\\bibitem(\[[^\]]*\])?\s*\[([^][{}]*)\]\s*$'
-	call s:CheckBibitems()
-    elseif before_brace =~ '\v\\includeonely\s*$'
-	call s:CheckIncludedFiles()
-    endif
-endfunction
-
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+"
+"	Functions and related buffer parameters for this plugin only
+"
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 " Current popup ID (buffer-local)
 let b:tex_labels_popup = -1
+
 
 " Clean up popup when leaving buffer
 function! s:CleanupPopup()
@@ -888,7 +843,43 @@ function! s:CleanupPopup()
   endif
 endfunction
 
+" Get all references from current buffer
+function! s:GetAllReferences(limit)
+    let refs = s:RefItems_popup(@%, a:limit) "??????????????!!!!!!!!!!!!!
+
+    if empty(refs)
+	return refs
+    elseif b:tex_labels_item_overflow
+	call remove(refs, 0, -1)
+	return refs
+    endif
+
+    if !empty(b:tex_labels_MainFile) > 0
+	let refs = refs + s:RefItems_popup(b:tex_labels_MainFile) "?????????!!!!
+	if b:tex_labels_item_overflow
+	    call remove(refs, 0, -1)
+	    return refs
+	endif
+
+	for file in s:GetFilesToSearch()
+	    if simplify(file) != simplify("%")
+		let refs = refs + s:RefItems_popup(file, a:limit) "???????!!!!!!
+		if b:tex_labels_item_overflow
+		    call remove(refs, 0, -1)
+		    return refs
+		endif
+	    endif
+	endfor
+    endif
+
+    return refs
+endfunction
+
 " Show the reference popup menu
+"   {limit}	If {limit} is a positive integer and there are more than {limit}
+"		items to select, the menu shows options whether to show them
+"		according to source files or according to counters.
+"		If {limit} is zero, all envolved items are shown in the menu.
 function! s:ShowRefPopup(limit)
     " Close any existing popup first
     call s:CleanupPopup()
@@ -953,6 +944,161 @@ function! s:ShowRefPopup(limit)
     let b:tex_labels_popup = popup_create(refs, popup_config)
 endfunction
 
+" Check whether some action should be triggered
+function! s:TriggerCheck()
+    let line = getline('.')
+    let offset = col('.') - 1
+
+    " Quick check: if no '{' before cursor, return early
+    let start = strridx(strpart(line, 0, offset), '{')
+    if start == -1
+	return
+    endif
+
+    " Check if cursor is between '{' and '}' .
+    " Note that '{' at offset {start} might be part of '\{'.
+    " Hence it is necessary to search matched curly braces from {start} - 1 .
+    " It does not matter when {start} == 0 .
+    let curlybrace_at = s:MatchCurlyBrace(line, start - 1)
+    if empty(curlybrace_at)
+	return
+    endif
+
+    " {open_brace_at} >= start and offset > start
+    let open_brace_at = curlybrace_at[0]
+    let close_brace_at = curlybrace_at[1]
+    if  open_brace_at >= offset || close_brace_at < offset
+	return
+    endif
+
+    " Now the cursor is behide '{', and is before or at '}'.  That is,
+    "	open_brace_at < offset <= close_brace_at .
+
+    " Check if it's a command like \ref, \eqref, and so on
+    let before_brace = strpart(line, 0, open_brace_at)
+    if before_brace =~ '\v\\(ref|eqref|pageref)\s*$'
+	call s:ShowRefPopup(g:tex_labels_limit)
+    elseif before_brace =~ '\v\\cite\s*$'
+	call s:ShowBibPopup(g:tex_labels_limit)
+    elseif before_brace =~ '\v\\(label|tag)\s*$'
+	call s:CheckLabels()
+    elseif before_brace =~ '\v\\bibitem(\[[^\]]*\])?\s*\[([^][{}]*)\]\s*$'
+	call s:CheckBibitems()
+    elseif before_brace =~ '\v\\includeonely\s*$'
+	call s:CheckIncludedFiles()
+    endif
+endfunction
+
+" Open the file-selection popup window
+" {type}	being "label" or "bibitem" only
+function! s:popup_files(type)
+    " Close any existing popup first
+    call s:CleanupPopup()
+
+    let files = s:GetFilesContainingCommand(a:type)
+    if empty(files)
+	call s:ShowWarningMessage('No files containing "\' .. a:type .. '"')
+	return -1
+    endif
+
+    if a:type == "label"
+	let popup_config = {
+		    \ 'line': winline() + 1,
+		    \ 'col': wincol(),
+		    \ 'pos': 'topleft',
+		    \ 'maxheight': g:tex_labels_popup_height,
+		    \ 'maxwidth': winwidth(0) - 8,
+		    \ 'highlight': 'TexLabelsPopup',
+		    \ 'border': [1, 1, 1, 1],
+		    \ 'borderhighlight': ['TexLabelsPopupBorder'],
+		    \ 'title': ' Search in one of these files: ',
+		    \ 'titlehighlight': 'TexLabelsPopupTitle',
+		    \ 'cursorline': 1,
+		    \ 'zindex': 200,
+		    \ 'filter': function('s:PopupFilter_file')
+		    \ }
+
+    elseif a:type == "bibitem"
+	let popup_config = {
+		    \ 'line': winline() + 1,
+		    \ 'col': wincol(),
+		    \ 'pos': 'topleft',
+		    \ 'maxheight': g:tex_labels_popup_height,
+		    \ 'maxwidth': winwidth(0) - 8,
+		    \ 'highlight': 'TexLabelsPopup',
+		    \ 'border': [1, 1, 1, 1],
+		    \ 'borderhighlight': ['TexLabelsPopupBorder'],
+		    \ 'title': ' Search in one of these files: ',
+		    \ 'titlehighlight': 'TexLabelsPopupTitle',
+		    \ 'cursorline': 1,
+		    \ 'zindex': 200,
+		    \ 'filter': function('s:PopupFilter_bibitem')
+		    \ }
+    else
+	echo 's:popup_files({type}): type "' .. a:type .. '" not supported'
+	return -1
+    endif
+
+    " Create popup menu
+    let b:tex_labels_popup = popup_create(files, popup_config)
+
+    return 0
+endfunction
+
+" Popup filter function
+function! s:PopupFilter_guide(winid, key)
+    " Store previous key for gg detection
+    if !exists('b:menu_selection')
+        let b:menu_selection = 'F'
+    endif
+
+    " Handle different keys
+    if a:key == 'j'
+        " Move cursor down one line
+        call win_execute(a:winid, 'normal! j')
+        let b:menu_selection = 'C'
+        return 1
+
+    elseif a:key == 'k'
+        " Move cursor up one line
+        call win_execute(a:winid, 'normal! k')
+        let b:menu_selection = 'F'
+        return 1
+
+    elseif a:key == "\<CR>"
+        let b:tex_labels_popup = -1
+        call popup_close(a:winid)
+
+	if b:menu_selection == 'F'
+	    call s:popup_files('label')
+	elseif b:menu_selection == 'C'
+	    call s:popup_counters('label')
+	endif
+
+        return 1
+
+    elseif a:key == "\<C-F>"
+        let b:tex_labels_popup = -1
+        call popup_close(a:winid)
+	call s:popup_files('label')
+	return 1
+
+    elseif a:key == "\<C-C>"
+        let b:tex_labels_popup = -1
+        call popup_close(a:winid)
+	call s:popup_counters('label')
+	return 1
+
+    elseif a:key == "\<Esc>"
+        let b:tex_labels_popup = -1
+        call popup_close(a:winid)
+	return 1
+
+    else
+        return 1
+    endif
+endfunction
+
 function! s:ShowWarningMessage(message)
     let text = []
     call add(text, a:message)
@@ -975,38 +1121,6 @@ function! s:ShowWarningMessage(message)
 		\ 'filter': function('s:PopupFilter_void')
 		\ }
     call popup_create(text, popup_config)
-endfunction
-
-" Get all references from current buffer
-function! s:GetAllReferences(limit)
-    let refs = s:RefItems_popup(@%, a:limit) "??????????????!!!!!!!!!!!!!
-
-    if empty(refs)
-	return refs
-    elseif b:tex_labels_item_overflow
-	call remove(refs, 0, -1)
-	return refs
-    endif
-
-    if !empty(b:tex_labels_MainFile) > 0
-	let refs = refs + s:RefItems_popup(b:tex_labels_MainFile) "?????????!!!!
-	if b:tex_labels_item_overflow
-	    call remove(refs, 0, -1)
-	    return refs
-	endif
-
-	for file in s:GetFilesToSearch()
-	    if simplify(file) != simplify("%")
-		let refs = refs + s:RefItems_popup(file, a:limit) "???????!!!!!!
-		if b:tex_labels_item_overflow
-		    call remove(refs, 0, -1)
-		    return refs
-		endif
-	    endif
-	endfor
-    endif
-
-    return refs
 endfunction
 
 " Show the bibliography popup menu
@@ -1122,60 +1236,6 @@ function! s:PopupFilter(winid, key)
     endif
 endfunction
 
-" Popup filter function
-function! s:PopupFilter_guide(winid, key)
-    " Store previous key for gg detection
-    if !exists('b:menu_selection')
-        let b:menu_selection = 'F'
-    endif
-
-    " Handle different keys
-    if a:key == 'j'
-        " Move cursor down one line
-        call win_execute(a:winid, 'normal! j')
-        let b:menu_selection = 'C'
-        return 1
-
-    elseif a:key == 'k'
-        " Move cursor up one line
-        call win_execute(a:winid, 'normal! k')
-        let b:menu_selection = 'F'
-        return 1
-
-    elseif a:key == "\<CR>"
-        let b:tex_labels_popup = -1
-        call popup_close(a:winid)
-
-	if b:menu_selection == 'F'
-	    call s:popup_files('label')
-	elseif b:menu_selection == 'C'
-	    call s:popup_counters('label')
-	endif
-
-        return 1
-
-    elseif a:key == "\<C-F>"
-        let b:tex_labels_popup = -1
-        call popup_close(a:winid)
-	call s:popup_files('label')
-	return 1
-
-    elseif a:key == "\<C-C>"
-        let b:tex_labels_popup = -1
-        call popup_close(a:winid)
-	call s:popup_counters('label')
-	return 1
-
-    elseif a:key == "\<Esc>"
-        let b:tex_labels_popup = -1
-        call popup_close(a:winid)
-	return 1
-
-    else
-        return 1
-    endif
-endfunction
-
 " Popup filter function when no labels found
 function! s:PopupFilter_void(winid, key)
     " Close popup on any other key
@@ -1202,62 +1262,6 @@ function! s:InsertReference(ref)
     call setline('.', new_line)
     call feedkeys("\<Esc>", 'n')
     call cursor(line('.'), start_col + len(ref_name) + 2)
-endfunction
-
-" Open the file-selection popup window
-" {type}	being "label" or "bibitem" only
-function! s:popup_files(type)
-    " Close any existing popup first
-    call s:CleanupPopup()
-
-    let files = s:GetFilesContainingCommand(a:type)
-    if empty(files)
-	call s:ShowWarningMessage('No files containing "\' .. a:type .. '"')
-	return -1
-    endif
-
-    if a:type == "label"
-	let popup_config = {
-		    \ 'line': winline() + 1,
-		    \ 'col': wincol(),
-		    \ 'pos': 'topleft',
-		    \ 'maxheight': g:tex_labels_popup_height,
-		    \ 'maxwidth': winwidth(0) - 8,
-		    \ 'highlight': 'TexLabelsPopup',
-		    \ 'border': [1, 1, 1, 1],
-		    \ 'borderhighlight': ['TexLabelsPopupBorder'],
-		    \ 'title': ' Search in one of these files: ',
-		    \ 'titlehighlight': 'TexLabelsPopupTitle',
-		    \ 'cursorline': 1,
-		    \ 'zindex': 200,
-		    \ 'filter': function('s:PopupFilter_file')
-		    \ }
-
-    elseif a:type == "bibitem"
-	let popup_config = {
-		    \ 'line': winline() + 1,
-		    \ 'col': wincol(),
-		    \ 'pos': 'topleft',
-		    \ 'maxheight': g:tex_labels_popup_height,
-		    \ 'maxwidth': winwidth(0) - 8,
-		    \ 'highlight': 'TexLabelsPopup',
-		    \ 'border': [1, 1, 1, 1],
-		    \ 'borderhighlight': ['TexLabelsPopupBorder'],
-		    \ 'title': ' Search in one of these files: ',
-		    \ 'titlehighlight': 'TexLabelsPopupTitle',
-		    \ 'cursorline': 1,
-		    \ 'zindex': 200,
-		    \ 'filter': function('s:PopupFilter_bibitem')
-		    \ }
-    else
-	echo 's:popup_files({type}): type "' .. a:type .. '" not supported'
-	return -1
-    endif
-
-    " Create popup menu
-    let b:tex_labels_popup = popup_create(files, popup_config)
-
-    return 0
 endfunction
 
 " Popup filter function for file selection
