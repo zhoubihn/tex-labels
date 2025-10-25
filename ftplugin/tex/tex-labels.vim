@@ -3,10 +3,10 @@
 " 	Provides popup menu for \ref, \eqref, \pageref, and \cite commands
 "
 " Maintainer:   Bin Zhou
-" Version:      0.3.8
+" Version:      0.3.9
 "
-" Upgraded on: Sat 2025-10-25 19:07:48 CST (+0800)
-" Last change: Sat 2025-10-25 21:38:55 CST (+0800)
+" Upgraded on: Sat 2025-10-25 21:41:06 CST (+0800)
+" Last change: Sat 2025-10-25 22:17:02 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -417,7 +417,7 @@ function! s:ExtractLabelsBibitemsTags(filename, type)
     elseif has("win64") || has("win32")
 	let lines = readfile(filename)
     else
-	let lines = systemlist('grep -n \' .. a:type .. '{ ' ..
+	let lines = systemlist('grep -n \' .. a:type .. '.*{ ' ..
 		    \ shellescape(filename))
 	let grep_called = 1
     endif
@@ -483,7 +483,6 @@ function! s:ParseAuxFile(aux_file)
 
     for line in aux_lines
         " Parse \newlabel commands
-
 	let start = match(line, '\\newlabel')
 	if start >= 0
 	    let curlybrace_at = s:MatchCurlyBrace(line, start)
@@ -510,7 +509,6 @@ function! s:ParseAuxFile(aux_file)
 	endif
 
         " Parse \bibcite commands
-
 	let start = match(line, '\\bibcite')
 	if start >= 0
 	    let curlybrace_at = s:MatchCurlyBrace(line, start)
@@ -670,15 +668,7 @@ function! s:Update_AuxFiles(...)
 		return -1
 	    endif
 
-	    if type == "label" || type == "bibitem"
-		let info_items = s:CompleteLabelInfo(filename, type)
-
-	    else
-		" type == 'tag'
-		let info_items = s:ExtractLabelsBibitemsTags(filename, "tag")
-
-	    endif
-
+	    let info_items = s:CompleteLabelInfo(filename, type)
 	    if len(info_items) > 0
 		for item in info_items
 		    call add(target_items, s:FormatMenuItem(item, type))
@@ -872,15 +862,17 @@ function! s:TriggerCheck()
     "	open_brace_at < offset <= close_brace_at .
 
     " Check if it's a command like \ref, \eqref, and so on
-    let before_brace = strpart(line, 0, open_brace)
+    let before_brace = strpart(line, 0, open_brace_at)
     if before_brace =~ '\v\\(ref|eqref|pageref)\s*$'
 	call s:ShowRefPopup(g:tex_labels_limit)
     elseif before_brace =~ '\v\\cite\s*$'
 	call s:ShowBibPopup(g:tex_labels_limit)
     elseif before_brace =~ '\v\\(label|tag)\s*$'
 	call s:CheckLabels()
-    elseif before_brace =~ '\v\\bibitem(\[[^\]]*\])?\s*$'
+    elseif before_brace =~ '\v\\bibitem(\[[^\]]*\])?\s*\[([^][{}]*)\]\s*$'
 	call s:CheckBibitems()
+    elseif before_brace =~ '\v\\includeonely\s*$'
+	call s:CheckIncludedFiles()
     endif
 endfunction
 
@@ -1013,12 +1005,16 @@ endfunction
 function! s:ShowBibPopup()
 endfunction
 
-" Check duplicated labels
+" Check labels
 function! s:CheckLabels()
 endfunction
 
-" Check duplicated bibitem labels
+" Check bibitem labels
 function! s:CheckBibitems()
+endfunction
+
+" Check included files
+function! s:CheckIncludedFiles()
 endfunction
 
 " Popup filter function
