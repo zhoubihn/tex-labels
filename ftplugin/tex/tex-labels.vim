@@ -3,10 +3,10 @@
 " 	Provides popup menu for \ref, \eqref, \pageref, and \cite commands
 "
 " Maintainer:   Bin Zhou
-" Version:      0.3.14
+" Version:      0.3.15
 "
 " Upgraded on: Sun 2025-10-26 00:03:54 CST (+0800)
-" Last change: Sun 2025-10-26 00:12:40 CST (+0800)
+" Last change: Sun 2025-10-26 01:11:46 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -346,6 +346,7 @@ endfunction
 function! s:GetFilesToSearch(...)
     let current_file = s:GetAbsolutePath("%")
     let files = []
+    let roots = []
 
     if a:0 > 0 && !empty(a:1)
 	let main_file = s:GetAbsolutePath(a:1)
@@ -354,22 +355,16 @@ function! s:GetFilesToSearch(...)
     else
 	let main_file = current_file
     endif
-
     " Now {main_file} is nonempty
 
-    " Check for main file specification
-    if filereadable(main_file)
-	let roots = [main_file]
-    else
-	let roots = []
+    " The current file is always included, being the first to search.
+    call add(roots, current_file)
+
+    if main_file != current_file && filereadable(main_file)
+	call add(roots, main_file)
     endif
 
-    " Always include current file, together with files included by current
-    " file
-    if main_file != current_file && main_file != b:tex_labels_MainFile
-	call add(roots, current_file)
-    endif
-
+    " Files included by searched files are also searched.
     for root_file in roots
 	call add(files, root_file)
 
@@ -824,34 +819,33 @@ function! s:GetRefItems(filename, type)
     endif
 endfunction
 
-" Get all references from current buffer
-function! s:GetAllReferences(limit)
-    let refs = s:GetRefItems(@%, "label") "??????????????!!!!!!!!!!!!!
-
-    if empty(refs)
-	return refs
-    elseif b:tex_labels_item_overflow
-	call remove(refs, 0, -1)
-	return refs
+" Get all references from current buffer and {b:tex_labels_MainFile}, if
+" nonempty and readable, and from file recursively included/input from these
+" files.
+"   {limit}	If {limit} is a positive integer, s:GetAllReferences() stops
+"		when the number of items is greater than {limit}, with an empty
+"		List returned.  If {limit} is zero, s:GetAllReferences() finds
+"		all reference items of type {type}, with a List containing all
+"		these items returned.
+"   {type}	"label", "bibitem" or "tag"
+"
+function! s:GetAllReferences(type, limit)
+    if a:type != "label" && a:type != "bibitem" && a:type != "tag"
+	echo 's:GetAllReferences: unknown type "' .. a:type .. '".'
+	return []
     endif
 
-    if !empty(b:tex_labels_MainFile) > 0
-	let refs = refs + s:GetRefItems(b:tex_labels_MainFile, "label") "?????????!!!!
-	if b:tex_labels_item_overflow
+    let refs = []
+    let files = s:GetFilesToSearch()
+
+    for file in files
+	call extend(refs, s:GetRefItems(file, a:type))
+	if a:limit > 0 && len(refs) > a:limit
 	    call remove(refs, 0, -1)
+	    let b:tex_labels_item_overflow = 1
 	    return refs
 	endif
-
-	for file in s:GetFilesToSearch()
-	    if simplify(file) != simplify("%")
-		let refs = refs + s:GetRefItems(file, "label") "???????!!!!!!
-		if b:tex_labels_item_overflow
-		    call remove(refs, 0, -1)
-		    return refs
-		endif
-	    endif
-	endfor
-    endif
+    endfor
 
     return refs
 endfunction
