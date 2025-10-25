@@ -3,10 +3,17 @@
 " 	Provides popup menu for \ref, \eqref, \pageref, and \cite commands
 "
 " Maintainer:   Bin Zhou
-" Version:      0.3
+" Version:      0.3.1
 "
-" Upgraded on: Sat 2025-10-25 03:40:31 CST (+0800)
-" Last change: Sat 2025-10-25 05:36:20 CST (+0800)
+" Upgraded on: Sat 2025-10-25 15:35:13 CST (+0800)
+" Last change: Sat 2025-10-25 16:37:05 CST (+0800)
+"
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+"
+"	Configuration variables
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -42,6 +49,12 @@ endif
 let b:tex_labels_item_overflow = 0
 
 
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+"
+"	Fundamental functions
+"
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
 " Function returning a List with repeated items in {list} removed.
 " Note that uniq() removes adjacent repeated items only.
 function! s:RemoveDuplicates(list)
@@ -58,6 +71,33 @@ function! s:RemoveDuplicates(list)
 
     return clean_list
 endfunction
+
+" Function to obtain the absolute path of {filename}, with respect to {a:1}
+" if it presents.
+function! s:GetAbsolutePath(filename, ...)
+    let path = expand(a:filename)
+
+    if path =~ '^/'
+	return simplify(path)
+    endif
+
+    if a:0 > 0 && !empty(a:1)
+	let relative = expand(a:1)
+    else
+	let relative = expand("%")
+    endif
+
+    " relative path calculated:
+    let path = fnamemodify(relative, ":p:h") . "/" . path
+    return simplify(path)
+endfunction
+
+
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+"
+"	Fundamental functions related to TeX/LaTeX files
+"
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 " Function returning a string with TeX comments removed from the string {text}.
 function! s:RemoveTeXComment(text)
@@ -129,25 +169,12 @@ function! s:MatchCurlyBrace(text, ...)
     endif
 endfunction
 
-" Function to obtain the absolute path of {filename}, with respect to {a:1}
-" if it presents.
-function! s:GetAbsolutePath(filename, ...)
-    let path = expand(a:filename)
 
-    if path =~ '^/'
-	return simplify(path)
-    endif
-
-    if a:0 > 0 && !empty(a:1)
-	let relative = expand(a:1)
-    else
-	let relative = expand("%")
-    endif
-
-    " relative path calculated:
-    let path = fnamemodify(relative, ":p:h") . "/" . path
-    return simplify(path)
-endfunction
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+"
+"	Fundamental functions for this plugin
+"
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 " Function to find main file specification.
 " At most one main file supported.
@@ -755,6 +782,12 @@ function! s:GetFilesWithCommand(type, ...)
     return effective_files
 endfunction
 
+
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+"
+"	Functions for this plugin only
+"
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 " Function to generate a List for references
 function! s:RefItems_popup(filename, limit)
