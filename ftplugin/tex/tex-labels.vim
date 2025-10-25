@@ -3,10 +3,10 @@
 " 	Provides popup menu for \ref, \eqref, \pageref, and \cite commands
 "
 " Maintainer:   Bin Zhou
-" Version:      0.3.1
+" Version:      0.3.2
 "
-" Upgraded on: Sat 2025-10-25 15:35:13 CST (+0800)
-" Last change: Sat 2025-10-25 16:37:05 CST (+0800)
+" Upgraded on: Sat 2025-10-25 16:44:45 CST (+0800)
+" Last change: Sat 2025-10-25 17:17:46 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -172,7 +172,7 @@ endfunction
 
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 "
-"	Fundamental functions for this plugin
+"	Fundamental functions and buffer parameters for this plugin
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -227,9 +227,9 @@ function! s:FindIncludedFiles(main_file, ...)
     elseif has("win64") || has("win32")
 	let lines_read = readfile(main_file)
     else
-	let lines_read = systemlist('grep \include{ ' . main_file)
+	let lines_read = systemlist('grep \include{ ' . shellescape(main_file))
 	let lines_read = extend(lines_read,
-		    \ systemlist('grep \input{ ' . main_file)
+		    \ systemlist('grep \input{ ' . shellescape(main_file))
 		    \ )
     endif
 
@@ -406,7 +406,8 @@ function! s:ExtractLabelsBibitemsTags(filename, type, limit)
     elseif has("win64") || has("win32")
 	let lines = readfile(filename)
     else
-	let lines = systemlist('grep -n \' . a:type . '{ ' . filename)
+	let lines = systemlist('grep -n \' . a:type . '{ ' .
+		    \ shellescape(filename))
 	let grep_called = 1
     endif
 
@@ -785,11 +786,11 @@ endfunction
 
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 "
-"	Functions for this plugin only
+"	Functions and related buffer parameters for this plugin only
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-" Function to generate a List for references
+" Function to generate a List for \ref{}, \eqref{} and \pageref{}
 function! s:RefItems_popup(filename, limit)
     let refs = []
     let items = s:CompleteLabelInfo(a:filename, "label", a:limit)
