@@ -3,10 +3,10 @@
 " 	Provides popup menu for \ref, \eqref, \pageref, and \cite commands
 "
 " Maintainer:   Bin Zhou
-" Version:      0.3.4
+" Version:      0.3.5
 "
-" Upgraded on: Sat 2025-10-25 17:35:10 CST (+0800)
-" Last change: Sat 2025-10-25 17:38:53 CST (+0800)
+" Upgraded on: Sat 2025-10-25 17:41:02 CST (+0800)
+" Last change: Sat 2025-10-25 18:42:24 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -531,9 +531,7 @@ endfunction
 
 " Function to process selected file
 function! s:CompleteLabelInfo(file, type, limit)
-    if a:type == "tag"
-	return []
-    elseif a:type != "label" && a:type != "bibitem"
+    if a:type != "label" && a:type != "bibitem" && a:type != "tag"
 	echo "s:CompleteLabelInfo: Unknown type " .. a:type .. "."
 	return []
     endif
@@ -547,6 +545,10 @@ function! s:CompleteLabelInfo(file, type, limit)
     elseif b:tex_labels_item_overflow
 	call remove(items, 0, -1)
 	return []
+    endif
+
+    if a:type == "tag"
+	return items
     endif
 
     " Parse auxiliary file for numbering
@@ -795,26 +797,44 @@ endfunction
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-" Function to generate a List for \ref{}, \eqref{} and \pageref{}
-function! s:RefItems_popup(filename, limit)
-    let refs = []
-    let items = s:CompleteLabelInfo(a:filename, "label", a:limit)
-
-    if empty(items)
-	return refs
-    elseif b:tex_labels_item_overflow
-	call remove(items, 0, -1)
-	return refs
+" Function to generate a List for \ref , \eqref , \pageref , \cite ,
+" \label , \bibitem or \tag
+"   {type}	"label", "bibitem" or "tag"
+function! s:RefItems_popup(filename, type)
+    if a:type != "label" && a:type != "bibitem" && a:type != "tag"
+	echo "s:RefItems_popup: unknown type \"" .. a:type .. "\""
+	return []
     endif
 
-    if !empty(items)
+    let filename = s:GetAbsolutePath(a:filename)
+    let current_file = s:GetAbsolutePath('%')
+
+    if filename =~ '\.tex$'
+	let aux_file = substitute(filename, 'tex$', a:type, '')
+    else
+	let aux_file = filename .. '.' .. a:type
+    endif
+
+    let refs = []
+    if filename == current_file && &modified
+	let items = s:CompleteLabelInfo(a:filename, a:type, 0)
+
+	if empty(items)
+	    return refs
+	endif
+
 	for i in items
-	    let ref_item = s:FormatMenuItem(i, "label")
+	    let ref_item = s:FormatMenuItem(i, a:type)
 	    call add(refs, ref_item)
 	endfor
-    endif
 
-    return refs
+	return refs
+
+    elseif !filereadable(aux_file)
+	return refs
+    else
+	return = readfile(aux_file)
+    endif
 endfunction
 
 " Setup function - called when this ftplugin is loaded
