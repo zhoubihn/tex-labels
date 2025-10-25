@@ -3,10 +3,10 @@
 " 	Provides popup menu for \ref, \eqref, \pageref, and \cite commands
 "
 " Maintainer:   Bin Zhou
-" Version:      0.3.3
+" Version:      0.3.4
 "
-" Upgraded on: Sat 2025-10-25 17:24:53 CST (+0800)
-" Last change: Sat 2025-10-25 17:31:38 CST (+0800)
+" Upgraded on: Sat 2025-10-25 17:35:10 CST (+0800)
+" Last change: Sat 2025-10-25 17:38:53 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -740,26 +740,26 @@ for type in ["label", "bibitem", "tag"]
 endfor
 
 
-"	s:GetFilesWithCommand({type}[, {filename}])
+"	s:GetFilesContainingCommand({type}[, {mainfile}])
 " Function to get all relevant files containing \label, \bibitem or \tag
 "   {type}	either "label", "bibitem" or "tag"
-function! s:GetFilesWithCommand(type, ...)
+function! s:GetFilesContainingCommand(type, ...)
     if a:type != "label" && a:type != "bibitem" && a:type != "tag"
-	echo 's:GetFilesWithCommand: unknown type "' .. a:type .. '"'
+	echo 's:GetFilesContainingCommand: unknown type "' .. a:type .. '"'
 	return -1
     endif
 
     if a:0 > 0
-	let filename = a:1
-	if s:Update_AuxFiles(a:type, filename) < 0
-	    echo 's:GetFilesWithCommand: error form s:Update_AuxFiles'
+	let mainfile = a:1
+	if s:Update_AuxFiles(a:type, mainfile) < 0
+	    echo 's:GetFilesContainingCommand: error form s:Update_AuxFiles'
 	    return -1
 	endif
 
     else
-	let filename = ''
+	let mainfile = ''
 	if s:Update_AuxFiles(a:type) < 0
-	    echo 's:GetFilesWithCommand: error form s:Update_AuxFiles'
+	    echo 's:GetFilesContainingCommand: error form s:Update_AuxFiles'
 	    return -1
 	endif
     endif
@@ -767,10 +767,10 @@ function! s:GetFilesWithCommand(type, ...)
 
     let effective_files = []
     let b:tex_labels_item_overflow = 0
-    if empty(filename)
+    if empty(mainfile)
 	let files = s:GetFilesToSearch()
     else
-	let files = s:GetFilesToSearch(filename)
+	let files = s:GetFilesToSearch(mainfile)
     endif
 
     for file in files
@@ -1196,7 +1196,7 @@ function! s:popup_files(type)
     " Close any existing popup first
     call s:CleanupPopup()
 
-    let files = s:GetFilesWithCommand(a:type)
+    let files = s:GetFilesContainingCommand(a:type)
     if empty(files)
 	call s:ShowWarningMessage('No files containing "\' .. a:type .. '"')
 	return -1
