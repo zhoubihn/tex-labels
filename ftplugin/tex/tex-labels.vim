@@ -3,10 +3,10 @@
 " 	Provides popup menu for \ref, \eqref, \pageref, and \cite commands
 "
 " Maintainer:   Bin Zhou
-" Version:      0.3.7
+" Version:      0.3.8
 "
-" Upgraded on: Sat 2025-10-25 19:00:49 CST (+0800)
-" Last change: Sat 2025-10-25 19:06:46 CST (+0800)
+" Upgraded on: Sat 2025-10-25 19:07:48 CST (+0800)
+" Last change: Sat 2025-10-25 21:38:55 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -121,7 +121,7 @@ function! s:RemoveTeXComment(text)
     return a:text
 endfunction
 
-" Function to match curly braces.
+" Function to match curly braces.  Note that '\{' and '\}' are ignored.
 "	s:MatchCurlyBrace(text[, start])
 "   {text}	string
 "   {start}	offset where the search begins
@@ -135,29 +135,42 @@ function! s:MatchCurlyBrace(text, ...)
 	let start = 0
     endif
 
-    if start >= text_len
+    if start >= text_len - 1
 	" Starting position is so far away that no '}' can be found.
 	return positions
     endif
 
-    let left_ind = match(a:text, '{', start)
-    if left_ind < 0 || left_ind == text_len - 1
-	" No '{' found, or no '}' found
-	return positions
-    endif
+    while 1
+	let left_ind = match(a:text, '{', start)
 
-    " The first '{' has been found, not at the end.
+	if left_ind < 0 || left_ind == text_len - 1
+	    " No '{' found, or no '}' at all.
+	    return positions
+	elseif strpart(a:text, left_ind - 1, 1) == '\'
+	    " '\{' is found, which is ignored.
+	    let start = left_ind + 1
+	    continue
+	else
+	    " Now '{' but not '\{' is found.
+	    break
+	endif
+    endwhile
+
+    " The first '{' has been found, not at the end.  That is,
+    "		left_ind <= text_len -2 .
     let level = 0
     let right_ind = -1
     for i in range(left_ind + 1, text_len - 1)
 	let char = strpart(a:text, i, 1)
-	if level == 0 && char == '}'
-	    let right_ind = i
-	    break
+	if char == '}' && strpart(a:text, i - 1, 1) != '\'
+	    if level == 0
+		let right_ind = i
+		break
+	    else
+		let level -= 1
+	    endif
 	elseif char == '{' && strpart(a:text, i - 1, 1) != '\'
-	    let level = level + 1
-	elseif char == '}' && strpart(a:text, i - 1, 1) != '\'
-	    let level = level - 1
+	    let level += 1
 	endif
     endfor
 
@@ -831,26 +844,32 @@ endfunction
 " Check whether some action should be triggered
 function! s:TriggerCheck()
     let line = getline('.')
-    let col = col('.') - 1
+    let offset = col('.') - 1
 
     " Quick check: if no '{' before cursor, return early
-    if strridx(strpart(line, 0, col), '{') == -1
+    let start = strridx(strpart(line, 0, offset), '{')
+    if start == -1
 	return
     endif
 
-    " Check if cursor is between '{' and '}'
-    let open_brace = strridx(line, '{', col - 1)
-    let close_brace = strridx(line, '}', col - 1)
-    if open_brace < close_brace
+    " Check if cursor is between '{' and '}' .
+    " Note that '{' at offset {start} might be part of '\{'.
+    " Hence it is necessary to search matched curly braces from {start} - 1 .
+    " It does not matter when {start} == 0 .
+    let curlybrace_at = s:MatchCurlyBrace(line, start - 1)
+    if empty(curlybrace_at)
 	return
-    else
-	let close_brace = stridx(line, '}', col)
-	if close_brace == -1
-	    return
-	endif
     endif
 
-    " Now the cursor is behide '{', and is before or at '}'.
+    " {open_brace_at} >= start and offset > start
+    let open_brace_at = curlybrace_at[0]
+    let close_brace_at = curlybrace_at[1]
+    if  open_brace_at >= offset || close_brace_at < offset
+	return
+    endif
+
+    " Now the cursor is behide '{', and is before or at '}'.  That is,
+    "	open_brace_at < offset <= close_brace_at .
 
     " Check if it's a command like \ref, \eqref, and so on
     let before_brace = strpart(line, 0, open_brace)
