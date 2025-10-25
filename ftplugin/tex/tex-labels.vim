@@ -3,10 +3,10 @@
 " 	Provides popup menu for \ref, \eqref, \pageref, and \cite commands
 "
 " Maintainer:   Bin Zhou
-" Version:      0.3.9
+" Version:      0.3.10
 "
-" Upgraded on: Sat 2025-10-25 21:41:06 CST (+0800)
-" Last change: Sat 2025-10-25 22:17:02 CST (+0800)
+" Upgraded on: Sat 2025-10-25 22:21:56 CST (+0800)
+" Last change: Sat 2025-10-25 22:23:13 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -880,6 +880,14 @@ endfunction
 " Current popup ID (buffer-local)
 let b:tex_labels_popup = -1
 
+" Clean up popup when leaving buffer
+function! s:CleanupPopup()
+  if b:tex_labels_popup != -1
+    call popup_close(b:tex_labels_popup)
+    let b:tex_labels_popup = -1
+  endif
+endfunction
+
 " Show the reference popup menu
 function! s:ShowRefPopup(limit)
     " Close any existing popup first
@@ -1194,14 +1202,6 @@ function! s:InsertReference(ref)
     call setline('.', new_line)
     call feedkeys("\<Esc>", 'n')
     call cursor(line('.'), start_col + len(ref_name) + 2)
-endfunction
-
-" Clean up popup when leaving buffer
-function! s:CleanupPopup()
-  if b:tex_labels_popup != -1
-    call popup_close(b:tex_labels_popup)
-    let b:tex_labels_popup = -1
-  endif
 endfunction
 
 " Open the file-selection popup window
