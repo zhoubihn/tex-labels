@@ -3,10 +3,10 @@
 " 	Provides popup menu for \ref, \eqref, \pageref, and \cite commands
 "
 " Maintainer:   Bin Zhou
-" Version:      0.3.13
+" Version:      0.3.14
 "
 " Upgraded on: Sun 2025-10-26 00:03:54 CST (+0800)
-" Last change: Sun 2025-10-26 00:10:25 CST (+0800)
+" Last change: Sun 2025-10-26 00:12:40 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -824,25 +824,6 @@ function! s:GetRefItems(filename, type)
     endif
 endfunction
 
-
-""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-"
-"	Functions and related buffer parameters for this plugin only
-"
-""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-
-" Current popup ID (buffer-local)
-let b:tex_labels_popup = -1
-
-
-" Clean up popup when leaving buffer
-function! s:CleanupPopup()
-  if b:tex_labels_popup != -1
-    call popup_close(b:tex_labels_popup)
-    let b:tex_labels_popup = -1
-  endif
-endfunction
-
 " Get all references from current buffer
 function! s:GetAllReferences(limit)
     let refs = s:GetRefItems(@%, "label") "??????????????!!!!!!!!!!!!!
@@ -873,6 +854,25 @@ function! s:GetAllReferences(limit)
     endif
 
     return refs
+endfunction
+
+
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+"
+"	Functions and related buffer parameters for this plugin only
+"
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+" Current popup ID (buffer-local)
+let b:tex_labels_popup = -1
+
+
+" Clean up popup when leaving buffer
+function! s:CleanupPopup()
+  if b:tex_labels_popup != -1
+    call popup_close(b:tex_labels_popup)
+    let b:tex_labels_popup = -1
+  endif
 endfunction
 
 " Show the reference popup menu
