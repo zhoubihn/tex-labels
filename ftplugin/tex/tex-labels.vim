@@ -3,10 +3,10 @@
 " 	Provides popup menu for \ref, \eqref, \pageref, and \cite commands
 "
 " Maintainer:   Bin Zhou
-" Version:      0.3.15
+" Version:      0.3.16
 "
-" Upgraded on: Sun 2025-10-26 00:03:54 CST (+0800)
-" Last change: Sun 2025-10-26 01:11:46 CST (+0800)
+" Upgraded on: Sun 2025-10-26 01:14:12 CST (+0800)
+" Last change: Sun 2025-10-26 15:48:28 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -185,7 +185,7 @@ endfunction
 
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 "
-"	Fundamental functions and buffer parameters for this plugin
+"	Fundamental functions and related buffer parameters for this plugin
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -815,7 +815,8 @@ function! s:GetRefItems(filename, type)
 	return refs
     else
 	call s:Update_AuxFiles(a:type, filename)
-	return = readfile(aux_file)
+	let refs = readfile(aux_file)
+	return refs
     endif
 endfunction
 
@@ -853,7 +854,7 @@ endfunction
 
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 "
-"	Functions and related buffer parameters for this plugin only
+"	Functions and related buffer parameters for popup windows
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -869,49 +870,85 @@ function! s:CleanupPopup()
   endif
 endfunction
 
+" Function to create a popup menu of how to list labels or bibitems
+"   s:FilesOrCounters(type)
+"   {type}	"label", "bibitem" or "tag"
+" What value should be returned?
+"
+function! s:FilesOrCounters(type)
+    if a:type != "label" && a:type != "bibitem" && a:type != "tag"
+	echo 's:FilesOrCounters: unknown type "' .. a:type .. '".'
+	return -1
+    endif
+
+    call s:CleanupPopup()
+
+    let items = []
+    call add(items, "Select according to files\t(Press Alt-F or \"k\")")
+    call add(items, "Select according to counters\t(Press Alt-C or \"j\")")
+
+    let involved_files = s:GetFilesContainingCommand(a:type)
+    if !empty(involved_files)
+	let popup_config = {
+		    \ 'line': winline() + 1,
+		    \ 'col': wincol(),
+		    \ 'pos': 'topleft',
+		    \ 'maxheight': g:tex_labels_popup_height,
+		    \ 'maxwidth': winwidth(0) - 8,
+		    \ 'highlight': 'TexLabelsPopup',
+		    \ 'border': [1, 1, 1, 1],
+		    \ 'borderhighlight': ['TexLabelsPopupBorder'],
+		    \ 'title': ' List by files or by counters ',
+		    \ 'titlehighlight': 'TexLabelsPopupTitle',
+		    \ 'cursorline': 1,
+		    \ 'zindex': 200,
+		    \ 'filter': function('s:PopupFilter_FileCounter')
+		    \ }
+	let b:tex_labels_popup = popup_create(items, popup_config)
+	return (b:tex_labels_popup > 0 ? 0 : -1)
+    else
+	return s:Popup_byCounters(involved_files, a:type)
+    endif
+endfunction
+
 " Show the reference popup menu
+"   s:ShowRefPopup(type, limit[, filename])
+"   {type}	"label", "bibitem" or "tag"
 "   {limit}	If {limit} is a positive integer and there are more than {limit}
 "		items to select, the menu shows options whether to show them
 "		according to source files or according to counters.
 "		If {limit} is zero, all envolved items are shown in the menu.
-function! s:ShowRefPopup(limit)
+"    {filename}
+"		If {filename} is nonempty, only items from {filename} are
+"		displayed for selection.
+"
+function! s:ShowRefPopup(type, limit, ...)
     " Close any existing popup first
     call s:CleanupPopup()
 
-    " Get all variables ready
+    if a:type != "label" && a:type != "bibitem" && a:type != "tag"
+	echo 's:ShowRefPopup: unknown type "' .. a:type .. '".'
+	return
+    endif
+
     let b:tex_labels_item_overflow = 0
-    let refs = s:GetAllReferences(a:limit)
+    if a:0 > 0 && !empty(a:1)
+	let refs = s:GetRefItems(a:1, a:type)
+	if len(refs) > a:limit
+	    call remove(refs, 0, -1)
+	    let b:tex_labels_item_overflow = 1
+	endif
+    else
+	let refs = s:GetAllReferences(a:type, a:limit)
+    endif
 
     if b:tex_labels_item_overflow
 	let b:tex_labels_item_overflow = 0
-	if !empty(refs)
-	    call remove(refs, 0, -1)
-	endif
+	" Here {refs} is empty. See, the codes of s:GetAllReferences() .
 
-	let included_files = s:GetFilesToSearch()
-	if !empty(included_files)
-	    call add(refs, "Select according to files\t(Press Ctrl-F)")
-	    call add(refs, "Select according to counters\t(Press Ctrl-C)")
-
-	    let popup_config = {
-			\ 'line': winline() + 1,
-			\ 'col': wincol(),
-			\ 'pos': 'topleft',
-			\ 'maxheight': g:tex_labels_popup_height,
-			\ 'maxwidth': winwidth(0) - 8,
-			\ 'highlight': 'TexLabelsPopup',
-			\ 'border': [1, 1, 1, 1],
-			\ 'borderhighlight': ['TexLabelsPopupBorder'],
-			"\ 'title': ' References ',
-			\ 'titlehighlight': 'TexLabelsPopupTitle',
-			\ 'cursorline': 1,
-			\ 'zindex': 200,
-			\ 'filter': function('s:PopupFilter_guide')
-			\ }
-	else
-	    call s:popup_counters()
-	    return
-	endif
+	call s:FilesOrCounters(a:type)
+	" ??????????????!!!!!!!!!!!!!!!!!!!!!!!
+	return
     elseif empty(refs)
 	" Create error message
 	call s:ShowWarningMessage("No labels found.")
@@ -932,10 +969,10 @@ function! s:ShowRefPopup(limit)
 		    \ 'zindex': 200,
 		    \ 'filter': function('s:PopupFilter')
 		    \ }
-    endif
 
-    " Create popup menu
-    let b:tex_labels_popup = popup_create(refs, popup_config)
+	" Create popup menu
+	let b:tex_labels_popup = popup_create(refs, popup_config)
+    endif
 endfunction
 
 " Check whether some action should be triggered
@@ -971,9 +1008,9 @@ function! s:TriggerCheck()
     " Check if it's a command like \ref, \eqref, and so on
     let before_brace = strpart(line, 0, open_brace_at)
     if before_brace =~ '\v\\(ref|eqref|pageref)\s*$'
-	call s:ShowRefPopup(g:tex_labels_limit)
+	call s:ShowRefPopup("label", g:tex_labels_limit)
     elseif before_brace =~ '\v\\cite\s*$'
-	call s:ShowBibPopup(g:tex_labels_limit)
+	call s:ShowRefPopup("bibitem", g:tex_labels_limit)
     elseif before_brace =~ '\v\\(label|tag)\s*$'
 	call s:CheckLabels()
     elseif before_brace =~ '\v\\bibitem(\[[^\]]*\])?\s*\[([^][{}]*)\]\s*$'
@@ -1040,7 +1077,7 @@ function! s:popup_files(type)
 endfunction
 
 " Popup filter function
-function! s:PopupFilter_guide(winid, key)
+function! s:PopupFilter_FileCounter(winid, key)
     " Store previous key for gg detection
     if !exists('b:menu_selection')
         let b:menu_selection = 'F'
@@ -1066,7 +1103,7 @@ function! s:PopupFilter_guide(winid, key)
 	if b:menu_selection == 'F'
 	    call s:popup_files('label')
 	elseif b:menu_selection == 'C'
-	    call s:popup_counters('label')
+	    call s:Popup_byCounters('label')
 	endif
 
         return 1
@@ -1080,7 +1117,7 @@ function! s:PopupFilter_guide(winid, key)
     elseif a:key == "\<C-C>"
         let b:tex_labels_popup = -1
         call popup_close(a:winid)
-	call s:popup_counters('label')
+	call s:Popup_byCounters('label')
 	return 1
 
     elseif a:key == "\<Esc>"
@@ -1115,10 +1152,6 @@ function! s:ShowWarningMessage(message)
 		\ 'filter': function('s:PopupFilter_void')
 		\ }
     call popup_create(text, popup_config)
-endfunction
-
-" Show the bibliography popup menu
-function! s:ShowBibPopup()
 endfunction
 
 " Check labels
@@ -1455,7 +1488,7 @@ function! s:PopupFilter_bibitem(winid, key)
 endfunction
 
 " Open the counter-selection popup window
-function! s:popup_counters()
+function! s:Popup_byCounters(...)
 endfunction
 
 " Set up highlighting (only once globally)
