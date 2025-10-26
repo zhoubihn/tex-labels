@@ -3,10 +3,10 @@
 " 	Provides popup menu for \ref, \eqref, \pageref, and \cite commands
 "
 " Maintainer:   Bin Zhou
-" Version:      0.3.17
+" Version:      0.3.18
 "
-" Upgraded on: Sun 2025-10-26 15:55:27 CST (+0800)
-" Last change: Sun 2025-10-26 16:14:17 CST (+0800)
+" Upgraded on: Sun 2025-10-26 16:15:49 CST (+0800)
+" Last change: Sun 2025-10-26 16:17:58 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -870,6 +870,39 @@ function! s:CleanupPopup()
   endif
 endfunction
 
+" Popup filter function when no labels found
+function! s:PopupFilter_void(winid, key)
+    " Close popup on any other key
+    "let b:tex_labels_popup = -1
+    call popup_close(a:winid)
+    return 1
+endfunction
+
+" Function showing a warning message
+function! s:ShowWarningMessage(message)
+    let text = []
+    call add(text, a:message)
+    call add(text, "")
+    call add(text, "Press any key to close this window.")
+
+    let popup_config = {
+		\ 'line': winline() + 1,
+		\ 'col': wincol(),
+		\ 'pos': 'topleft',
+		\ 'maxheight': 4,
+		\ 'maxwidth': winwidth(0) - 8,
+		\ 'highlight': 'TexLabelsPopup',
+		\ 'border': [1, 1, 1, 1],
+		\ 'borderhighlight': ['TexLabelsPopupBorder'],
+		\ 'title': ' Warning ',
+		\ 'titlehighlight': 'TexLabelsPopupTitle',
+		"\ 'cursorline': 1,
+		\ 'zindex': 200,
+		\ 'filter': function('s:PopupFilter_void')
+		\ }
+    call popup_create(text, popup_config)
+endfunction
+
 " Open the file-selection popup window
 function! s:Popup_byFiles(involved_files, a:type)
 endfunction
@@ -1140,30 +1173,6 @@ function! s:popup_files(type)
     return 0
 endfunction
 
-function! s:ShowWarningMessage(message)
-    let text = []
-    call add(text, a:message)
-    call add(text, "")
-    call add(text, "Press any key to close this window.")
-
-    let popup_config = {
-		\ 'line': winline() + 1,
-		\ 'col': wincol(),
-		\ 'pos': 'topleft',
-		\ 'maxheight': 4,
-		\ 'maxwidth': winwidth(0) - 8,
-		\ 'highlight': 'TexLabelsPopup',
-		\ 'border': [1, 1, 1, 1],
-		\ 'borderhighlight': ['TexLabelsPopupBorder'],
-		\ 'title': ' Warning ',
-		\ 'titlehighlight': 'TexLabelsPopupTitle',
-		"\ 'cursorline': 1,
-		\ 'zindex': 200,
-		\ 'filter': function('s:PopupFilter_void')
-		\ }
-    call popup_create(text, popup_config)
-endfunction
-
 " Check labels
 function! s:CheckLabels()
 endfunction
@@ -1271,14 +1280,6 @@ function! s:PopupFilter(winid, key)
         call popup_close(a:winid)
         return 0
     endif
-endfunction
-
-" Popup filter function when no labels found
-function! s:PopupFilter_void(winid, key)
-    " Close popup on any other key
-    "let b:tex_labels_popup = -1
-    call popup_close(a:winid)
-    return 1
 endfunction
 
 " Insert selected reference
