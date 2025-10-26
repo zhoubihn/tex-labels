@@ -3,10 +3,10 @@
 " 	Provides popup menu for \ref, \eqref, \pageref, and \cite commands
 "
 " Maintainer:   Bin Zhou
-" Version:      0.3.16
+" Version:      0.3.17
 "
-" Upgraded on: Sun 2025-10-26 01:14:12 CST (+0800)
-" Last change: Sun 2025-10-26 15:48:28 CST (+0800)
+" Upgraded on: Sun 2025-10-26 15:55:27 CST (+0800)
+" Last change: Sun 2025-10-26 16:14:17 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -870,6 +870,68 @@ function! s:CleanupPopup()
   endif
 endfunction
 
+" Open the file-selection popup window
+function! s:Popup_byFiles(involved_files, a:type)
+endfunction
+
+" Open the counter-selection popup window
+function! s:Popup_byCounters(involved_files, a:type)
+endfunction
+
+" Popup filter function
+function! s:PopupFilter_FileCounter(winid, key)
+    " Store previous key for gg detection
+    if !exists('b:menu_selection')
+        let b:menu_selection = 'F'
+    endif
+
+    " Handle different keys
+    if a:key == 'j'
+        " Move cursor down one line
+        call win_execute(a:winid, 'normal! j')
+        let b:menu_selection = 'C'
+        return 1
+
+    elseif a:key == 'k'
+        " Move cursor up one line
+        call win_execute(a:winid, 'normal! k')
+        let b:menu_selection = 'F'
+        return 1
+
+    elseif a:key == "\<CR>"
+        let b:tex_labels_popup = -1
+        call popup_close(a:winid)
+
+	if b:menu_selection == 'F'
+	    call s:popup_files('label')
+	elseif b:menu_selection == 'C'
+	    call s:Popup_byCounters('label')
+	endif
+
+        return 1
+
+    elseif a:key == "\<C-F>"
+        let b:tex_labels_popup = -1
+        call popup_close(a:winid)
+	call s:popup_files('label')
+	return 1
+
+    elseif a:key == "\<C-C>"
+        let b:tex_labels_popup = -1
+        call popup_close(a:winid)
+	call s:Popup_byCounters('label')
+	return 1
+
+    elseif a:key == "\<Esc>"
+        let b:tex_labels_popup = -1
+        call popup_close(a:winid)
+	return 1
+
+    else
+        return 1
+    endif
+endfunction
+
 " Function to create a popup menu of how to list labels or bibitems
 "   s:FilesOrCounters(type)
 "   {type}	"label", "bibitem" or "tag"
@@ -888,7 +950,7 @@ function! s:FilesOrCounters(type)
     call add(items, "Select according to counters\t(Press Alt-C or \"j\")")
 
     let involved_files = s:GetFilesContainingCommand(a:type)
-    if !empty(involved_files)
+    if len(involved_files) > 1
 	let popup_config = {
 		    \ 'line': winline() + 1,
 		    \ 'col': wincol(),
@@ -906,8 +968,10 @@ function! s:FilesOrCounters(type)
 		    \ }
 	let b:tex_labels_popup = popup_create(items, popup_config)
 	return (b:tex_labels_popup > 0 ? 0 : -1)
-    else
+    elseif len(involved_files) == 1
 	return s:Popup_byCounters(involved_files, a:type)
+    else
+	return 0
     endif
 endfunction
 
@@ -1074,60 +1138,6 @@ function! s:popup_files(type)
     let b:tex_labels_popup = popup_create(files, popup_config)
 
     return 0
-endfunction
-
-" Popup filter function
-function! s:PopupFilter_FileCounter(winid, key)
-    " Store previous key for gg detection
-    if !exists('b:menu_selection')
-        let b:menu_selection = 'F'
-    endif
-
-    " Handle different keys
-    if a:key == 'j'
-        " Move cursor down one line
-        call win_execute(a:winid, 'normal! j')
-        let b:menu_selection = 'C'
-        return 1
-
-    elseif a:key == 'k'
-        " Move cursor up one line
-        call win_execute(a:winid, 'normal! k')
-        let b:menu_selection = 'F'
-        return 1
-
-    elseif a:key == "\<CR>"
-        let b:tex_labels_popup = -1
-        call popup_close(a:winid)
-
-	if b:menu_selection == 'F'
-	    call s:popup_files('label')
-	elseif b:menu_selection == 'C'
-	    call s:Popup_byCounters('label')
-	endif
-
-        return 1
-
-    elseif a:key == "\<C-F>"
-        let b:tex_labels_popup = -1
-        call popup_close(a:winid)
-	call s:popup_files('label')
-	return 1
-
-    elseif a:key == "\<C-C>"
-        let b:tex_labels_popup = -1
-        call popup_close(a:winid)
-	call s:Popup_byCounters('label')
-	return 1
-
-    elseif a:key == "\<Esc>"
-        let b:tex_labels_popup = -1
-        call popup_close(a:winid)
-	return 1
-
-    else
-        return 1
-    endif
 endfunction
 
 function! s:ShowWarningMessage(message)
@@ -1485,10 +1495,6 @@ function! s:PopupFilter_bibitem(winid, key)
         call popup_close(a:winid)
         return 0
     endif
-endfunction
-
-" Open the counter-selection popup window
-function! s:Popup_byCounters(...)
 endfunction
 
 " Set up highlighting (only once globally)
