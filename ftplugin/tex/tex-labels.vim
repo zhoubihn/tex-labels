@@ -3,10 +3,10 @@
 " 	Provides popup menu for \ref, \eqref, \pageref, and \cite commands
 "
 " Maintainer:   Bin Zhou
-" Version:      0.3.19
+" Version:      0.3.20
 "
-" Upgraded on: Sun 2025-10-26 16:20:11 CST (+0800)
-" Last change: Sun 2025-10-26 16:25:39 CST (+0800)
+" Upgraded on: Sun 2025-10-26 16:27:04 CST (+0800)
+" Last change: Mon 2025-10-27 00:15:55 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -180,6 +180,40 @@ function! s:MatchCurlyBrace(text, ...)
 	call extend(positions, [left_ind, right_ind])
 	return positions
     endif
+endfunction
+
+" Function to locate '{', but not part of '\{', in the string {expr}
+" with the greatest offset that is less than {curr_offset}
+function! s:SearchOpenBrace_left(expr, curr_offset)
+    if empty(a:expr) || a:curr_offset <= 0
+	return -1
+    endif
+
+    let length = min([len(a:expr), a:curr_offset])
+    " Then {length} >= 1
+
+    while length > 0
+	let offset = strridx( strpart(a:expr, 0, length), '{' )
+	if offset <= 0
+	    " '{' not found, or at the beginning of {expr}
+	    return offset
+	endif
+
+	" Then {offset} >= 1
+
+	if strpart(a:expr, offset - 1, 1) != '\'
+	    return offset
+	elseif offset == 1
+	    " Only a single '\{' is found.
+	    return -1
+	else
+	    " {offset} >= 2
+	    let length = offset - 1
+	endif
+    endwhile
+
+    " Not found.
+    return -1
 endfunction
 
 
@@ -904,14 +938,15 @@ function! s:ShowWarningMessage(message)
 endfunction
 
 " Open the file-selection popup window
-function! s:Popup_byFiles(involved_files, a:type)
-endfunction
-
-" Open the file-selection popup window
 " {type}	being "label" or "bibitem" only
-function! s:popup_files(type)
+function! s:popup_files(files, type)
     " Close any existing popup first
     call s:CleanupPopup()
+
+    if a:type != "label" && a:type != "bibitem"
+	echo 's:popup_files: invalid type "' .. a:type .. '".'
+	return -1
+    endif
 
     let files = s:GetFilesContainingCommand(a:type)
     if empty(files)
@@ -953,7 +988,7 @@ function! s:popup_files(type)
 		    \ 'filter': function('s:PopupFilter_bibitem')
 		    \ }
     else
-	echo 's:popup_files({type}): type "' .. a:type .. '" not supported'
+	echo 's:popup_files(): invalid type "' .. a:type .. '"'
 	return -1
     endif
 
@@ -964,7 +999,7 @@ function! s:popup_files(type)
 endfunction
 
 " Open the counter-selection popup window
-function! s:Popup_byCounters(involved_files, a:type)
+function! s:popup_counters(files, a:type)
 endfunction
 
 " Popup filter function
@@ -994,7 +1029,7 @@ function! s:PopupFilter_FileCounter(winid, key)
 	if b:menu_selection == 'F'
 	    call s:popup_files('label')
 	elseif b:menu_selection == 'C'
-	    call s:Popup_byCounters('label')
+	    call s:popup_counters('label')
 	endif
 
         return 1
@@ -1008,7 +1043,7 @@ function! s:PopupFilter_FileCounter(winid, key)
     elseif a:key == "\<A-C>"
         let b:tex_labels_popup = -1
         call popup_close(a:winid)
-	call s:Popup_byCounters('label')
+	call s:popup_counters('label')
 	return 1
 
     elseif a:key == "\<Esc>"
@@ -1058,7 +1093,7 @@ function! s:FilesOrCounters(type)
 	let b:tex_labels_popup = popup_create(items, popup_config)
 	return (b:tex_labels_popup > 0 ? 0 : -1)
     elseif len(involved_files) == 1
-	return s:Popup_byCounters(involved_files, a:type)
+	return s:popup_counters(involved_files, a:type)
     else
 	return 0
     endif
@@ -1134,10 +1169,17 @@ function! s:TriggerCheck()
     let offset = col('.') - 1
 
     " Quick check: if no '{' before cursor, return early
-    let start = strridx(strpart(line, 0, offset), '{')
-    if start == -1
-	return
-    endif
+    "if offset == 0
+"	return
+"    endif
+    "let open_brace = offset
+    "while open_brace >= 0
+"	let open_brace = strridx(strpart(line, 0, open_brace), '{')
+"	if start == -1
+"	    return
+"	elseif 
+"	endif
+"    endwhile
 
     " Check if cursor is between '{' and '}' .
     " Note that '{' at offset {start} might be part of '\{'.
