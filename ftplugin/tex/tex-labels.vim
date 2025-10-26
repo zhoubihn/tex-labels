@@ -3,10 +3,10 @@
 " 	Provides popup menu for \ref, \eqref, \pageref, and \cite commands
 "
 " Maintainer:   Bin Zhou
-" Version:      0.3.18
+" Version:      0.3.19
 "
-" Upgraded on: Sun 2025-10-26 16:15:49 CST (+0800)
-" Last change: Sun 2025-10-26 16:17:58 CST (+0800)
+" Upgraded on: Sun 2025-10-26 16:20:11 CST (+0800)
+" Last change: Sun 2025-10-26 16:25:39 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -907,6 +907,62 @@ endfunction
 function! s:Popup_byFiles(involved_files, a:type)
 endfunction
 
+" Open the file-selection popup window
+" {type}	being "label" or "bibitem" only
+function! s:popup_files(type)
+    " Close any existing popup first
+    call s:CleanupPopup()
+
+    let files = s:GetFilesContainingCommand(a:type)
+    if empty(files)
+	call s:ShowWarningMessage('No files containing "\' .. a:type .. '"')
+	return -1
+    endif
+
+    if a:type == "label"
+	let popup_config = {
+		    \ 'line': winline() + 1,
+		    \ 'col': wincol(),
+		    \ 'pos': 'topleft',
+		    \ 'maxheight': g:tex_labels_popup_height,
+		    \ 'maxwidth': winwidth(0) - 8,
+		    \ 'highlight': 'TexLabelsPopup',
+		    \ 'border': [1, 1, 1, 1],
+		    \ 'borderhighlight': ['TexLabelsPopupBorder'],
+		    \ 'title': ' Search in one of these files: ',
+		    \ 'titlehighlight': 'TexLabelsPopupTitle',
+		    \ 'cursorline': 1,
+		    \ 'zindex': 200,
+		    \ 'filter': function('s:PopupFilter_file')
+		    \ }
+
+    elseif a:type == "bibitem"
+	let popup_config = {
+		    \ 'line': winline() + 1,
+		    \ 'col': wincol(),
+		    \ 'pos': 'topleft',
+		    \ 'maxheight': g:tex_labels_popup_height,
+		    \ 'maxwidth': winwidth(0) - 8,
+		    \ 'highlight': 'TexLabelsPopup',
+		    \ 'border': [1, 1, 1, 1],
+		    \ 'borderhighlight': ['TexLabelsPopupBorder'],
+		    \ 'title': ' Search in one of these files: ',
+		    \ 'titlehighlight': 'TexLabelsPopupTitle',
+		    \ 'cursorline': 1,
+		    \ 'zindex': 200,
+		    \ 'filter': function('s:PopupFilter_bibitem')
+		    \ }
+    else
+	echo 's:popup_files({type}): type "' .. a:type .. '" not supported'
+	return -1
+    endif
+
+    " Create popup menu
+    let b:tex_labels_popup = popup_create(files, popup_config)
+
+    return 0
+endfunction
+
 " Open the counter-selection popup window
 function! s:Popup_byCounters(involved_files, a:type)
 endfunction
@@ -943,13 +999,13 @@ function! s:PopupFilter_FileCounter(winid, key)
 
         return 1
 
-    elseif a:key == "\<C-F>"
+    elseif a:key == "\<A-F>"
         let b:tex_labels_popup = -1
         call popup_close(a:winid)
 	call s:popup_files('label')
 	return 1
 
-    elseif a:key == "\<C-C>"
+    elseif a:key == "\<A-C>"
         let b:tex_labels_popup = -1
         call popup_close(a:winid)
 	call s:Popup_byCounters('label')
@@ -1115,62 +1171,6 @@ function! s:TriggerCheck()
     elseif before_brace =~ '\v\\includeonely\s*$'
 	call s:CheckIncludedFiles()
     endif
-endfunction
-
-" Open the file-selection popup window
-" {type}	being "label" or "bibitem" only
-function! s:popup_files(type)
-    " Close any existing popup first
-    call s:CleanupPopup()
-
-    let files = s:GetFilesContainingCommand(a:type)
-    if empty(files)
-	call s:ShowWarningMessage('No files containing "\' .. a:type .. '"')
-	return -1
-    endif
-
-    if a:type == "label"
-	let popup_config = {
-		    \ 'line': winline() + 1,
-		    \ 'col': wincol(),
-		    \ 'pos': 'topleft',
-		    \ 'maxheight': g:tex_labels_popup_height,
-		    \ 'maxwidth': winwidth(0) - 8,
-		    \ 'highlight': 'TexLabelsPopup',
-		    \ 'border': [1, 1, 1, 1],
-		    \ 'borderhighlight': ['TexLabelsPopupBorder'],
-		    \ 'title': ' Search in one of these files: ',
-		    \ 'titlehighlight': 'TexLabelsPopupTitle',
-		    \ 'cursorline': 1,
-		    \ 'zindex': 200,
-		    \ 'filter': function('s:PopupFilter_file')
-		    \ }
-
-    elseif a:type == "bibitem"
-	let popup_config = {
-		    \ 'line': winline() + 1,
-		    \ 'col': wincol(),
-		    \ 'pos': 'topleft',
-		    \ 'maxheight': g:tex_labels_popup_height,
-		    \ 'maxwidth': winwidth(0) - 8,
-		    \ 'highlight': 'TexLabelsPopup',
-		    \ 'border': [1, 1, 1, 1],
-		    \ 'borderhighlight': ['TexLabelsPopupBorder'],
-		    \ 'title': ' Search in one of these files: ',
-		    \ 'titlehighlight': 'TexLabelsPopupTitle',
-		    \ 'cursorline': 1,
-		    \ 'zindex': 200,
-		    \ 'filter': function('s:PopupFilter_bibitem')
-		    \ }
-    else
-	echo 's:popup_files({type}): type "' .. a:type .. '" not supported'
-	return -1
-    endif
-
-    " Create popup menu
-    let b:tex_labels_popup = popup_create(files, popup_config)
-
-    return 0
 endfunction
 
 " Check labels
