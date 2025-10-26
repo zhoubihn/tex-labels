@@ -3,10 +3,10 @@
 " 	Provides popup menu for \ref, \eqref, \pageref, and \cite commands
 "
 " Maintainer:   Bin Zhou
-" Version:      0.3.20
+" Version:      0.3.21
 "
-" Upgraded on: Sun 2025-10-26 16:27:04 CST (+0800)
-" Last change: Mon 2025-10-27 00:15:55 CST (+0800)
+" Upgraded on: Mon 2025-10-27 00:17:29 CST (+0800)
+" Last change: Mon 2025-10-27 00:29:41 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -1169,49 +1169,40 @@ function! s:TriggerCheck()
     let offset = col('.') - 1
 
     " Quick check: if no '{' before cursor, return early
-    "if offset == 0
-"	return
-"    endif
-    "let open_brace = offset
-    "while open_brace >= 0
-"	let open_brace = strridx(strpart(line, 0, open_brace), '{')
-"	if start == -1
-"	    return
-"	elseif 
-"	endif
-"    endwhile
-
-    " Check if cursor is between '{' and '}' .
-    " Note that '{' at offset {start} might be part of '\{'.
-    " Hence it is necessary to search matched curly braces from {start} - 1 .
-    " It does not matter when {start} == 0 .
-    let curlybrace_at = s:MatchCurlyBrace(line, start - 1)
-    if empty(curlybrace_at)
-	return
+    let open_brace_at = s:SearchOpenBrace_left(line, offset)
+    if open_brace_at < 0
+	return -1
     endif
 
-    " {open_brace_at} >= start and offset > start
-    let open_brace_at = curlybrace_at[0]
+    " Check if cursor is between '{' and '}' .
+    " Note that '{' with offset {open_brace_at} is not part of '\{'.
+    let curlybrace_at = s:MatchCurlyBrace(line, open_brace_at)
+    if empty(curlybrace_at)
+	return -1
+    endif
+
+    " {open_brace_at} == curlybrace_at[0]
+    "let open_brace_at = curlybrace_at[0]
     let close_brace_at = curlybrace_at[1]
-    if  open_brace_at >= offset || close_brace_at < offset
-	return
+    if close_brace_at < offset
+	return -1
     endif
 
     " Now the cursor is behide '{', and is before or at '}'.  That is,
-    "	open_brace_at < offset <= close_brace_at .
+    "	{open_brace_at} < {offset} <= {close_brace_at} .
 
     " Check if it's a command like \ref, \eqref, and so on
     let before_brace = strpart(line, 0, open_brace_at)
     if before_brace =~ '\v\\(ref|eqref|pageref)\s*$'
-	call s:ShowRefPopup("label", g:tex_labels_limit)
+	return s:ShowRefPopup("label", g:tex_labels_limit)
     elseif before_brace =~ '\v\\cite\s*$'
-	call s:ShowRefPopup("bibitem", g:tex_labels_limit)
+	return s:ShowRefPopup("bibitem", g:tex_labels_limit)
     elseif before_brace =~ '\v\\(label|tag)\s*$'
-	call s:CheckLabels()
+	return s:CheckLabels()
     elseif before_brace =~ '\v\\bibitem(\[[^\]]*\])?\s*\[([^][{}]*)\]\s*$'
-	call s:CheckBibitems()
+	return s:CheckBibitems()
     elseif before_brace =~ '\v\\includeonely\s*$'
-	call s:CheckIncludedFiles()
+	return s:CheckIncludedFiles()
     endif
 endfunction
 
