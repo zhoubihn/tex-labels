@@ -3,10 +3,10 @@
 " 	Provides popup menu for \ref, \eqref, \pageref, and \cite commands
 "
 " Maintainer:   Bin Zhou
-" Version:      0.3.21
+" Version:      0.3.22
 "
-" Upgraded on: Mon 2025-10-27 00:17:29 CST (+0800)
-" Last change: Mon 2025-10-27 00:29:41 CST (+0800)
+" Upgraded on: Mon 2025-10-27 12:27:58 CST (+0800)
+" Last change: Tue 2025-10-28 01:02:10 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -25,7 +25,7 @@ let b:loaded_tex_labels = 1
 
 " Configuration options
 if !exists('g:tex_labels_popup_bg')
-  let g:tex_labels_popup_bg = 'LightMagenta'
+  let g:tex_labels_popup_bg = 'LightYellow'
 endif
 
 if !exists('g:tex_labels_popup_height')
@@ -999,7 +999,7 @@ function! s:popup_files(files, type)
 endfunction
 
 " Open the counter-selection popup window
-function! s:popup_counters(files, a:type)
+function! s:popup_counters(files, type)
 endfunction
 
 " Popup filter function
@@ -1116,7 +1116,7 @@ function! s:ShowRefPopup(type, limit, ...)
 
     if a:type != "label" && a:type != "bibitem" && a:type != "tag"
 	echo 's:ShowRefPopup: unknown type "' .. a:type .. '".'
-	return
+	return -1
     endif
 
     let b:tex_labels_item_overflow = 0
@@ -1204,6 +1204,8 @@ function! s:TriggerCheck()
     elseif before_brace =~ '\v\\includeonely\s*$'
 	return s:CheckIncludedFiles()
     endif
+
+    return 0
 endfunction
 
 " Check labels
@@ -1539,7 +1541,8 @@ if !exists('g:tex_labels_highlighted')
     execute 'highlight TexLabelsPopup guibg=' .. g:tex_labels_popup_bg ..
 		\ ' guifg=black'
   else
-    let cterm_color = g:tex_labels_popup_bg == 'LightMagenta' ? '219' : (g:tex_labels_popup_bg == 'pink' ? '218' : 'magenta')
+      let cterm_color = g:tex_labels_popup_bg
+    "let cterm_color = g:tex_labels_popup_bg == 'LightMagenta' ? '219' : (g:tex_labels_popup_bg == 'pink' ? '218' : 'magenta')
     execute 'highlight TexLabelsPopup ctermbg=' .. cterm_color .. ' ctermfg=0'
   endif
 
