@@ -3,10 +3,10 @@
 " 	Provides popup menu for \ref, \eqref, \pageref, and \cite commands
 "
 " Maintainer:   Bin Zhou
-" Version:      0.3.25
+" Version:      0.3.26
 "
-" Upgraded on: Tue 2025-10-28 21:43:46 CST (+0800)
-" Last change: Tue 2025-10-28 21:49:00 CST (+0800)
+" Upgraded on: Tue 2025-10-28 21:51:14 CST (+0800)
+" Last change: Wed 2025-10-29 00:30:01 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -804,7 +804,7 @@ function! s:GetFilesContainingCommand(type, ...)
 	    let aux_file = file .. '\.' .. a:type
 	endif
 
-	if getfsize(file) >= 0 || getfsize(file) == -2
+	if getfsize(aux_file) > 0 || getfsize(aux_file) == -2
 	    call add(effective_files, file)
 	endif
     endfor
@@ -939,7 +939,7 @@ endfunction
 
 " Open the file-selection popup window
 " {type}	being "label" or "bibitem" only
-function! s:popup_files(files, type)
+function! s:popup_files(type)
     " Close any existing popup first
     call s:CleanupPopup()
 
@@ -964,7 +964,7 @@ function! s:popup_files(files, type)
 		    \ 'highlight': 'TexLabelsPopup',
 		    \ 'border': [1, 1, 1, 1],
 		    \ 'borderhighlight': ['TexLabelsPopupBorder'],
-		    \ 'title': ' Search in one of these files: ',
+		    \ 'title': ' Select a file to search: ',
 		    \ 'titlehighlight': 'TexLabelsPopupTitle',
 		    \ 'cursorline': 1,
 		    \ 'zindex': 200,
@@ -981,14 +981,14 @@ function! s:popup_files(files, type)
 		    \ 'highlight': 'TexLabelsPopup',
 		    \ 'border': [1, 1, 1, 1],
 		    \ 'borderhighlight': ['TexLabelsPopupBorder'],
-		    \ 'title': ' Search in one of these files: ',
+		    \ 'title': ' Select the counter the wanted label is related to: ',
 		    \ 'titlehighlight': 'TexLabelsPopupTitle',
 		    \ 'cursorline': 1,
 		    \ 'zindex': 200,
 		    \ 'filter': function('s:PopupFilter_bibitem')
 		    \ }
     else
-	echo 's:popup_files(): invalid type "' .. a:type .. '"'
+	echo 's:popup_files: invalid type "' .. a:type .. '"'
 	return -1
     endif
 
@@ -1008,6 +1008,8 @@ function! s:PopupFilter_FileCounter(winid, key)
     if !exists('b:menu_selection')
         let b:menu_selection = 'F'
     endif
+
+    let type = getwinvar(a:winid, 'type')
 
     " Handle different keys
     if a:key == 'j'
@@ -1031,9 +1033,9 @@ function! s:PopupFilter_FileCounter(winid, key)
         call popup_close(a:winid)
 
 	if b:menu_selection == 'F'
-	    call s:popup_files('label')
+	    call s:popup_files(type)
 	elseif b:menu_selection == 'C'
-	    call s:popup_counters('label')
+	    call s:popup_counters(type)
 	endif
 
         return 1
@@ -1041,13 +1043,13 @@ function! s:PopupFilter_FileCounter(winid, key)
     elseif a:key == "\<A-F>"
         let b:tex_labels_popup = -1
         call popup_close(a:winid)
-	call s:popup_files('label')
+	call s:popup_files(type)
 	return 1
 
     elseif a:key == "\<A-C>"
         let b:tex_labels_popup = -1
         call popup_close(a:winid)
-	call s:popup_counters('label')
+	call s:popup_counters(type)
 	return 1
 
     elseif a:key == "\<Esc>"
@@ -1101,8 +1103,12 @@ function! s:FilesOrCounters(type)
 	let b:tex_labels_popup = popup_create(items, popup_config)
 	if b:tex_labels_popup > 0
 	    call win_execute(b:tex_labels_popup, 'normal! 2j')
+	    call setwinvar(b:tex_labels_popup, 'type', a:type)
+	    return 0
+	else
+	    return -1
 	endif
-	return (b:tex_labels_popup > 0 ? 0 : -1)
+
     elseif len(involved_files) == 1
 	return s:popup_counters(involved_files, a:type)
     else
@@ -1150,7 +1156,9 @@ function! s:ShowRefPopup(type, limit, ...)
 	" Create error message
 	call s:ShowWarningMessage("No labels found.")
 	return
-    else
+    endif
+
+    if a:type == "label"
     	let popup_config = {
 		    \ 'line': winline() + 1,
 		    \ 'col': wincol(),
@@ -1166,11 +1174,18 @@ function! s:ShowRefPopup(type, limit, ...)
 		    \ 'zindex': 200,
 		    \ 'filter': function('s:PopupFilter')
 		    \ }
-
-	" Create popup menu
-	let b:tex_labels_popup = popup_create(refs, popup_config)
-	return 0
+    elseif a:type == "bibitem"
+    elseif a:type == "tag"
     endif
+
+    " Create popup menu
+    let b:tex_labels_popup = popup_create(refs, popup_config)
+    if b:tex_labels_popup < 0
+	return -1
+    endif
+
+    call setwinvar(b:tex_labels_popup, 'type', a:type)
+    return 0
 endfunction
 
 " Check whether some action should be triggered
@@ -1236,6 +1251,8 @@ function! s:PopupFilter(winid, key)
     if !exists('b:prev_popup_key')
         let b:prev_popup_key = ''
     endif
+
+    let type = getwinvar(a:winid, 'type', '')
 
     " Store a digital number for repeated command
     if !exists('b:count')
