@@ -3,10 +3,10 @@
 " 	Provides popup menu for \ref, \eqref, \pageref, and \cite commands
 "
 " Maintainer:   Bin Zhou
-" Version:      0.3.26
+" Version:      0.3.27
 "
-" Upgraded on: Tue 2025-10-28 21:51:14 CST (+0800)
-" Last change: Wed 2025-10-29 00:30:01 CST (+0800)
+" Upgraded on: Wed 2025-10-29 00:32:14 CST (+0800)
+" Last change: Wed 2025-10-29 00:59:14 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -937,6 +937,84 @@ function! s:ShowWarningMessage(message)
     call popup_create(text, popup_config)
 endfunction
 
+" Function to process some keys for popup filters
+function! s:Popup_KeyAction(winid, key, ...)
+    " Store previous key for gg detection
+    if !exists('b:prev_popup_key')
+        let b:prev_popup_key = ''
+    endif
+
+    " Store a digital number for repeated command
+    if !exists('b:count')
+	let b:count = ""
+    endif
+
+    " Handle different keys
+    if a:key >= '0' && a:key <= '9'
+	let b:prev_popup_key = a:key
+	let b:count = b:count .. a:key
+	return 1
+
+    elseif !empty(b:count)
+	call win_execute(a:winid, 'normal! ' .. b:count .. a:key)
+	let b:count = ""
+	return 1
+
+    elseif a:key == 'n' || a:key == 'j'
+        " Move cursor down one line
+        call win_execute(a:winid, 'normal! j')
+        let b:prev_popup_key = (a:key == 'n' ? 'n' : 'j')
+        return 1
+
+    elseif a:key == 'p' || a:key == 'N' || a:key == 'k'
+        " Move cursor up one line
+        call win_execute(a:winid, 'normal! k')
+        let b:prev_popup_key = (a:key == 'p' ? 'p' : (a:key == 'N' ? 'N' : 'k'))
+        return 1
+
+    elseif a:key == "\<Space>" || a:key == "\<C-F>"
+        " Scroll one page downward
+        call win_execute(a:winid, "normal! \<C-F>")
+        let b:prev_popup_key = (a:key == "\<Space>" ? "\<Space>" : "\<C-F>")
+        return 1
+
+    elseif a:key == 'b' || a:key == "\<C-B>"
+        " Scroll one page backward
+        call win_execute(a:winid, "normal! \<C-B>")
+        let b:prev_popup_key = (a:key == 'b' ? 'b' : "\<C-B>")
+        return 1
+
+    elseif a:key == 'G'
+        " Jump to last item
+        call win_execute(a:winid, 'normal! G')
+        let b:prev_popup_key = 'G'
+        return 1
+
+    elseif a:key == 'g'
+        " Check for gg sequence
+        if b:prev_popup_key == 'g'
+            " Jump to first item
+            call win_execute(a:winid, 'normal! gg')
+            let b:prev_popup_key = ''
+        else
+            let b:prev_popup_key = 'g'
+        endif
+        return 1
+
+    elseif a:key == "\<Esc>"
+        " Close popup on Escape
+        let b:tex_labels_popup = -1
+        call popup_close(a:winid)
+        return 1
+
+    else
+        " Close popup on any other key
+        let b:tex_labels_popup = -1
+        call popup_close(a:winid)
+        return 0
+    endif
+endfunction
+
 " Open the file-selection popup window
 " {type}	being "label" or "bibitem" only
 function! s:popup_files(type)
@@ -994,8 +1072,12 @@ function! s:popup_files(type)
 
     " Create popup menu
     let b:tex_labels_popup = popup_create(files, popup_config)
-
-    return 0
+    if b:tex_labels_popup > 0
+	call setwinvar(b:tex_labels_popup, 'type', a:type)
+	return 0
+    else
+	return -1
+    endif
 endfunction
 
 " Open the counter-selection popup window
@@ -1367,6 +1449,8 @@ endfunction
 " Popup filter function for file selection
 " ???????????????????????????????????????????????????!!!!!!!!!!!!!!
 function! s:PopupFilter_file(winid, key)
+    let type = getwinvar(a:winid, 'type')
+
     " Store previous key for gg detection
     if !exists('b:prev_popup_key')
         let b:prev_popup_key = ''
