@@ -3,10 +3,10 @@
 " 	Provides popup menu for \ref, \eqref, \pageref, and \cite commands
 "
 " Maintainer:   Bin Zhou
-" Version:      0.3.22
+" Version:      0.3.23
 "
-" Upgraded on: Mon 2025-10-27 12:27:58 CST (+0800)
-" Last change: Tue 2025-10-28 01:02:10 CST (+0800)
+" Upgraded on: Tue 2025-10-28 01:29:08 CST (+0800)
+" Last change: Tue 2025-10-28 09:36:51 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -1134,9 +1134,7 @@ function! s:ShowRefPopup(type, limit, ...)
 	let b:tex_labels_item_overflow = 0
 	" Here {refs} is empty. See, the codes of s:GetAllReferences() .
 
-	call s:FilesOrCounters(a:type)
-	" ??????????????!!!!!!!!!!!!!!!!!!!!!!!
-	return
+	return s:FilesOrCounters(a:type)
     elseif empty(refs)
 	" Create error message
 	call s:ShowWarningMessage("No labels found.")
@@ -1160,6 +1158,7 @@ function! s:ShowRefPopup(type, limit, ...)
 
 	" Create popup menu
 	let b:tex_labels_popup = popup_create(refs, popup_config)
+	return 0
     endif
 endfunction
 
