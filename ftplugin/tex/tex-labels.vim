@@ -3,10 +3,10 @@
 " 	Provides popup menu for \ref, \eqref, \pageref, and \cite commands
 "
 " Maintainer:   Bin Zhou
-" Version:      0.3.27
+" Version:      0.3.28
 "
-" Upgraded on: Wed 2025-10-29 00:32:14 CST (+0800)
-" Last change: Wed 2025-10-29 00:59:14 CST (+0800)
+" Upgraded on: Wed 2025-10-29 01:00:44 CST (+0800)
+" Last change: Wed 2025-10-29 01:06:21 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -1342,58 +1342,7 @@ function! s:PopupFilter(winid, key)
     endif
 
     " Handle different keys
-    if a:key >= '0' && a:key <= '9'
-	let b:prev_popup_key = a:key
-	let b:count = b:count .. a:key
-	return 1
-
-    elseif !empty(b:count)
-	call win_execute(a:winid, 'normal! ' .. b:count .. a:key)
-	let b:count = ""
-	return 1
-
-    elseif a:key == 'n' || a:key == 'j'
-        " Move cursor down one line
-        call win_execute(a:winid, 'normal! j')
-        let b:prev_popup_key = (a:key == 'n' ? 'n' : 'j')
-        return 1
-
-    elseif a:key == 'p' || a:key == 'N' || a:key == 'k'
-        " Move cursor up one line
-        call win_execute(a:winid, 'normal! k')
-        let b:prev_popup_key = (a:key == 'p' ? 'p' : (a:key == 'N' ? 'N' : 'k'))
-        return 1
-
-    elseif a:key == "\<Space>" || a:key == "\<C-F>"
-        " Scroll one page downward
-        call win_execute(a:winid, "normal! \<C-F>")
-        let b:prev_popup_key = (a:key == "\<Space>" ? "\<Space>" : "\<C-F>")
-        return 1
-
-    elseif a:key == 'b' || a:key == "\<C-B>"
-        " Scroll one page backward
-        call win_execute(a:winid, "normal! \<C-B>")
-        let b:prev_popup_key = (a:key == 'b' ? 'b' : "\<C-B>")
-        return 1
-
-    elseif a:key == 'G'
-        " Jump to last item
-        call win_execute(a:winid, 'normal! G')
-        let b:prev_popup_key = 'G'
-        return 1
-
-    elseif a:key == 'g'
-        " Check for gg sequence
-        if b:prev_popup_key == 'g'
-            " Jump to first item
-            call win_execute(a:winid, 'normal! gg')
-            let b:prev_popup_key = ''
-        else
-            let b:prev_popup_key = 'g'
-        endif
-        return 1
-
-    elseif a:key == "\<CR>"
+    if a:key == "\<CR>"
         " Enter key - select and insert reference
         let buf = winbufnr(a:winid)
         let cursor_line = getbufoneline(buf, line('.', a:winid))
@@ -1412,17 +1361,8 @@ function! s:PopupFilter(winid, key)
         call popup_close(a:winid)
         return 1
 
-    elseif a:key == "\<Esc>"
-        " Close popup on Escape
-        let b:tex_labels_popup = -1
-        call popup_close(a:winid)
-        return 1
-
     else
-        " Close popup on any other key
-        let b:tex_labels_popup = -1
-        call popup_close(a:winid)
-        return 0
+        return s:Popup_KeyAction(a:winid, a:key)
     endif
 endfunction
 
