@@ -3,10 +3,10 @@
 " 	Provides popup menu for \ref, \eqref, \pageref, and \cite commands
 "
 " Maintainer:   Bin Zhou
-" Version:      0.3.24
+" Version:      0.3.25
 "
-" Upgraded on: Tue 2025-10-28 09:41:52 CST (+0800)
-" Last change: Tue 2025-10-28 09:49:59 CST (+0800)
+" Upgraded on: Tue 2025-10-28 21:43:46 CST (+0800)
+" Last change: Tue 2025-10-28 21:49:00 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -1012,13 +1012,17 @@ function! s:PopupFilter_FileCounter(winid, key)
     " Handle different keys
     if a:key == 'j'
         " Move cursor down one line
-        call win_execute(a:winid, 'normal! j')
+        if b:menu_selection == 'F'
+	    call win_execute(a:winid, 'normal! j')
+	endif
         let b:menu_selection = 'C'
         return 1
 
     elseif a:key == 'k'
         " Move cursor up one line
-        call win_execute(a:winid, 'normal! k')
+        if b:menu_selection == 'C'
+	    call win_execute(a:winid, 'normal! k')
+	endif
         let b:menu_selection = 'F'
         return 1
 
