@@ -3,10 +3,10 @@
 " 	Provides popup menu for \ref, \eqref, \pageref, and \cite commands
 "
 " Maintainer:   Bin Zhou
-" Version:      0.3.23
+" Version:      0.3.24
 "
-" Upgraded on: Tue 2025-10-28 01:29:08 CST (+0800)
-" Last change: Tue 2025-10-28 09:36:51 CST (+0800)
+" Upgraded on: Tue 2025-10-28 09:41:52 CST (+0800)
+" Last change: Tue 2025-10-28 09:49:59 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -1070,8 +1070,12 @@ function! s:FilesOrCounters(type)
     call s:CleanupPopup()
 
     let items = []
+    call add(items, '')
+    call add(items, '')
     call add(items, "Select according to files\t(Press Alt-F or \"k\")")
     call add(items, "Select according to counters\t(Press Alt-C or \"j\")")
+    call add(items, '')
+    call add(items, '')
 
     let involved_files = s:GetFilesContainingCommand(a:type)
     if len(involved_files) > 1
@@ -1091,6 +1095,9 @@ function! s:FilesOrCounters(type)
 		    \ 'filter': function('s:PopupFilter_FileCounter')
 		    \ }
 	let b:tex_labels_popup = popup_create(items, popup_config)
+	if b:tex_labels_popup > 0
+	    call win_execute(b:tex_labels_popup, 'normal! 2j')
+	endif
 	return (b:tex_labels_popup > 0 ? 0 : -1)
     elseif len(involved_files) == 1
 	return s:popup_counters(involved_files, a:type)
