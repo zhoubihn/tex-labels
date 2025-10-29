@@ -3,10 +3,10 @@
 " 	Provides popup menu for \ref, \eqref, \pageref, and \cite commands
 "
 " Maintainer:   Bin Zhou   <zhoub@bnu.edu.cn>
-" Version:      0.3.30
+" Version:      0.3.31
 "
-" Upgraded on: Wed 2025-10-29 20:03:21 CST (+0800)
-" Last change: Wed 2025-10-29 22:17:51 CST (+0800)
+" Upgraded on: Wed 2025-10-29 22:19:45 CST (+0800)
+" Last change: Wed 2025-10-29 23:21:29 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -256,6 +256,22 @@ if !exists('b:tex_labels_MainFile')
     let b:tex_labels_MainFile = s:FindMainFile(@%)
 endif
 
+" Function to obtain the name of auxiliary file
+"   {type}	"incl", "label", "bibitem" or "tag"
+function! s:AuxFileName(filename, type)
+    if empty(a:filename)
+	return ''
+    elseif a:type != "incl" && a:type != "label" && a:type != "bibitem" &&
+		\ a:type != "tag"
+	return ''
+    endif
+
+    if filename =~ '\.tex$'
+	return substitute(a:filename, 'tex$', a:type, '')
+    else
+	return a:filename .. '.' .. a:type
+    endif
+endfunction
 
 " Function to find included files recursively
 " The second parameter triggers a recursive search.
@@ -343,7 +359,7 @@ function! s:Update_InclFile(...)
     endif
 
     " The file <xxx.incl> is in the same directory of <xxx.tex>.
-    let target = substitute(filename, '\.tex$', '\.incl', '')
+    let target = s:AuxFileName(filename, 'incl')
     let included_files = []
 
 "    if getftype(filename) == "link"
@@ -406,11 +422,7 @@ function! s:GetFilesToSearch(...)
 	    continue
 	endif
 
-	if root_file =~ '\.tex$'
-	    let root_incl = substitute(root_file, '\.tex$', '\.incl', '')
-	else
-	    let root_incl = root_file .. '\.incl'
-	endif
+	let root_incl = s:AuxFileName(root_file, 'incl')
 	if !filereadable(root_incl)
 	    continue
 	endif
@@ -679,7 +691,7 @@ function! s:Update_AuxFiles(...)
 
 	if !empty(a:2)
 	    let filename = s:GetAbsolutePath(a:2)
-	    let aux_file = substitute(filename, '\.tex$', '.' .. type, '')
+	    let aux_file = s:AuxFileName(filename, type)
 	else
 	    return s:Update_AuxFiles(type)
 	endif
@@ -718,7 +730,7 @@ function! s:Update_AuxFiles(...)
 	    let main_file = current_file
 	endif
 
-	let incl_file = substitute(main_file, '\.tex$', '\.incl', '')
+	let incl_file = s:AuxFileName(main_file, 'incl')
 	if filereadable(incl_file)
 	    let searched_files = readfile(incl_file)
 	else
@@ -798,11 +810,7 @@ function! s:GetFilesContainingCommand(type, ...)
     endif
 
     for file in files
-	if file =~ '\.tex$'
-	    let aux_file = substitute(file, 'tex$', a:type, '')
-	else
-	    let aux_file = file .. '\.' .. a:type
-	endif
+	let aux_file = s:AuxFileName(file, a:type)
 
 	if getfsize(aux_file) > 0 || getfsize(aux_file) == -2
 	    call add(effective_files, file)
@@ -824,11 +832,7 @@ function! s:GetRefItems(filename, type)
     let filename = s:GetAbsolutePath(a:filename)
     let current_file = s:GetAbsolutePath('%')
 
-    if filename =~ '\.tex$'
-	let aux_file = substitute(filename, 'tex$', a:type, '')
-    else
-	let aux_file = filename .. '.' .. a:type
-    endif
+    let aux_file = s:AuxFileName(filename, a:type)
 
     let refs = []
     if filename == current_file && &modified
@@ -1075,6 +1079,9 @@ function! s:Popup_Files(type)
 endfunction
 
 " Open the counter-selection popup window
+"   s:Popup_Counters(type[, file])
+"   {type}	either "label" or "bibitem"
+"   {file}	If not empty, search in this file only.
 function! s:Popup_Counters(type, ...)
 endfunction
 
