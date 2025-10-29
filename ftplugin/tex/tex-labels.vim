@@ -2,11 +2,11 @@
 " ftplugin/tex/tex-labels.vim - LaTeX reference completion popup
 " 	Provides popup menu for \ref, \eqref, \pageref, and \cite commands
 "
-" Maintainer:   Bin Zhou
-" Version:      0.3.29
+" Maintainer:   Bin Zhou   <zhoub@bnu.edu.cn>
+" Version:      0.3.30
 "
-" Upgraded on: Wed 2025-10-29 15:53:15 CST (+0800)
-" Last change: Wed 2025-10-29 19:58:33 CST (+0800)
+" Upgraded on: Wed 2025-10-29 20:03:21 CST (+0800)
+" Last change: Wed 2025-10-29 22:17:51 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -1004,12 +1004,14 @@ function! s:Popup_KeyAction(winid, key, ...)
     elseif a:key == "\<Esc>"
         " Close popup on Escape
         let b:tex_labels_popup = -1
+        let b:prev_popup_key = ''
         call popup_close(a:winid)
         return 1
 
     else
         " Close popup on any other key
         let b:tex_labels_popup = -1
+        let b:prev_popup_key = ''
         call popup_close(a:winid)
         return 0
     endif
@@ -1073,66 +1075,50 @@ function! s:Popup_Files(type)
 endfunction
 
 " Open the counter-selection popup window
-function! s:popup_counters(files, type)
+function! s:Popup_Counters(type, ...)
 endfunction
 
 " Popup filter function
 function! s:PopupFilter_FileCounter(winid, key)
-    " Store previous key for gg detection
-    if !exists('b:menu_selection')
-        let b:menu_selection = 'F'
-    endif
-
     let type = getwinvar(a:winid, 'type')
 
     " Handle different keys
-    if a:key == 'j'
-        " Move cursor down one line
-        if b:menu_selection == 'F'
-	    call win_execute(a:winid, 'normal! j')
-	endif
-        let b:menu_selection = 'C'
-        return 1
-
-    elseif a:key == 'k'
-        " Move cursor up one line
-        if b:menu_selection == 'C'
-	    call win_execute(a:winid, 'normal! k')
-	endif
-        let b:menu_selection = 'F'
-        return 1
-
-    elseif a:key == "\<CR>"
-        let b:tex_labels_popup = -1
-        call popup_close(a:winid)
-
-	if b:menu_selection == 'F'
-	    call s:Popup_Files(type)
-	elseif b:menu_selection == 'C'
-	    call s:popup_counters(type)
-	endif
-
-        return 1
-
-    elseif a:key == "\<A-F>"
-        let b:tex_labels_popup = -1
-        call popup_close(a:winid)
+    "if a:key =~# '^[1-3]'
+	"call win_execute(a:winid, 'normal! ' .. a:key .. 'G')
+        "return 1
+    "
+    if a:key == '1'
 	call s:Popup_Files(type)
 	return 1
 
-    elseif a:key == "\<A-C>"
-        let b:tex_labels_popup = -1
-        call popup_close(a:winid)
-	call s:popup_counters(type)
+    elseif a:key == '2'
+	call s:Popup_Counters(type)
 	return 1
 
-    elseif a:key == "\<Esc>"
-        let b:tex_labels_popup = -1
-        call popup_close(a:winid)
+    elseif a:key == '3'
+	call s:Popup_Main(type, 0)
 	return 1
+
+    elseif a:key == "\<CR>"
+	let selection = line('.', a:winid)
+	if selection == 1
+	    call s:Popup_Files(type)
+	elseif selection == 2
+	    call s:Popup_Counters(type)
+	elseif selection == 3
+	    call s:Popup_Main(type, 0)
+	endif
+
+        let b:tex_labels_popup = -1
+        let b:prev_popup_key = ''
+        call popup_close(a:winid)
+
+        return 1
 
     else
-        return 1
+        let status = s:Popup_KeyAction(a:winid, a:key)
+	let b:prev_popup_key = ''
+	return status
     endif
 endfunction
 
@@ -1150,12 +1136,9 @@ function! s:FilesOrCounters(type)
     call s:CleanupPopup()
 
     let items = []
-    call add(items, '')
-    call add(items, '')
-    call add(items, "Select according to files\t(Press Alt-F or \"k\")")
-    call add(items, "Select according to counters\t(Press Alt-C or \"j\")")
-    call add(items, '')
-    call add(items, '')
+    call add(items, "[1] Select according to files")
+    call add(items, "[2] Select according to counters")
+    call add(items, '[3] List all ' .. a:type .. 's anyway')
 
     let involved_files = s:GetFilesContainingCommand(a:type)
     if len(involved_files) > 1
@@ -1176,7 +1159,7 @@ function! s:FilesOrCounters(type)
 		    \ }
 	let b:tex_labels_popup = popup_create(items, popup_config)
 	if b:tex_labels_popup > 0
-	    call win_execute(b:tex_labels_popup, 'normal! 2j')
+	    "call win_execute(b:tex_labels_popup, 'normal! 2j')
 	    call setwinvar(b:tex_labels_popup, 'type', a:type)
 	    return 0
 	else
@@ -1184,7 +1167,7 @@ function! s:FilesOrCounters(type)
 	endif
 
     elseif len(involved_files) == 1
-	return s:popup_counters(involved_files, a:type)
+	return s:Popup_Counters(involved_files, a:type)
     else
 	return 0
     endif
@@ -1214,7 +1197,7 @@ function! s:Popup_Main(type, limit, ...)
     let b:tex_labels_item_overflow = 0
     if a:0 > 0 && !empty(a:1)
 	let refs = s:GetRefItems(a:1, a:type)
-	if len(refs) > a:limit
+	if a:limit > 0 && len(refs) > a:limit
 	    call remove(refs, 0, -1)
 	    let b:tex_labels_item_overflow = 1
 	endif
