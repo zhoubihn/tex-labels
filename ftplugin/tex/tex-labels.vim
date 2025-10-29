@@ -3,10 +3,10 @@
 " 	Provides popup menu for \ref, \eqref, \pageref, and \cite commands
 "
 " Maintainer:   Bin Zhou   <zhoub@bnu.edu.cn>
-" Version:      0.3.31
+" Version:      0.3.32
 "
-" Upgraded on: Wed 2025-10-29 22:19:45 CST (+0800)
-" Last change: Wed 2025-10-29 23:21:29 CST (+0800)
+" Upgraded on: Wed 2025-10-29 23:22:37 CST (+0800)
+" Last change: Wed 2025-10-29 23:54:33 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -266,7 +266,7 @@ function! s:AuxFileName(filename, type)
 	return ''
     endif
 
-    if filename =~ '\.tex$'
+    if a:filename =~ '\.tex$'
 	return substitute(a:filename, 'tex$', a:type, '')
     else
 	return a:filename .. '.' .. a:type
@@ -1317,7 +1317,7 @@ function! s:PopupFilter(winid, key)
         let b:prev_popup_key = ''
     endif
 
-    let type = getwinvar(a:winid, 'type', '')
+    "let type = getwinvar(a:winid, 'type', '')
 
     " Store a digital number for repeated command
     if !exists('b:count')
@@ -1332,17 +1332,26 @@ function! s:PopupFilter(winid, key)
         if !empty(cursor_line)
             " Extract label from the line using the same format as in
 	    " s:FormatMenuItem
-            let label = matchstr(cursor_line, '\v\{[^}]+\}')
+            "let label = matchstr(cursor_line, '\v\{[^}]+\}')
             " Remove the braces
-            let label = substitute(label, '[{}]', '', 'g')
+            "let label = substitute(label, '[{}]', '', 'g')
+	    let curlybrace_at = s:MatchCurlyBrace(cursor_line)
+	    if !empty(curlybrace_at)
+		let label = strpart(cursor_line, curlybrace_at[0] + 1,
+			    \ curlybrace_at[1] - curlybrace_at[0] - 1)
+	    else
+		let label = ''
+	    endif
 	else
 	    let label = ''
         endif
 
-	call s:InsertReference(label)
+	if !empty(label)
+	    call s:InsertReference(label)
+	endif
         let b:tex_labels_popup = -1
         call popup_close(a:winid)
-        return 1
+        return !empty(label)
 
     else
         return s:Popup_KeyAction(a:winid, a:key)
