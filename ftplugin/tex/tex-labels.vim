@@ -3,10 +3,10 @@
 " 	Provides popup menu for \ref, \eqref, \pageref, and \cite commands
 "
 " Maintainer:   Bin Zhou   <zhoub@bnu.edu.cn>
-" Version:      0.3.34
+" Version:      0.3.35
 "
-" Upgraded on: Thu 2025-10-30 13:21:19 CST (+0800)
-" Last change: Thu 2025-10-30 23:41:07 CST (+0800)
+" Upgraded on: Thu 2025-10-30 23:42:43 CST (+0800)
+" Last change: Fri 2025-10-31 00:31:39 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -1078,8 +1078,7 @@ function! s:Popup_Files(type)
     endif
 endfunction
 
-" Function to obtain the counter name of a line in .label file
-function! s:GetCounter(item)
+function! s:PopupFilter_counter(winid, key)
 endfunction
 
 " Open the counter-selection popup window
@@ -1087,6 +1086,76 @@ endfunction
 "   {type}	either "label" or "bibitem"
 "   {file}	If not empty, search in this file only.
 function! s:Popup_Counters(type, ...)
+    if a:0 > 0 && !empty(a:1)
+	let filename = a:1
+    else
+	let filename = ''
+    endif
+
+    if a:type == "bibitem"
+	return s:Popup_Main("bibitem", 0, filename)
+
+    elseif a:type != "label"
+	call s:ShowWarningMessage("Unknown type \"" .. a:type .. "\".")
+	return -1
+    endif
+
+    " From now on, a:type == 'label'
+
+    if !empty(filename)
+	let refs = s:GetRefItems(filename, "label")
+    else
+	let refs = s:GetAllReferences("label", 0)
+    endif
+    if empty(refs)
+	return -1
+    endif
+
+    let counters = []
+    for item in refs
+	if empty(item)
+	    continue
+	endif
+
+	let counter_name = matchlist(item, '^(\([^:]*\):.*)')
+	if !empty(counter_name)
+	    call add(counters, counter_name[1])
+	endif
+    endfor
+
+    let counters = s:RemoveDuplicates(counters)
+    if empty(counters)
+	return -1
+    else
+	call sort(counters)
+    endif
+
+    let popup_config = {
+		\ 'line': winline() + 1,
+		\ 'col': wincol(),
+		\ 'pos': 'topleft',
+		\ 'maxheight': g:tex_labels_popup_height,
+		\ 'maxwidth': winwidth(0) - 8,
+		\ 'highlight': 'TexLabelsPopup',
+		\ 'border': [1, 1, 1, 1],
+		\ 'borderhighlight': ['TexLabelsPopupBorder'],
+		\ 'title': ' Search labels according to LaTeX counters ',
+		\ 'titlehighlight': 'TexLabelsPopupTitle',
+		\ 'cursorline': 1,
+		\ 'zindex': 200,
+		\ 'filter': function('s:PopupFilter_counter')
+		\ }
+
+    call s:CleanupPopup()
+    let b:tex_labels_popup = popup_create(counters, popup_config)
+
+    if b:tex_labels_popup > 0
+	call setwinvar(b:tex_labels_popup, 'counters', counters)
+	return 0
+    else
+	let b:tex_labels_popup = -1
+	return -1
+    endif
 endfunction
 
 " Popup filter function
@@ -1123,7 +1192,6 @@ function! s:PopupFilter_FileCounter(winid, key)
 	return 1
 
     elseif a:key == "\<CR>"
-	" DEBUG:
 	let selection = line('.', a:winid)
 	if selection == '1'
 	    call s:Popup_Main("label", 0)
