@@ -3,10 +3,10 @@
 " 	Provides popup menu for \ref, \eqref, \pageref, and \cite commands
 "
 " Maintainer:   Bin Zhou   <zhoub@bnu.edu.cn>
-" Version:      0.3.33
+" Version:      0.3.34
 "
-" Upgraded on: Wed 2025-10-29 23:56:49 CST (+0800)
-" Last change: Thu 2025-10-30 13:16:57 CST (+0800)
+" Upgraded on: Thu 2025-10-30 13:21:19 CST (+0800)
+" Last change: Thu 2025-10-30 23:41:07 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -1078,6 +1078,10 @@ function! s:Popup_Files(type)
     endif
 endfunction
 
+" Function to obtain the counter name of a line in .label file
+function! s:GetCounter(item)
+endfunction
+
 " Open the counter-selection popup window
 "   s:Popup_Counters(type[, file])
 "   {type}	either "label" or "bibitem"
@@ -1087,7 +1091,7 @@ endfunction
 
 " Popup filter function
 function! s:PopupFilter_FileCounter(winid, key)
-    let type = getwinvar(a:winid, 'type')
+    "let type = getwinvar(a:winid, 'type')
 
     " Handle different keys
     "if a:key =~# '^[1-3]'
@@ -1095,25 +1099,38 @@ function! s:PopupFilter_FileCounter(winid, key)
         "return 1
     "
     if a:key == '1'
-	call s:Popup_Files(type)
+        let b:tex_labels_popup = -1
+        let b:prev_popup_key = ''
+        call popup_close(a:winid)
+
+	call s:Popup_Main("label", 0)
 	return 1
 
     elseif a:key == '2'
-	call s:Popup_Counters(type)
+        let b:tex_labels_popup = -1
+        let b:prev_popup_key = ''
+        call popup_close(a:winid)
+
+	call s:Popup_Files("label")
 	return 1
 
     elseif a:key == '3'
-	call s:Popup_Main(type, 0)
+        let b:tex_labels_popup = -1
+        let b:prev_popup_key = ''
+        call popup_close(a:winid)
+
+	call s:Popup_Counters("label")
 	return 1
 
     elseif a:key == "\<CR>"
+	" DEBUG:
 	let selection = line('.', a:winid)
-	if selection == 1
-	    call s:Popup_Files(type)
-	elseif selection == 2
-	    call s:Popup_Counters(type)
-	elseif selection == 3
-	    call s:Popup_Main(type, 0)
+	if selection == '1'
+	    call s:Popup_Main("label", 0)
+	elseif selection == '2'
+	    call s:Popup_Files("label")
+	elseif selection == '3'
+	    call s:Popup_Counters("label")
 	endif
 
         let b:tex_labels_popup = -1
@@ -1129,7 +1146,7 @@ function! s:PopupFilter_FileCounter(winid, key)
     endif
 endfunction
 
-" Function to create a popup menu of how to list labels or bibitems
+" Function to create a popup menu of how to list labels.  Usage:
 "   s:FilesOrCounters()
 " What value should be returned?
 "
@@ -1137,9 +1154,9 @@ function! s:FilesOrCounters()
     call s:CleanupPopup()
 
     let items = []
-    call add(items, "[1] Select according to files")
-    call add(items, "[2] Select according to counters")
-    call add(items, '[3] List all labels anyway')
+    call add(items, '[1] List all labels anyway')
+    call add(items, "[2] Select according to files")
+    call add(items, "[3] Select according to counters")
 
     let involved_files = s:GetFilesContainingCommand("label")
     if len(involved_files) > 1
