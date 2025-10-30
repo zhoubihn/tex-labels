@@ -3,10 +3,10 @@
 " 	Provides popup menu for \ref, \eqref, \pageref, and \cite commands
 "
 " Maintainer:   Bin Zhou   <zhoub@bnu.edu.cn>
-" Version:      0.3.32
+" Version:      0.3.33
 "
-" Upgraded on: Wed 2025-10-29 23:22:37 CST (+0800)
-" Last change: Wed 2025-10-29 23:54:33 CST (+0800)
+" Upgraded on: Wed 2025-10-29 23:56:49 CST (+0800)
+" Last change: Thu 2025-10-30 13:16:57 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -1130,24 +1130,18 @@ function! s:PopupFilter_FileCounter(winid, key)
 endfunction
 
 " Function to create a popup menu of how to list labels or bibitems
-"   s:FilesOrCounters(type)
-"   {type}	"label", "bibitem" or "tag"
+"   s:FilesOrCounters()
 " What value should be returned?
 "
-function! s:FilesOrCounters(type)
-    if a:type != "label" && a:type != "bibitem" && a:type != "tag"
-	echo 's:FilesOrCounters: unknown type "' .. a:type .. '".'
-	return -1
-    endif
-
+function! s:FilesOrCounters()
     call s:CleanupPopup()
 
     let items = []
     call add(items, "[1] Select according to files")
     call add(items, "[2] Select according to counters")
-    call add(items, '[3] List all ' .. a:type .. 's anyway')
+    call add(items, '[3] List all labels anyway')
 
-    let involved_files = s:GetFilesContainingCommand(a:type)
+    let involved_files = s:GetFilesContainingCommand("label")
     if len(involved_files) > 1
 	let popup_config = {
 		    \ 'line': winline() + 1,
@@ -1167,14 +1161,14 @@ function! s:FilesOrCounters(type)
 	let b:tex_labels_popup = popup_create(items, popup_config)
 	if b:tex_labels_popup > 0
 	    "call win_execute(b:tex_labels_popup, 'normal! 2j')
-	    call setwinvar(b:tex_labels_popup, 'type', a:type)
+	    "call setwinvar(b:tex_labels_popup, 'type', a:type)
 	    return 0
 	else
 	    return -1
 	endif
 
     elseif len(involved_files) == 1
-	return s:Popup_Counters(involved_files, a:type)
+	return s:Popup_Counters("label", involved_files)
     else
 	return 0
     endif
@@ -1182,7 +1176,7 @@ endfunction
 
 " Show the reference popup menu
 "   s:Popup_Main(type, limit[, filename])
-"   {type}	"label", "bibitem" or "tag"
+"   {type}	"label" or "bibitem"
 "   {limit}	If {limit} is a positive integer and there are more than {limit}
 "		items to select, the menu shows options whether to show them
 "		according to source files or according to counters.
@@ -1195,9 +1189,8 @@ function! s:Popup_Main(type, limit, ...)
     " Close any existing popup first
     call s:CleanupPopup()
 
-    if a:type != "label" && a:type != "bibitem" && a:type != "tag"
-	call s:ShowWarningMessage('s:Popup_Main: unknown type "' ..
-	    \ a:type .. '".')
+    if a:type != "label" && a:type != "bibitem" "&& a:type != "tag"
+	call s:ShowWarningMessage('Type "' ..  a:type .. '" not supported.')
 	return -1
     endif
 
@@ -1216,7 +1209,11 @@ function! s:Popup_Main(type, limit, ...)
 	let b:tex_labels_item_overflow = 0
 	" Here {refs} is empty. See, the codes of s:GetAllReferences() .
 
-	return s:FilesOrCounters(a:type)
+	if a:type == "label"
+	    return s:FilesOrCounters()
+	elseif a:type == "bibitem"
+	    return s:Popup_Files("bibitem")
+	endif
     elseif empty(refs)
 	" Create error message or keep silence?
 	call s:ShowWarningMessage("No labels found.")
@@ -1224,24 +1221,25 @@ function! s:Popup_Main(type, limit, ...)
     endif
 
     if a:type == "label"
-    	let popup_config = {
-		    \ 'line': winline() + 1,
-		    \ 'col': wincol(),
-		    \ 'pos': 'topleft',
-		    \ 'maxheight': g:tex_labels_popup_height,
-		    \ 'maxwidth': winwidth(0) - 8,
-		    \ 'highlight': 'TexLabelsPopup',
-		    \ 'border': [1, 1, 1, 1],
-		    \ 'borderhighlight': ['TexLabelsPopupBorder'],
-		    "\ 'title': ' References ',
-    		    \ 'titlehighlight': 'TexLabelsPopupTitle',
-		    \ 'cursorline': 1,
-		    \ 'zindex': 200,
-		    \ 'filter': function('s:PopupFilter')
-		    \ }
+	let title = ' Label items '
     elseif a:type == "bibitem"
-    elseif a:type == "tag"
+	let title = ' Bibliography items '
     endif
+    let popup_config = {
+		\ 'line': winline() + 1,
+		\ 'col': wincol(),
+		\ 'pos': 'topleft',
+		\ 'maxheight': g:tex_labels_popup_height,
+		\ 'maxwidth': winwidth(0) - 8,
+		\ 'highlight': 'TexLabelsPopup',
+		\ 'border': [1, 1, 1, 1],
+		\ 'borderhighlight': ['TexLabelsPopupBorder'],
+		\ 'title': title,
+		\ 'titlehighlight': 'TexLabelsPopupTitle',
+		\ 'cursorline': 1,
+		\ 'zindex': 200,
+		\ 'filter': function('s:PopupFilter')
+		\ }
 
     " Create popup menu
     let b:tex_labels_popup = popup_create(refs, popup_config)
