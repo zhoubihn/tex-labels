@@ -3,10 +3,10 @@
 " 	Provides popup menu for \ref, \eqref, \pageref, and \cite commands
 "
 " Maintainer:   Bin Zhou   <zhoub@bnu.edu.cn>
-" Version:      0.3.35
+" Version:      0.3.36
 "
-" Upgraded on: Thu 2025-10-30 23:42:43 CST (+0800)
-" Last change: Fri 2025-10-31 00:31:39 CST (+0800)
+" Upgraded on: Fri 2025-10-31 00:33:36 CST (+0800)
+" Last change: Fri 2025-10-31 01:12:56 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -1078,7 +1078,29 @@ function! s:Popup_Files(type)
     endif
 endfunction
 
+" Open a popup window listing all labels under the LaTeX counter {counter_name}
+function! s:Popup_LabelsOfCounter(counter_name)
+    return 0
+endfunction
+
+" Popup filter function for counter menu
 function! s:PopupFilter_counter(winid, key)
+    let counters = getwinvar(a:winid, 'counters')
+
+    if a:key == "\<CR>"
+        let buf = winbufnr(a:winid)
+        let cursor_line = getbufoneline(buf, line('.', a:winid))
+        if !empty(cursor_line)
+	    let status = s:Popup_LabelsOfCounter(cursor_line)
+
+	    call popup_close(a:winid)
+	    let b:tex_labels_popup = -1
+
+	    return status
+	endif
+    else
+        return s:Popup_KeyAction(a:winid, a:key)
+    endif
 endfunction
 
 " Open the counter-selection popup window
@@ -1118,7 +1140,7 @@ function! s:Popup_Counters(type, ...)
 	endif
 
 	let counter_name = matchlist(item, '^(\([^:]*\):.*)')
-	if !empty(counter_name)
+	if !empty(counter_name) && !empty(counter_name[1])
 	    call add(counters, counter_name[1])
 	endif
     endfor
