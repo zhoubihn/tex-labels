@@ -3,10 +3,10 @@
 " 	Provides popup menu for \ref, \eqref, \pageref, and \cite commands
 "
 " Maintainer:   Bin Zhou   <zhoub@bnu.edu.cn>
-" Version:      0.3.37
+" Version:      0.4.0
 "
-" Upgraded on: Fri 2025-10-31 01:15:56 CST (+0800)
-" Last change: Fri 2025-10-31 15:43:58 CST (+0800)
+" Upgraded on: Fri 2025-10-31 20:56:57 CST (+0800)
+" Last change: Fri 2025-10-31 23:14:23 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -182,7 +182,7 @@ function! s:MatchCurlyBrace(text, ...)
     endif
 endfunction
 
-" Function to locate '{', but not part of '\{', in the string {expr}
+" Function to locate '{', which is not part of '\{', in the string {expr}
 " with the greatest offset that is less than {curr_offset}
 function! s:SearchOpenBrace_left(expr, curr_offset)
     if empty(a:expr) || a:curr_offset <= 0
@@ -1021,69 +1021,36 @@ function! s:Popup_KeyAction(winid, key, ...)
     endif
 endfunction
 
-" Open the file-selection popup window
-" {type}	being "label" or "bibitem" only
-function! s:Popup_Files(type)
-    " Close any existing popup first
-    call s:CleanupPopup()
+" Insert selected reference
+function! s:InsertReference(ref)
+    let ref_name = a:ref
 
-    if a:type != "label" && a:type != "bibitem"
-	echo 's:Popup_Files: invalid type "' .. a:type .. '".'
-	return -1
-    endif
+    " Find and replace reference in the triggering buffer
+    let line = getline('.')
+    let curr_offset = col('.') - 1
 
-    let files = s:GetFilesContainingCommand(a:type)
-    if empty(files)
-	call s:ShowWarningMessage('No files containing "\' .. a:type .. '"')
-	return -1
-    elseif len(files) == 1
-	call s:CleanupPopup()
-	return s:Popup_Main(a:type, 0, files[0])
-    endif
+    " Find brace boundaries
+    let start_col = s:SearchOpenBrace_left(line, curr_offset)
+    let curlybrace_at = s:MatchCurlyBrace(line, start_col)
+    let start_col += 1
+    let end_col = curlybrace_at[1]
 
-    if a:type == "label"
-	let title = ' Select a file to search: '
-    elseif a:type == "bibitem"
-	let title = ' Select the counter the wanted label is related to: '
-    else
-	call s:ShowWarningMessage('s:Popup_Files: invalid type "' ..&nbsp;
-		    \ a:type .. '"')
-	return -1
-    endif
-
-    let popup_config = {
-		\ 'line': winline() + 1,
-		\ 'col': wincol(),
-		\ 'pos': 'topleft',
-		\ 'maxheight': g:tex_labels_popup_height,
-		\ 'maxwidth': winwidth(0) - 8,
-		\ 'highlight': 'TexLabelsPopup',
-		\ 'border': [1, 1, 1, 1],
-		\ 'borderhighlight': ['TexLabelsPopupBorder'],
-		\ 'title': title,
-		\ 'titlehighlight': 'TexLabelsPopupTitle',
-		\ 'cursorline': 1,
-		\ 'zindex': 200,
-		\ 'filter': function('s:PopupFilter_file')
-		\ }
-
-    " Create popup menu
-    let b:tex_labels_popup = popup_create(files, popup_config)
-    if b:tex_labels_popup > 0
-	call setwinvar(b:tex_labels_popup, 'type', a:type)
-	"call setwinvar(b:tex_labels_popup, 'files', files)
-	return 0
-    else
-	return -1
-    endif
+    " Replace reference and position cursor
+    let new_line = strpart(line, 0, start_col) .. ref_name ..
+		\ strpart(line, end_col)
+    call setline('.', new_line)
+    call feedkeys("\<Esc>", 'n')
+    call cursor(line('.'), start_col + len(ref_name) + 2)
 endfunction
 
-" Popup filter function for selection and insertion of counter-labels
-function! s:PopupFilter_CounterItems(winid, key)
+" Popup filter function
+function! s:PopupFilter(winid, key)
     " Store previous key for gg detection
     if !exists('b:prev_popup_key')
         let b:prev_popup_key = ''
     endif
+
+    "let type = getwinvar(a:winid, 'type', '')
 
     " Store a digital number for repeated command
     if !exists('b:count')
@@ -1098,6 +1065,9 @@ function! s:PopupFilter_CounterItems(winid, key)
         if !empty(cursor_line)
             " Extract label from the line using the same format as in
 	    " s:FormatMenuItem
+            "let label = matchstr(cursor_line, '\v\{[^}]+\}')
+            " Remove the braces
+            "let label = substitute(label, '[{}]', '', 'g')
 	    let curlybrace_at = s:MatchCurlyBrace(cursor_line)
 	    if !empty(curlybrace_at)
 		let label = strpart(cursor_line, curlybrace_at[0] + 1,
@@ -1121,26 +1091,57 @@ function! s:PopupFilter_CounterItems(winid, key)
     endif
 endfunction
 
-" Open a popup window listing all labels under the LaTeX counter {counter_name}
-function! s:Popup_LabelsOfCounter(refs, counter_name)
+" Show the reference popup menu
+"   s:Popup_Main(type, limit[, filename])
+"   {type}	"label" or "bibitem"
+"   {limit}	If {limit} is a positive integer and there are more than {limit}
+"		items to select, the menu shows options whether to show them
+"		according to source files or according to counters.
+"		If {limit} is zero, all envolved items are shown in the menu.
+"    {filename}
+"		If {filename} is nonempty, only items from {filename} are
+"		displayed for selection.
+"
+function! s:Popup_Main(type, limit, ...)
+    " Close any existing popup first
     call s:CleanupPopup()
 
-    if empty(a:counter_name)
-	call s:ShowWarningMessage('No counter name')
-	return -1
-    elseif empty(a:refs)
-	call s:ShowWarningMessage('No labels related to the counter ' ..
-		    \ a:counter_name)
+    if a:type != "label" && a:type != "bibitem" "&& a:type != "tag"
+	call s:ShowWarningMessage('Type "' ..  a:type .. '" not supported.')
 	return -1
     endif
 
-    let labels = []
-    for item in a:refs
-	if item =~ a:counter_name
-	    call add(labels, item)
+    let b:tex_labels_item_overflow = 0
+    if a:0 > 0 && !empty(a:1)
+	let refs = s:GetRefItems(a:1, a:type)
+	if a:limit > 0 && len(refs) > a:limit
+	    call remove(refs, 0, -1)
+	    let b:tex_labels_item_overflow = 1
 	endif
-    endfor
+    else
+	let refs = s:GetAllReferences(a:type, a:limit)
+    endif
 
+    if b:tex_labels_item_overflow
+	let b:tex_labels_item_overflow = 0
+	" Here {refs} is empty. See, the codes of s:GetAllReferences() .
+
+	if a:type == "label"
+	    return s:FilesOrCounters()
+	elseif a:type == "bibitem"
+	    return s:Popup_Files("bibitem")
+	endif
+    elseif empty(refs)
+	" Create error message or keep silence?
+	call s:ShowWarningMessage("No labels found.")
+	return
+    endif
+
+    if a:type == "label"
+	let title = ' Label items '
+    elseif a:type == "bibitem"
+	let title = ' Bibliography items '
+    endif
     let popup_config = {
 		\ 'line': winline() + 1,
 		\ 'col': wincol(),
@@ -1150,20 +1151,21 @@ function! s:Popup_LabelsOfCounter(refs, counter_name)
 		\ 'highlight': 'TexLabelsPopup',
 		\ 'border': [1, 1, 1, 1],
 		\ 'borderhighlight': ['TexLabelsPopupBorder'],
-		\ 'title': ' Search cross reference labels... ',
+		\ 'title': title,
 		\ 'titlehighlight': 'TexLabelsPopupTitle',
 		\ 'cursorline': 1,
 		\ 'zindex': 200,
-		\ 'filter': function('s:PopupFilter_CounterItems')
+		\ 'filter': function('s:PopupFilter')
 		\ }
 
-    let b:tex_labels_popup = popup_create(labels, popup_config)
-    if b:tex_labels_popup > 0
-	"call setwinvar(b:tex_labels_popup, 'labels', labels)
-	return 0
-    else
+    " Create popup menu
+    let b:tex_labels_popup = popup_create(refs, popup_config)
+    if b:tex_labels_popup < 0
 	return -1
     endif
+
+    call setwinvar(b:tex_labels_popup, 'type', a:type)
+    return 0
 endfunction
 
 " Popup filter function for counter menu
@@ -1260,6 +1262,104 @@ function! s:Popup_Counters(type, ...)
 	return 0
     else
 	let b:tex_labels_popup = -1
+	return -1
+    endif
+endfunction
+
+" Popup filter function for file selection
+function! s:PopupFilter_file(winid, key)
+    let type = getwinvar(a:winid, 'type')
+
+    " Store previous key for gg detection
+    if !exists('b:prev_popup_key')
+        let b:prev_popup_key = ''
+    endif
+
+    " Store a digital number for repeated command
+    if !exists('b:count')
+	let b:count = ""
+    endif
+
+    " Handle different keys
+    if a:key == "\<CR>"
+        " Enter key - select and insert reference
+        let buf = winbufnr(a:winid)
+        let file = getbufoneline(buf, line('.', a:winid))
+        if !empty(file)
+	    let b:tex_labels_popup = -1
+	    call popup_close(a:winid)
+
+	    call s:Popup_Main(type, 0, file)
+	    return 1
+	else
+	    call s:CleanupPopup()
+	    return s:ShowWarningMessage("Blank line!")
+        endif
+
+	call s:CleanupPopup()
+        "let b:tex_labels_popup = -1
+        "call popup_close(a:winid)
+	
+        return 1
+
+    else
+        return s:Popup_KeyAction(a:winid, a:key)
+    endif
+endfunction
+
+" Open the file-selection popup window
+" {type}	being "label" or "bibitem" only
+function! s:Popup_Files(type)
+    " Close any existing popup first
+    call s:CleanupPopup()
+
+    if a:type != "label" && a:type != "bibitem"
+	echo 's:Popup_Files: invalid type "' .. a:type .. '".'
+	return -1
+    endif
+
+    let files = s:GetFilesContainingCommand(a:type)
+    if empty(files)
+	call s:ShowWarningMessage('No files containing "\' .. a:type .. '"')
+	return -1
+    elseif len(files) == 1
+	call s:CleanupPopup()
+	return s:Popup_Main(a:type, 0, files[0])
+    endif
+
+    if a:type == "label"
+	let title = ' Select a file to search: '
+    elseif a:type == "bibitem"
+	let title = ' Select the counter the wanted label is related to: '
+    else
+	call s:ShowWarningMessage('s:Popup_Files: invalid type "' ..&nbsp;
+		    \ a:type .. '"')
+	return -1
+    endif
+
+    let popup_config = {
+		\ 'line': winline() + 1,
+		\ 'col': wincol(),
+		\ 'pos': 'topleft',
+		\ 'maxheight': g:tex_labels_popup_height,
+		\ 'maxwidth': winwidth(0) - 8,
+		\ 'highlight': 'TexLabelsPopup',
+		\ 'border': [1, 1, 1, 1],
+		\ 'borderhighlight': ['TexLabelsPopupBorder'],
+		\ 'title': title,
+		\ 'titlehighlight': 'TexLabelsPopupTitle',
+		\ 'cursorline': 1,
+		\ 'zindex': 200,
+		\ 'filter': function('s:PopupFilter_file')
+		\ }
+
+    " Create popup menu
+    let b:tex_labels_popup = popup_create(files, popup_config)
+    if b:tex_labels_popup > 0
+	call setwinvar(b:tex_labels_popup, 'type', a:type)
+	"call setwinvar(b:tex_labels_popup, 'files', files)
+	return 0
+    else
 	return -1
     endif
 endfunction
@@ -1365,57 +1465,69 @@ function! s:FilesOrCounters()
     endif
 endfunction
 
-" Show the reference popup menu
-"   s:Popup_Main(type, limit[, filename])
-"   {type}	"label" or "bibitem"
-"   {limit}	If {limit} is a positive integer and there are more than {limit}
-"		items to select, the menu shows options whether to show them
-"		according to source files or according to counters.
-"		If {limit} is zero, all envolved items are shown in the menu.
-"    {filename}
-"		If {filename} is nonempty, only items from {filename} are
-"		displayed for selection.
-"
-function! s:Popup_Main(type, limit, ...)
-    " Close any existing popup first
+" Popup filter function for selection and insertion of counter-labels
+function! s:PopupFilter_CounterItems(winid, key)
+    " Store previous key for gg detection
+    if !exists('b:prev_popup_key')
+        let b:prev_popup_key = ''
+    endif
+
+    " Store a digital number for repeated command
+    if !exists('b:count')
+	let b:count = ""
+    endif
+
+    " Handle different keys
+    if a:key == "\<CR>"
+        " Enter key - select and insert reference
+        let buf = winbufnr(a:winid)
+        let cursor_line = getbufoneline(buf, line('.', a:winid))
+        if !empty(cursor_line)
+            " Extract label from the line using the same format as in
+	    " s:FormatMenuItem
+	    let curlybrace_at = s:MatchCurlyBrace(cursor_line)
+	    if !empty(curlybrace_at)
+		let label = strpart(cursor_line, curlybrace_at[0] + 1,
+			    \ curlybrace_at[1] - curlybrace_at[0] - 1)
+	    else
+		let label = ''
+	    endif
+	else
+	    let label = ''
+        endif
+
+	if !empty(label)
+	    call s:InsertReference(label)
+	endif
+        let b:tex_labels_popup = -1
+        call popup_close(a:winid)
+        return !empty(label)
+
+    else
+        return s:Popup_KeyAction(a:winid, a:key)
+    endif
+endfunction
+
+" Open a popup window listing all labels under the LaTeX counter {counter_name}
+function! s:Popup_LabelsOfCounter(refs, counter_name)
     call s:CleanupPopup()
 
-    if a:type != "label" && a:type != "bibitem" "&& a:type != "tag"
-	call s:ShowWarningMessage('Type "' ..  a:type .. '" not supported.')
+    if empty(a:counter_name)
+	call s:ShowWarningMessage('No counter name')
+	return -1
+    elseif empty(a:refs)
+	call s:ShowWarningMessage('No labels related to the counter ' ..
+		    \ a:counter_name)
 	return -1
     endif
 
-    let b:tex_labels_item_overflow = 0
-    if a:0 > 0 && !empty(a:1)
-	let refs = s:GetRefItems(a:1, a:type)
-	if a:limit > 0 && len(refs) > a:limit
-	    call remove(refs, 0, -1)
-	    let b:tex_labels_item_overflow = 1
+    let labels = []
+    for item in a:refs
+	if item =~ a:counter_name
+	    call add(labels, item)
 	endif
-    else
-	let refs = s:GetAllReferences(a:type, a:limit)
-    endif
+    endfor
 
-    if b:tex_labels_item_overflow
-	let b:tex_labels_item_overflow = 0
-	" Here {refs} is empty. See, the codes of s:GetAllReferences() .
-
-	if a:type == "label"
-	    return s:FilesOrCounters()
-	elseif a:type == "bibitem"
-	    return s:Popup_Files("bibitem")
-	endif
-    elseif empty(refs)
-	" Create error message or keep silence?
-	call s:ShowWarningMessage("No labels found.")
-	return
-    endif
-
-    if a:type == "label"
-	let title = ' Label items '
-    elseif a:type == "bibitem"
-	let title = ' Bibliography items '
-    endif
     let popup_config = {
 		\ 'line': winline() + 1,
 		\ 'col': wincol(),
@@ -1425,21 +1537,32 @@ function! s:Popup_Main(type, limit, ...)
 		\ 'highlight': 'TexLabelsPopup',
 		\ 'border': [1, 1, 1, 1],
 		\ 'borderhighlight': ['TexLabelsPopupBorder'],
-		\ 'title': title,
+		\ 'title': ' Search cross reference labels... ',
 		\ 'titlehighlight': 'TexLabelsPopupTitle',
 		\ 'cursorline': 1,
 		\ 'zindex': 200,
-		\ 'filter': function('s:PopupFilter')
+		\ 'filter': function('s:PopupFilter_CounterItems')
 		\ }
 
-    " Create popup menu
-    let b:tex_labels_popup = popup_create(refs, popup_config)
-    if b:tex_labels_popup < 0
+    let b:tex_labels_popup = popup_create(labels, popup_config)
+    if b:tex_labels_popup > 0
+	"call setwinvar(b:tex_labels_popup, 'labels', labels)
+	return 0
+    else
 	return -1
     endif
+endfunction
 
-    call setwinvar(b:tex_labels_popup, 'type', a:type)
-    return 0
+" Check labels
+function! s:CheckLabels()
+endfunction
+
+" Check bibitem labels
+function! s:CheckBibitems()
+endfunction
+
+" Check included files
+function! s:CheckIncludedFiles()
 endfunction
 
 " Check whether some action should be triggered
@@ -1485,227 +1608,6 @@ function! s:TriggerCheck()
     endif
 
     return 0
-endfunction
-
-" Check labels
-function! s:CheckLabels()
-endfunction
-
-" Check bibitem labels
-function! s:CheckBibitems()
-endfunction
-
-" Check included files
-function! s:CheckIncludedFiles()
-endfunction
-
-" Popup filter function
-function! s:PopupFilter(winid, key)
-    " Store previous key for gg detection
-    if !exists('b:prev_popup_key')
-        let b:prev_popup_key = ''
-    endif
-
-    "let type = getwinvar(a:winid, 'type', '')
-
-    " Store a digital number for repeated command
-    if !exists('b:count')
-	let b:count = ""
-    endif
-
-    " Handle different keys
-    if a:key == "\<CR>"
-        " Enter key - select and insert reference
-        let buf = winbufnr(a:winid)
-        let cursor_line = getbufoneline(buf, line('.', a:winid))
-        if !empty(cursor_line)
-            " Extract label from the line using the same format as in
-	    " s:FormatMenuItem
-            "let label = matchstr(cursor_line, '\v\{[^}]+\}')
-            " Remove the braces
-            "let label = substitute(label, '[{}]', '', 'g')
-	    let curlybrace_at = s:MatchCurlyBrace(cursor_line)
-	    if !empty(curlybrace_at)
-		let label = strpart(cursor_line, curlybrace_at[0] + 1,
-			    \ curlybrace_at[1] - curlybrace_at[0] - 1)
-	    else
-		let label = ''
-	    endif
-	else
-	    let label = ''
-        endif
-
-	if !empty(label)
-	    call s:InsertReference(label)
-	endif
-        let b:tex_labels_popup = -1
-        call popup_close(a:winid)
-        return !empty(label)
-
-    else
-        return s:Popup_KeyAction(a:winid, a:key)
-    endif
-endfunction
-
-" Insert selected reference
-function! s:InsertReference(ref)
-    let ref_name = a:ref
-
-    " Find and replace reference in the triggering buffer
-    let line = getline('.')
-    let col = col('.') - 1
-
-    " Find brace boundaries
-    let start_col = strridx(strpart(line, 0, col), '{') + 1
-    let end_col = stridx(line, '}', col)
-
-    " Replace reference and position cursor
-    let new_line = strpart(line, 0, start_col) .. ref_name ..
-		\ strpart(line, end_col)
-    call setline('.', new_line)
-    call feedkeys("\<Esc>", 'n')
-    call cursor(line('.'), start_col + len(ref_name) + 2)
-endfunction
-
-" Popup filter function for file selection
-" ???????????????????????????????????????????????????!!!!!!!!!!!!!!
-function! s:PopupFilter_file(winid, key)
-    let type = getwinvar(a:winid, 'type')
-
-    " Store previous key for gg detection
-    if !exists('b:prev_popup_key')
-        let b:prev_popup_key = ''
-    endif
-
-    " Store a digital number for repeated command
-    if !exists('b:count')
-	let b:count = ""
-    endif
-
-    " Handle different keys
-    if a:key == "\<CR>"
-        " Enter key - select and insert reference
-        let buf = winbufnr(a:winid)
-        let file = getbufoneline(buf, line('.', a:winid))
-        if !empty(file)
-	    let b:tex_labels_popup = -1
-	    call popup_close(a:winid)
-
-	    call s:Popup_Main(type, 0, file)
-	    return 1
-	else
-	    call s:CleanupPopup()
-	    return s:ShowWarningMessage("Blank line!")
-        endif
-
-	call s:CleanupPopup()
-        "let b:tex_labels_popup = -1
-        "call popup_close(a:winid)
-	
-        return 1
-
-    else
-        return s:Popup_KeyAction(a:winid, a:key)
-    endif
-endfunction
-
-" Popup filter function
-" ??????????????????????????????????????????????!!!!!!!!!!!!!!!!!!!!!
-" Obsolete?
-function! s:PopupFilter_bibitem(winid, key)
-    " Store previous key for gg detection
-    if !exists('b:prev_popup_key')
-        let b:prev_popup_key = ''
-    endif
-
-    " Store a digital number for repeated command
-    if !exists('b:count')
-	let b:count = ""
-    endif
-
-    " Handle different keys
-    if a:key >= '0' && a:key <= '9'
-	let b:prev_popup_key = a:key
-	let b:count = b:count .. a:key
-	return 1
-
-    elseif !empty(b:count)
-	call win_execute(a:winid, 'normal! ' .. b:count .. a:key)
-	let b:count = ""
-	return 1
-
-    elseif a:key == 'n' || a:key == 'j'
-        " Move cursor down one line
-        call win_execute(a:winid, 'normal! j')
-        let b:prev_popup_key = (a:key == 'n' ? 'n' : 'j')
-        return 1
-
-    elseif a:key == 'p' || a:key == 'N' || a:key == 'k'
-        " Move cursor up one line
-        call win_execute(a:winid, 'normal! k')
-        let b:prev_popup_key = (a:key == 'p' ? 'p' : (a:key == 'N' ? 'N' : 'k'))
-        return 1
-
-    elseif a:key == "\<Space>" || a:key == "\<C-F>"
-        " Scroll one page downward
-        call win_execute(a:winid, "normal! \<C-F>")
-        let b:prev_popup_key = (a:key == "\<Space>" ? "\<Space>" : "\<C-F>")
-        return 1
-
-    elseif a:key == 'b' || a:key == "\<C-B>"
-        " Scroll one page backward
-        call win_execute(a:winid, "normal! \<C-B>")
-        let b:prev_popup_key = (a:key == 'b' ? 'b' : "\<C-B>")
-        return 1
-
-    elseif a:key == 'G'
-        " Jump to last item
-        call win_execute(a:winid, 'normal! G')
-        let b:prev_popup_key = 'G'
-        return 1
-
-    elseif a:key == 'g'
-        " Check for gg sequence
-        if b:prev_popup_key == 'g'
-            " Jump to first item
-            call win_execute(a:winid, 'normal! gg')
-            let b:prev_popup_key = ''
-        else
-            let b:prev_popup_key = 'g'
-        endif
-        return 1
-
-    elseif a:key == "\<CR>"
-        " Enter key - select and insert reference
-        let buf = winbufnr(a:winid)
-        let cursor_line = getbufoneline(buf, line('.', a:winid))
-        if !empty(cursor_line)
-            " Extract label from the line using the same format as in
-	    " s:FormatMenuItem
-            let label = matchstr(cursor_line, '\v\{[^}]+\}')
-            " Remove the braces
-            let label = substitute(label, '[{}]', '', 'g')
-	else
-	    let label = ''
-        endif
-
-	call s:InsertReference(label)
-        let b:tex_labels_popup = -1
-        call popup_close(a:winid)
-        return 1
-
-    elseif a:key == "\<Esc>"
-        " Close popup on Escape
-        let b:tex_labels_popup = -1
-        call popup_close(a:winid)
-        return 1
-
-    else
-        " Close popup on any other key
-        let b:tex_labels_popup = -1
-        call popup_close(a:winid)
-        return 0
-    endif
 endfunction
 
 " Set up highlighting (only once globally)
