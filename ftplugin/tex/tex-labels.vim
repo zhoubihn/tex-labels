@@ -3,10 +3,10 @@
 " 	Provides popup menu for \ref, \eqref, \pageref, and \cite commands
 "
 " Maintainer:   Bin Zhou   <zhoub@bnu.edu.cn>
-" Version:      0.3.36
+" Version:      0.3.37
 "
-" Upgraded on: Fri 2025-10-31 00:33:36 CST (+0800)
-" Last change: Fri 2025-10-31 01:12:56 CST (+0800)
+" Upgraded on: Fri 2025-10-31 01:15:56 CST (+0800)
+" Last change: Fri 2025-10-31 15:43:58 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -1078,25 +1078,108 @@ function! s:Popup_Files(type)
     endif
 endfunction
 
+" Popup filter function for selection and insertion of counter-labels
+function! s:PopupFilter_CounterItems(winid, key)
+    " Store previous key for gg detection
+    if !exists('b:prev_popup_key')
+        let b:prev_popup_key = ''
+    endif
+
+    " Store a digital number for repeated command
+    if !exists('b:count')
+	let b:count = ""
+    endif
+
+    " Handle different keys
+    if a:key == "\<CR>"
+        " Enter key - select and insert reference
+        let buf = winbufnr(a:winid)
+        let cursor_line = getbufoneline(buf, line('.', a:winid))
+        if !empty(cursor_line)
+            " Extract label from the line using the same format as in
+	    " s:FormatMenuItem
+	    let curlybrace_at = s:MatchCurlyBrace(cursor_line)
+	    if !empty(curlybrace_at)
+		let label = strpart(cursor_line, curlybrace_at[0] + 1,
+			    \ curlybrace_at[1] - curlybrace_at[0] - 1)
+	    else
+		let label = ''
+	    endif
+	else
+	    let label = ''
+        endif
+
+	if !empty(label)
+	    call s:InsertReference(label)
+	endif
+        let b:tex_labels_popup = -1
+        call popup_close(a:winid)
+        return !empty(label)
+
+    else
+        return s:Popup_KeyAction(a:winid, a:key)
+    endif
+endfunction
+
 " Open a popup window listing all labels under the LaTeX counter {counter_name}
-function! s:Popup_LabelsOfCounter(counter_name)
-    return 0
+function! s:Popup_LabelsOfCounter(refs, counter_name)
+    call s:CleanupPopup()
+
+    if empty(a:counter_name)
+	call s:ShowWarningMessage('No counter name')
+	return -1
+    elseif empty(a:refs)
+	call s:ShowWarningMessage('No labels related to the counter ' ..
+		    \ a:counter_name)
+	return -1
+    endif
+
+    let labels = []
+    for item in a:refs
+	if item =~ a:counter_name
+	    call add(labels, item)
+	endif
+    endfor
+
+    let popup_config = {
+		\ 'line': winline() + 1,
+		\ 'col': wincol(),
+		\ 'pos': 'topleft',
+		\ 'maxheight': g:tex_labels_popup_height,
+		\ 'maxwidth': winwidth(0) - 8,
+		\ 'highlight': 'TexLabelsPopup',
+		\ 'border': [1, 1, 1, 1],
+		\ 'borderhighlight': ['TexLabelsPopupBorder'],
+		\ 'title': ' Search cross reference labels... ',
+		\ 'titlehighlight': 'TexLabelsPopupTitle',
+		\ 'cursorline': 1,
+		\ 'zindex': 200,
+		\ 'filter': function('s:PopupFilter_CounterItems')
+		\ }
+
+    let b:tex_labels_popup = popup_create(labels, popup_config)
+    if b:tex_labels_popup > 0
+	"call setwinvar(b:tex_labels_popup, 'labels', labels)
+	return 0
+    else
+	return -1
+    endif
 endfunction
 
 " Popup filter function for counter menu
 function! s:PopupFilter_counter(winid, key)
-    let counters = getwinvar(a:winid, 'counters')
+    let refs = getwinvar(a:winid, 'refs')
 
     if a:key == "\<CR>"
         let buf = winbufnr(a:winid)
-        let cursor_line = getbufoneline(buf, line('.', a:winid))
-        if !empty(cursor_line)
-	    let status = s:Popup_LabelsOfCounter(cursor_line)
+        let counter = getbufoneline(buf, line('.', a:winid))
+        if !empty(counter)
+	    let status = s:Popup_LabelsOfCounter(refs, counter)
 
 	    call popup_close(a:winid)
 	    let b:tex_labels_popup = -1
 
-	    return status
+	    return status == 0
 	endif
     else
         return s:Popup_KeyAction(a:winid, a:key)
@@ -1108,6 +1191,8 @@ endfunction
 "   {type}	either "label" or "bibitem"
 "   {file}	If not empty, search in this file only.
 function! s:Popup_Counters(type, ...)
+    call s:CleanupPopup()
+
     if a:0 > 0 && !empty(a:1)
 	let filename = a:1
     else
@@ -1168,11 +1253,10 @@ function! s:Popup_Counters(type, ...)
 		\ 'filter': function('s:PopupFilter_counter')
 		\ }
 
-    call s:CleanupPopup()
     let b:tex_labels_popup = popup_create(counters, popup_config)
 
     if b:tex_labels_popup > 0
-	call setwinvar(b:tex_labels_popup, 'counters', counters)
+	call setwinvar(b:tex_labels_popup, 'refs', refs)
 	return 0
     else
 	let b:tex_labels_popup = -1
