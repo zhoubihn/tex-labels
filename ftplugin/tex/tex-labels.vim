@@ -3,10 +3,10 @@
 " 	Provides popup menu for \ref, \eqref, \pageref, and \cite commands
 "
 " Maintainer:   Bin Zhou   <zhoub@bnu.edu.cn>
-" Version:      0.4.0
+" Version:      0.4.1
 "
-" Upgraded on: Fri 2025-10-31 20:56:57 CST (+0800)
-" Last change: Fri 2025-10-31 23:14:23 CST (+0800)
+" Upgraded on: Fri 2025-10-31 23:37:57 CST (+0800)
+" Last change: Sat 2025-11-01 20:08:06 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -820,6 +820,40 @@ function! s:GetFilesContainingCommand(type, ...)
     return effective_files
 endfunction
 
+" Function to check whether there are, in the file {filename}, labels related to
+" the LaTeX counter {counter_name}, returning 1 or 0 for "yes" or "no".
+"
+" If {filename} is the current file, contents in the buffer are not checked.
+function! s:HasCounterLabels(filename, counter_name)
+    if empty(a:filename) || empty(a:counter_name)
+	return 0
+    endif
+
+    let file = s:GetAbsolutePath(a:filename)
+    let aux_file = s:AuxFileName(file, "label")
+    if !filereadable(aux_file)
+	return 0
+    endif
+
+    let labels = readfile(aux_file)
+    if empty(labels)
+	return 0
+    endif
+
+    for item in labels
+	let matched = matchlist(item, '^(\([^:]*\):.*)')
+	if len(matched) < 2
+	    continue
+	endif
+
+	if a:counter_name == matched[1]
+	    return 1
+	endif
+    endfor
+
+    return 0
+endfunction
+
 " Function to generate a List for \ref , \eqref , \pageref , \cite ,
 " \label , \bibitem or \tag
 "   {type}	"label", "bibitem" or "tag"
@@ -887,6 +921,39 @@ function! s:GetAllReferences(type, limit)
     endfor
 
     return refs
+endfunction
+
+" Function to get all LaTeX counters related to \label{}.  Usage:
+"   s:GetAllCounters([filename])
+function! s:GetAllCounters(...)
+    if a:0 > 0 && !empty(a:1)
+	let refs = s:GetRefItems(a:1, "label")
+    else
+	let refs = s:GetAllReferences("label", 0)
+    endif
+
+    if empty(refs)
+	return []
+    endif
+
+    let counters = []
+    for item in refs
+	if empty(item)
+	    continue
+	endif
+
+	let counter_name = matchlist(item, '^(\([^:]*\):.*)')
+	if !empty(counter_name) && !empty(counter_name[1])
+	    call add(counters, counter_name[1])
+	endif
+    endfor
+
+    let counters = s:RemoveDuplicates(counters)
+    if empty(counters)
+	return []
+    else
+	return sort(counters)
+    endif
 endfunction
 
 
@@ -1127,7 +1194,7 @@ function! s:Popup_Main(type, limit, ...)
 	" Here {refs} is empty. See, the codes of s:GetAllReferences() .
 
 	if a:type == "label"
-	    return s:FilesOrCounters()
+	    return s:Popup_FilesCounters()
 	elseif a:type == "bibitem"
 	    return s:Popup_Files("bibitem")
 	endif
@@ -1170,17 +1237,20 @@ endfunction
 
 " Popup filter function for counter menu
 function! s:PopupFilter_counter(winid, key)
-    let refs = getwinvar(a:winid, 'refs')
+    let counter_then_file = getwinvar(a:winid, 'counter_then_file')
 
     if a:key == "\<CR>"
         let buf = winbufnr(a:winid)
         let counter = getbufoneline(buf, line('.', a:winid))
         if !empty(counter)
-	    let status = s:Popup_LabelsOfCounter(refs, counter)
-
 	    call popup_close(a:winid)
 	    let b:tex_labels_popup = -1
 
+	    if counter_then_file
+		let status = s:Popup_Files("label", counter)
+	    else
+		let status = s:Popup_LabelsOfCounter(counter)
+	    endif
 	    return status == 0
 	endif
     else
@@ -1192,17 +1262,29 @@ endfunction
 "   s:Popup_Counters(type[, file])
 "   {type}	either "label" or "bibitem"
 "   {file}	If not empty, search in this file only.
+" When it is called in the form of
+"   s:Popup_Counters(type, '')   or  s:Popup_Counters(type, "")
+" a file-selection window pops up.  Hence the above form is different from
+"   s:Popup_Counters(type)
 function! s:Popup_Counters(type, ...)
+    " ???????????
     call s:CleanupPopup()
 
     if a:0 > 0 && !empty(a:1)
 	let filename = a:1
     else
 	let filename = ''
+	let counter_then_file = (a:0 > 0)
     endif
 
     if a:type == "bibitem"
-	return s:Popup_Main("bibitem", 0, filename)
+	if a:0 == 0
+	    return s:Popup_Main("bibitem", 0)
+	elseif !empty(a:1)
+	    return s:Popup_Main("bibitem", 0, a:1)
+	else
+	    return s:Popup_Files("bibitem")
+	endif
 
     elseif a:type != "label"
 	call s:ShowWarningMessage("Unknown type \"" .. a:type .. "\".")
@@ -1211,33 +1293,16 @@ function! s:Popup_Counters(type, ...)
 
     " From now on, a:type == 'label'
 
-    if !empty(filename)
-	let refs = s:GetRefItems(filename, "label")
-    else
-	let refs = s:GetAllReferences("label", 0)
-    endif
-    if empty(refs)
-	return -1
-    endif
-
-    let counters = []
-    for item in refs
-	if empty(item)
-	    continue
+    let counters = s:GetAllCounters()
+    if len(counters) == 1
+	if counter_then_file
+	    return s:Popup_Files("label")
+	else
+	    return s:Popup_Main("label", 0, filename)
 	endif
-
-	let counter_name = matchlist(item, '^(\([^:]*\):.*)')
-	if !empty(counter_name) && !empty(counter_name[1])
-	    call add(counters, counter_name[1])
-	endif
-    endfor
-
-    let counters = s:RemoveDuplicates(counters)
-    if empty(counters)
-	return -1
-    else
-	call sort(counters)
     endif
+
+    " In the following, there are at least two LaTeX counters.
 
     let popup_config = {
 		\ 'line': winline() + 1,
@@ -1258,7 +1323,8 @@ function! s:Popup_Counters(type, ...)
     let b:tex_labels_popup = popup_create(counters, popup_config)
 
     if b:tex_labels_popup > 0
-	call setwinvar(b:tex_labels_popup, 'refs', refs)
+	call setwinvar(b:tex_labels_popup, 'counter_then_file',
+		    \ counter_then_file)
 	return 0
     else
 	let b:tex_labels_popup = -1
@@ -1307,9 +1373,14 @@ function! s:PopupFilter_file(winid, key)
     endif
 endfunction
 
-" Open the file-selection popup window
-" {type}	being "label" or "bibitem" only
-function! s:Popup_Files(type)
+" Open the file-selection popup window.  Usage:
+"   s:Popup_Files(type)
+" or
+"   s:Popup_Files("label", counter)
+" with
+"   {type}	being "label" or "bibitem" only
+"   {counter}	the name of a LaTeX counter
+function! s:Popup_Files(type, ...)
     " Close any existing popup first
     call s:CleanupPopup()
 
@@ -1319,12 +1390,27 @@ function! s:Popup_Files(type)
     endif
 
     let files = s:GetFilesContainingCommand(a:type)
+
     if empty(files)
-	call s:ShowWarningMessage('No files containing "\' .. a:type .. '"')
+	call s:ShowWarningMessage('No files containing "' .. a:type .. '".')
 	return -1
     elseif len(files) == 1
 	call s:CleanupPopup()
 	return s:Popup_Main(a:type, 0, files[0])
+    elseif a:0 > 0 && !empty(a:1) && a:type == "label"
+	let effective_files = []
+	for file in files
+	    if s:HasCounterLabels(file, a:1)
+		call add(effective_files, file)
+	    endif
+	endfor
+
+	if !empty(effective_files)
+	    let files = effective_files
+	else
+	    call s:ShowWarningMessage('No files containing a label belonging to the LaTeX counter "' .. a:1 .. '".')
+	    return -1
+	endif
     endif
 
     if a:type == "label"
@@ -1366,7 +1452,8 @@ endfunction
 
 " Popup filter function
 function! s:PopupFilter_FileCounter(winid, key)
-    "let type = getwinvar(a:winid, 'type')
+    let involved_files = getwinvar(a:winid, 'involved_files')
+    let counters = getwinvar(a:winid, 'counters')
 
     " Handle different keys
     "if a:key =~# '^[1-3]'
@@ -1382,19 +1469,48 @@ function! s:PopupFilter_FileCounter(winid, key)
 	return 1
 
     elseif a:key == '2'
-        let b:tex_labels_popup = -1
-        let b:prev_popup_key = ''
-        call popup_close(a:winid)
+	if len(involved_files) > 1
+	    let b:tex_labels_popup = -1
+	    let b:prev_popup_key = ''
+	    call popup_close(a:winid)
 
-	call s:Popup_Files("label")
+	    call s:Popup_Files("label")
+	endif
+
 	return 1
 
     elseif a:key == '3'
-        let b:tex_labels_popup = -1
-        let b:prev_popup_key = ''
-        call popup_close(a:winid)
+	if len(counters) > 1
+	    let b:tex_labels_popup = -1
+	    let b:prev_popup_key = ''
+	    call popup_close(a:winid)
 
-	call s:Popup_Counters("label")
+	    call s:Popup_Counters("label")
+	endif
+
+	return 1
+
+    elseif a:key == '4'
+	if len(involved_files) > 1 && len(counters) > 1
+	    let b:tex_labels_popup = -1
+	    let b:prev_popup_key = ''
+	    call popup_close(a:winid)
+
+	    call s:Popup_Counters("label", '')
+	endif
+
+	return 1
+
+    elseif a:key == '5'
+	if len(involved_files) > 1 && len(counters) > 1
+	    let b:tex_labels_popup = -1
+	    let b:prev_popup_key = ''
+	    call popup_close(a:winid)
+
+	    " !!!!!!!!!!!!!!!!!!!!!!!!
+	    call s:Popup_Files("label")
+	endif
+
 	return 1
 
     elseif a:key == "\<CR>"
@@ -1402,9 +1518,22 @@ function! s:PopupFilter_FileCounter(winid, key)
 	if selection == '1'
 	    call s:Popup_Main("label", 0)
 	elseif selection == '2'
-	    call s:Popup_Files("label")
+	    if len(involved_files) > 1
+		call s:Popup_Files("label")
+	    endif
 	elseif selection == '3'
-	    call s:Popup_Counters("label")
+	    if len(counters) > 1
+		call s:Popup_Counters("label")
+	    endif
+	elseif selection == '4'
+	    if len(involved_files) > 1 && len(counters) > 1
+		call s:Popup_Counters("label", '')
+	    endif
+	elseif selection == '5'
+	    if len(involved_files) > 1 && len(counters) > 1
+		" !!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+		call s:Popup_Files("label")
+	    endif
 	endif
 
         let b:tex_labels_popup = -1
@@ -1421,19 +1550,46 @@ function! s:PopupFilter_FileCounter(winid, key)
 endfunction
 
 " Function to create a popup menu of how to list labels.  Usage:
-"   s:FilesOrCounters()
-" What value should be returned?
-"
-function! s:FilesOrCounters()
+"   s:Popup_FilesCounters()
+" Only type "label" is processed.
+function! s:Popup_FilesCounters()
     call s:CleanupPopup()
+
+    let involved_files = s:GetFilesContainingCommand("label")
+    if empty(involved_files)
+	call s:ShowWarningMessage("No files found.")
+	return -1
+    endif
+
+    let counters = s:GetAllCounters()
+    if empty(counters)
+	call s:ShowWarningMessage("No cross reference labels found.")
+	return -1
+    endif
+
+    " Now both involved_files and counters are non-empty.
 
     let items = []
     call add(items, '[1] List all labels anyway')
-    call add(items, "[2] Select according to files")
-    call add(items, "[3] Select according to counters")
 
-    let involved_files = s:GetFilesContainingCommand("label")
-    if len(involved_files) > 1
+    if len(involved_files) > 1 && len(counters) > 1
+	call add(items, "[2] Select according to files")
+	call add(items, "[3] Select according to counters")
+	call add(items, "[4] Select through \"counter -> file\"")
+	call add(items, "[5] Select through \"file -> counter\"")
+    elseif len(involved_files) > 1
+	call add(items, "[2] Select according to files")
+	call add(items, "[3]")
+	call add(items, "[4]")
+	call add(items, "[5]")
+    elseif len(counters) > 1
+	call add(items, "[2]")
+	call add(items, "[3] Select according to counters")
+	call add(items, "[4]")
+	call add(items, "[5]")
+    endif
+
+    if len(items) > 1
 	let popup_config = {
 		    \ 'line': winline() + 1,
 		    \ 'col': wincol(),
@@ -1451,8 +1607,9 @@ function! s:FilesOrCounters()
 		    \ }
 	let b:tex_labels_popup = popup_create(items, popup_config)
 	if b:tex_labels_popup > 0
-	    "call win_execute(b:tex_labels_popup, 'normal! 2j')
-	    "call setwinvar(b:tex_labels_popup, 'type', a:type)
+	    call win_execute(b:tex_labels_popup, 'normal! j')
+	    call setwinvar(b:tex_labels_popup, 'involved_files', involved_files)
+	    call setwinvar(b:tex_labels_popup, 'counters', counters)
 	    return 0
 	else
 	    return -1
@@ -1508,21 +1665,31 @@ function! s:PopupFilter_CounterItems(winid, key)
     endif
 endfunction
 
-" Open a popup window listing all labels under the LaTeX counter {counter_name}
-function! s:Popup_LabelsOfCounter(refs, counter_name)
-    call s:CleanupPopup()
+" Open a popup window listing all labels under the LaTeX counter {counter_name}.
+" Usage:
+"   s:Popup_LabelsOfCounter(counter_name[, filename])
+"   {counter_name}	the name of a LaTeX counter
+"   {filename}		search in this file when presented and non-empty
+function! s:Popup_LabelsOfCounter(counter_name, ...)
+    "call s:CleanupPopup()
+
+    if a:0 > 0 && !empty(a:1)
+	let refs = s:GetRefItems(a:1, "label")
+    else
+	let refs = s:GetAllReferences("label", 0)
+    endif
 
     if empty(a:counter_name)
 	call s:ShowWarningMessage('No counter name')
 	return -1
-    elseif empty(a:refs)
+    elseif empty(refs)
 	call s:ShowWarningMessage('No labels related to the counter ' ..
 		    \ a:counter_name)
 	return -1
     endif
 
     let labels = []
-    for item in a:refs
+    for item in refs
 	if item =~ a:counter_name
 	    call add(labels, item)
 	endif
