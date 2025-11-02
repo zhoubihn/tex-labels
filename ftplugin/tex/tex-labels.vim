@@ -3,10 +3,10 @@
 " 	Provides popup menu for \ref, \eqref, \pageref, and \cite commands
 "
 " Maintainer:   Bin Zhou   <zhoub@bnu.edu.cn>
-" Version:      0.4.1
+" Version:      0.4.2
 "
-" Upgraded on: Fri 2025-10-31 23:37:57 CST (+0800)
-" Last change: Sat 2025-11-01 20:08:06 CST (+0800)
+" Upgraded on: Sat 2025-11-01 23:17:30 CST (+0800)
+" Last change: Sun 2025-11-02 08:02:43 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -1335,6 +1335,7 @@ endfunction
 " Popup filter function for file selection
 function! s:PopupFilter_file(winid, key)
     let type = getwinvar(a:winid, 'type')
+    let file_then_counter = getwinvar(a:winid, 'file_then_counter')
 
     " Store previous key for gg detection
     if !exists('b:prev_popup_key')
@@ -1355,7 +1356,11 @@ function! s:PopupFilter_file(winid, key)
 	    let b:tex_labels_popup = -1
 	    call popup_close(a:winid)
 
-	    call s:Popup_Main(type, 0, file)
+	    if file_then_counter
+		call s:Popup_Counters("label")
+	    else
+		call s:Popup_Main(type, 0, file)
+	    endif
 	    return 1
 	else
 	    call s:CleanupPopup()
@@ -1376,16 +1381,40 @@ endfunction
 " Open the file-selection popup window.  Usage:
 "   s:Popup_Files(type)
 " or
+"   s:Popup_Files("label", '')
+" or
 "   s:Popup_Files("label", counter)
 " with
 "   {type}	being "label" or "bibitem" only
 "   {counter}	the name of a LaTeX counter
+"
+" Call s:Popup_Files(type) to list all files containing \label or \bibitem
+" according to the value of {type}.  When one of these files is selected,
+" a new " popup window shows all available labels or bibliographies generated
+" in that file.
+"
+" Call s:Popup_Files("label", '') to list all files containing \label .
+" When one of these files is selected, a new popup window shows all available
+" LaTeX counters associated with \label .
+"
+" Call s:Popup_Files("label", counter) to list all files containing \label
+" associated with the LaTeX counter {counter} associated with \label .
+" When one of these files is selected, all available cross reference markers,
+" belonging to this counter in the selected file, are listed in a new popup
+" window.
 function! s:Popup_Files(type, ...)
     " Close any existing popup first
     call s:CleanupPopup()
 
+    if a:0 > 0 && empty(a:1) && a:type == "label"
+	let file_then_counter = 1
+    else
+	let file_then_counter = 0
+    endif
+
     if a:type != "label" && a:type != "bibitem"
-	echo 's:Popup_Files: invalid type "' .. a:type .. '".'
+	call s:ShowWarningMessage('s:Popup_Files: type "' .. a:type ..
+		    \ '" not supported.')
 	return -1
     endif
 
@@ -1394,10 +1423,21 @@ function! s:Popup_Files(type, ...)
     if empty(files)
 	call s:ShowWarningMessage('No files containing "' .. a:type .. '".')
 	return -1
+
     elseif len(files) == 1
-	call s:CleanupPopup()
-	return s:Popup_Main(a:type, 0, files[0])
-    elseif a:0 > 0 && !empty(a:1) && a:type == "label"
+	if file_then_counter
+	    let status = s:Popup_Counters(a:type, files[0])
+	    return status == 0
+	else
+	    let status = s:Popup_Main(a:type, 0, files[0])
+	    return status == 0
+	endif
+
+    endif
+
+    " Now len(files) > 1
+
+    if a:0 > 0 && !empty(a:1) && a:type == "label"
 	let effective_files = []
 	for file in files
 	    if s:HasCounterLabels(file, a:1)
@@ -1413,16 +1453,6 @@ function! s:Popup_Files(type, ...)
 	endif
     endif
 
-    if a:type == "label"
-	let title = ' Select a file to search: '
-    elseif a:type == "bibitem"
-	let title = ' Select the counter the wanted label is related to: '
-    else
-	call s:ShowWarningMessage('s:Popup_Files: invalid type "' ..&nbsp;
-		    \ a:type .. '"')
-	return -1
-    endif
-
     let popup_config = {
 		\ 'line': winline() + 1,
 		\ 'col': wincol(),
@@ -1432,7 +1462,7 @@ function! s:Popup_Files(type, ...)
 		\ 'highlight': 'TexLabelsPopup',
 		\ 'border': [1, 1, 1, 1],
 		\ 'borderhighlight': ['TexLabelsPopupBorder'],
-		\ 'title': title,
+		\ 'title': ' Select a file to search ',
 		\ 'titlehighlight': 'TexLabelsPopupTitle',
 		\ 'cursorline': 1,
 		\ 'zindex': 200,
@@ -1443,6 +1473,8 @@ function! s:Popup_Files(type, ...)
     let b:tex_labels_popup = popup_create(files, popup_config)
     if b:tex_labels_popup > 0
 	call setwinvar(b:tex_labels_popup, 'type', a:type)
+	call setwinvar(b:tex_labels_popup, 'file_then_counter',
+		    \ file_then_counter)
 	"call setwinvar(b:tex_labels_popup, 'files', files)
 	return 0
     else
@@ -1496,7 +1528,8 @@ function! s:PopupFilter_FileCounter(winid, key)
 	    let b:prev_popup_key = ''
 	    call popup_close(a:winid)
 
-	    call s:Popup_Counters("label", '')
+	    call s:Popup_Files("label", '')
+
 	endif
 
 	return 1
@@ -1507,8 +1540,7 @@ function! s:PopupFilter_FileCounter(winid, key)
 	    let b:prev_popup_key = ''
 	    call popup_close(a:winid)
 
-	    " !!!!!!!!!!!!!!!!!!!!!!!!
-	    call s:Popup_Files("label")
+	    call s:Popup_Counters("label", '')
 	endif
 
 	return 1
@@ -1527,12 +1559,11 @@ function! s:PopupFilter_FileCounter(winid, key)
 	    endif
 	elseif selection == '4'
 	    if len(involved_files) > 1 && len(counters) > 1
-		call s:Popup_Counters("label", '')
+		call s:Popup_Files("label", '')
 	    endif
 	elseif selection == '5'
 	    if len(involved_files) > 1 && len(counters) > 1
-		" !!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-		call s:Popup_Files("label")
+		call s:Popup_Counters("label", '')
 	    endif
 	endif
 
@@ -1575,8 +1606,8 @@ function! s:Popup_FilesCounters()
     if len(involved_files) > 1 && len(counters) > 1
 	call add(items, "[2] Select according to files")
 	call add(items, "[3] Select according to counters")
-	call add(items, "[4] Select through \"counter -> file\"")
-	call add(items, "[5] Select through \"file -> counter\"")
+	call add(items, "[4] Select through \"file -> counter\"")
+	call add(items, "[5] Select through \"counter -> file\"")
     elseif len(involved_files) > 1
 	call add(items, "[2] Select according to files")
 	call add(items, "[3]")
