@@ -3,10 +3,10 @@
 " 	Provides popup menu for \ref, \eqref, \pageref, and \cite commands
 "
 " Maintainer:   Bin Zhou   <zhoub@bnu.edu.cn>
-" Version:      0.4.2
+" Version:      0.5
 "
-" Upgraded on: Sat 2025-11-01 23:17:30 CST (+0800)
-" Last change: Sun 2025-11-02 08:02:43 CST (+0800)
+" Upgraded on: Sun 2025-11-02 21:47:19 CST (+0800)
+" Last change: Mon 2025-11-03 02:50:02 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -650,7 +650,7 @@ function! s:FormatMenuItem(item, type)
 	    return ''
 	endif
 
-	return "(tag: " .. a:item.idcode .. ")\t{line: " ..
+	return "{tag: " .. a:item.idcode .. "} {line: " ..
 		    \ a:item.line .. "} {file: " .. a:item.file .. "}"
 
     else
@@ -956,6 +956,24 @@ function! s:GetAllCounters(...)
     endif
 endfunction
 
+function! s:GetLineNumber(ref)
+    if empty(a:ref)
+	return -1
+    endif
+
+    let line_num = matchstr(a:ref, '{line: \([0-9]*\)}')
+    return line_num
+endfunction
+
+function! s:GetFileName(ref)
+    if empty(a:ref)
+	return ''
+    endif
+
+    let file_name = matchstr(a:ref, '{file: \([^}]*\)}')
+    return file_name
+endfunction
+
 
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 "
@@ -1201,7 +1219,7 @@ function! s:Popup_Main(type, limit, ...)
     elseif empty(refs)
 	" Create error message or keep silence?
 	call s:ShowWarningMessage("No labels found.")
-	return
+	return -1
     endif
 
     if a:type == "label"
@@ -1251,7 +1269,7 @@ function! s:PopupFilter_counter(winid, key)
 	    else
 		let status = s:Popup_LabelsOfCounter(counter)
 	    endif
-	    return status == 0
+	    return (status == 0)
 	endif
     else
         return s:Popup_KeyAction(a:winid, a:key)
@@ -1267,7 +1285,6 @@ endfunction
 " a file-selection window pops up.  Hence the above form is different from
 "   s:Popup_Counters(type)
 function! s:Popup_Counters(type, ...)
-    " ???????????
     call s:CleanupPopup()
 
     if a:0 > 0 && !empty(a:1)
@@ -1427,10 +1444,10 @@ function! s:Popup_Files(type, ...)
     elseif len(files) == 1
 	if file_then_counter
 	    let status = s:Popup_Counters(a:type, files[0])
-	    return status == 0
+	    return (status == 0)
 	else
 	    let status = s:Popup_Main(a:type, 0, files[0])
-	    return status == 0
+	    return (status == 0)
 	endif
 
     endif
@@ -1751,16 +1768,117 @@ function! s:Popup_LabelsOfCounter(counter_name, ...)
     endif
 endfunction
 
-" Check labels
-function! s:CheckLabels()
+function! s:PopupFilter_CheckLabels(winid, key)
+    call popup_close(a:winid)
+    let b:tex_labels_popup = -1
+
+    if a:key == "\<Esc>"
+	return 1
+    else
+	return 0
+    endif
 endfunction
 
-" Check bibitem labels
-function! s:CheckBibitems()
+" Function to check whether 'marker' in '\label{marker}', '\bibitem{marker}',
+" '\tag{marker}' or '\include{marker}' is duplicated.
+function! s:Popup_CheckLabels()
+    let type = s:TriggerCheck()
+    if type == "incl"
+	return s:Popup_CheckInclude()
+    elseif type != "label" && type != "bibitem" && type != "tag"
+	return -1
+    endif
+
+    let line = getline('.')
+    let line_number = line('.')
+    let curr_offset = col('.') - 1
+
+    " Find the nearest '{' (not part of '\{') on the left of cursor
+    let open_brace_at = s:SearchOpenBrace_left(line, curr_offset)
+    if open_brace_at < 0
+        return -1
+    endif
+
+    " Check if cursor is between '{' and '}'
+    let curlybrace_at = s:MatchCurlyBrace(line, open_brace_at)
+    if empty(curlybrace_at)
+        return -1
+    endif
+
+    let close_brace_at = curlybrace_at[1]
+    if close_brace_at < curr_offset
+        return -1
+    endif
+
+    " Extract curr_marker: the string after the '{' and up to cursor position
+    let curr_marker = strpart(line, open_brace_at + 1,
+		\ curr_offset - open_brace_at - 1) .. v:char
+
+    " If curr_marker is empty, don't show popup
+    if empty(curr_marker)
+        return -1
+    endif
+
+    " Get all label references
+    let all_refs = s:GetAllReferences(type, 0)
+    if empty(all_refs)
+        return -1
+    endif
+
+    " Find labels that start with curr_marker
+    let matching_refs = []
+    for ref in all_refs
+        " Extract label name from the formatted reference line
+        let curlybrace_at_ref = s:MatchCurlyBrace(ref)
+        if !empty(curlybrace_at_ref)
+            let label_name = strpart(ref, curlybrace_at_ref[0] + 1,
+			\ curlybrace_at_ref[1] - curlybrace_at_ref[0] - 1)
+            if label_name =~ '^' . curr_marker && (
+			\ s:GetLineNumber(ref) != line_number ||
+			\ s:GetAbsolutePath(s:GetFileName(ref)) !=
+			\ s:GetAbsolutePath("%")
+			\ )
+                call add(matching_refs, ref)
+            endif
+        endif
+    endfor
+
+    " If there are matching labels, show them in a popup
+    if !empty(matching_refs)
+        " Close any existing popup first
+        call s:CleanupPopup()
+
+        let popup_config = {
+                    \ 'line': winline() + 1,
+                    \ 'col': wincol() + 2,
+                    \ 'pos': 'topleft',
+                    \ 'maxheight': g:tex_labels_popup_height,
+                    \ 'maxwidth': winwidth(0) - 8,
+                    \ 'highlight': 'TexLabelsPopup',
+                    \ 'border': [1, 1, 1, 1],
+                    \ 'borderhighlight': ['TexLabelsPopupBorder'],
+                    \ 'title': ' Matching Labels ',
+                    \ 'titlehighlight': 'TexLabelsPopupTitle',
+                    \ 'cursorline': 0,
+                    \ 'zindex': 200,
+                    \ 'filter': function('s:PopupFilter_CheckLabels')
+                    \ }
+
+        " Create popup menu
+        let b:tex_labels_popup = popup_create(matching_refs, popup_config)
+        if b:tex_labels_popup > 0
+            return 0
+        else
+            return -1
+        endif
+    endif
+
+    return -1
 endfunction
 
 " Check included files
-function! s:CheckIncludedFiles()
+function! s:Popup_CheckInclude()
+    return 0
 endfunction
 
 " Check whether some action should be triggered
@@ -1771,21 +1889,19 @@ function! s:TriggerCheck()
     " Quick check: if no '{' before cursor, return early
     let open_brace_at = s:SearchOpenBrace_left(line, offset)
     if open_brace_at < 0
-	return -1
+	return ''
     endif
 
     " Check if cursor is between '{' and '}' .
     " Note that '{' with offset {open_brace_at} is not part of '\{'.
     let curlybrace_at = s:MatchCurlyBrace(line, open_brace_at)
     if empty(curlybrace_at)
-	return -1
+	return ''
     endif
 
-    " {open_brace_at} == curlybrace_at[0]
-    "let open_brace_at = curlybrace_at[0]
     let close_brace_at = curlybrace_at[1]
     if close_brace_at < offset
-	return -1
+	return ''
     endif
 
     " Now the cursor is behide '{', and is before or at '}'.  That is,
@@ -1794,18 +1910,22 @@ function! s:TriggerCheck()
     " Check if it's a command like \ref, \eqref, and so on
     let before_brace = strpart(line, 0, open_brace_at)
     if before_brace =~ '\v\\(ref|eqref|pageref)\s*$'
-	return s:Popup_Main("label", g:tex_labels_limit)
+	call s:Popup_Main("label", g:tex_labels_limit)
+	return ''
     elseif before_brace =~ '\v\\cite\s*$'
-	return s:Popup_Main("bibitem", g:tex_labels_limit)
-    elseif before_brace =~ '\v\\(label|tag)\s*$'
-	return s:CheckLabels()
-    elseif before_brace =~ '\v\\bibitem(\[[^\]]*\])?\s*\[([^][{}]*)\]\s*$'
-	return s:CheckBibitems()
-    elseif before_brace =~ '\v\\includeonely\s*$'
-	return s:CheckIncludedFiles()
+	call s:Popup_Main("bibitem", g:tex_labels_limit)
+	return ''
+    elseif before_brace =~ '\v\\label\s*$'
+	return 'label'
+    elseif before_brace =~ '\v\\tag\s*$'
+	return 'tag'
+    elseif before_brace =~ '\v\\bibitem\s*(\[[^\]]*\])?\s*$'
+	return 'bibitem'
+    elseif before_brace =~ '\v\\include\s*$'
+	return 'incl'
     endif
 
-    return 0
+    return ''
 endfunction
 
 " Set up highlighting (only once globally)
@@ -1829,6 +1949,9 @@ endif
 function! s:SetupTexLabels()
   " Trigger popup when entering insert mode
   autocmd InsertEnter <buffer> call s:TriggerCheck()
+
+  " Trigger label check on each character entered in insert mode
+  autocmd InsertCharPre <buffer> call s:Popup_CheckLabels()
 
   " Clean up popup when leaving buffer
   autocmd BufLeave <buffer> call s:CleanupPopup()
