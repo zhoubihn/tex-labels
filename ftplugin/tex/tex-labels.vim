@@ -3,10 +3,10 @@
 " 	Provides popup menu for \ref, \eqref, \pageref, and \cite commands
 "
 " Maintainer:   Bin Zhou   <zhoub@bnu.edu.cn>
-" Version:      0.5
+" Version:      0.5.1
 "
-" Upgraded on: Sun 2025-11-02 21:47:19 CST (+0800)
-" Last change: Mon 2025-11-03 02:50:02 CST (+0800)
+" Upgraded on: Mon 2025-11-03 21:20:02 CST (+0800)
+" Last change: Mon 2025-11-03 21:21:37 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -78,6 +78,8 @@ function! s:GetAbsolutePath(filename, ...)
     let path = expand(a:filename)
 
     if path =~ '^/'
+	return simplify(path)
+    elseif ( has("win64") || has("win32") ) && path =~ '^[A-Za-z]:'
 	return simplify(path)
     endif
 
