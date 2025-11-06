@@ -3,10 +3,10 @@
 " 	Provides popup menu for \ref, \eqref, \pageref, and \cite commands
 "
 " Maintainer:   Bin Zhou   <zhoub@bnu.edu.cn>
-" Version:      0.5.1
+" Version:      0.5.2
 "
-" Upgraded on: Mon 2025-11-03 21:20:02 CST (+0800)
-" Last change: Mon 2025-11-03 21:21:37 CST (+0800)
+" Upgraded on: Thu 2025-11-06 20:08:37 CST (+0800)
+" Last change: Thu 2025-11-06 20:28:22 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -599,7 +599,10 @@ function! s:CompleteLabelInfo(file, type)
     " Parse auxiliary file for numbering
     let aux_file = fnamemodify(a:file, ':r') .. '.aux'
     let data_ParseAuxFile = s:ParseAuxFile(aux_file)
-    if a:type == 'label'
+
+    if empty(data_ParseAuxFile)
+	return items
+    elseif a:type == 'label'
 	let aux_data = data_ParseAuxFile[0]
     else
 	let aux_data = data_ParseAuxFile[1]
