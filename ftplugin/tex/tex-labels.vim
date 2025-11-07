@@ -3,10 +3,10 @@
 " 	Provides popup menu for \ref, \eqref, \pageref, and \cite commands
 "
 " Maintainer:   Bin Zhou   <zhoub@bnu.edu.cn>
-" Version:      0.6.2
+" Version:      0.6.3
 "
-" Upgraded on: Fri 2025-11-07 16:22:48 CST (+0800)
-" Last change: Fri 2025-11-07 16:23:34 CST (+0800)
+" Upgraded on: Fri 2025-11-07 16:24:30 CST (+0800)
+" Last change: Sat 2025-11-08 02:50:57 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -263,12 +263,12 @@ if !exists('b:tex_labels_MainFile')
 endif
 
 " Function to obtain the name of auxiliary file
-"   {type}	"incl", "label", "bibitem" or "tag"
+"   {type}	"sub", "sup", "label", "bibitem" or "tag"
 function! s:AuxFileName(filename, type)
     if empty(a:filename)
 	return ''
-    elseif a:type != "incl" && a:type != "label" && a:type != "bibitem" &&
-		\ a:type != "tag"
+    elseif a:type != "sub" && a:type != "sup" && a:type != "label" &&
+		\ a:type != "bibitem" && a:type != "tag"
 	return ''
     endif
 
@@ -279,27 +279,32 @@ function! s:AuxFileName(filename, type)
     endif
 endfunction
 
-" Function to find included files recursively
-" The second parameter triggers a recursive search.
-function! s:FindIncludedFiles(main_file, ...)
-    let included_files = []
-    let main_file = s:GetAbsolutePath(a:main_file)
+" Function to find included/input files recursively
+"   s:FindSubFiles(file, recursively)
+"   {recursively}	to trigger a recursive search.
+function! s:FindSubFiles(file, ...)
+    let subfiles = []
+    let file = s:GetAbsolutePath(a:file)
     let current_file = s:GetAbsolutePath("%")
 
-    if !filereadable(main_file)
-        return included_files
+    if !filereadable(file)
+        return subfiles
     endif
 
-    if main_file ==# current_file && &modified
-	" {main_file} is the current file and is modified:
+    if file ==# current_file && &modified
+	" {file} is the current file and is modified:
 	let lines_read = getbufline('%', 1, '$')
     elseif has("win64") || has("win32")
-	let lines_read = readfile(main_file)
+	let lines_read = readfile(file)
     else
-	let lines_read = systemlist('grep \include{ ' .. shellescape(main_file))
+	let lines_read = systemlist('grep \include{ ' .. shellescape(file))
 	let lines_read = extend(lines_read,
-		    \ systemlist('grep \input{ ' .. shellescape(main_file))
+		    \ systemlist('grep \input{ ' .. shellescape(file))
 		    \ )
+    endif
+
+    if empty(lines_read)
+        return subfiles
     endif
 
     for line in lines_read
@@ -326,24 +331,29 @@ function! s:FindIncludedFiles(main_file, ...)
 		if included_file !~ '\.tex$'
 		    let included_file = included_file .. '.tex'
 		endif
-                let included_file = s:GetAbsolutePath(included_file, main_file)
-                call add(included_files, included_file)
+                let included_file = s:GetAbsolutePath(included_file, file)
+                call add(subfiles, included_file)
+
+		if cmd == 'input'
+		    let file_sup = s:AuxFileName(included_file, 'sup')
+		    call writefile([file], file_sup)
+		endif
 
                 " Recursively find files in the included file
 		if a:0 > 0
-		    let sub_files = s:FindIncludedFiles(included_file, 1)
-		    call extend(included_files, sub_files)
+		    let sub_files = s:FindSubFiles(included_file, 1)
+		    call extend(subfiles, sub_files)
 		endif
             endif
         endfor
     endfor
 
-    return s:RemoveDuplicates(included_files)
+    return s:RemoveDuplicates(subfiles)
 endfunction
 
 " Behaving like GNU make, the function s:Update_InclFile([filename]) updates
 " the auxiliary file
-"   substitute(filename, '\.tex$', '\.incl', '').
+"   substitute(filename, '\.tex$', '\.sub', '').
 " If {filename} is omitted or empty, its default value is
 "	b:tex_labels_MainFile when it is nonempty; or
 "	the current file provided that b:tex_labels_MainFile is empty.
@@ -369,12 +379,12 @@ function! s:Update_InclFile(...)
 	return -1
     endif
 
-    " The file <xxx.incl> is in the same directory of <xxx.tex> or <xxx>.
-    let target = s:AuxFileName(filename, 'incl')
+    " The file <xxx.sub> is in the same directory of <xxx.tex> or <xxx>.
+    let target = s:AuxFileName(filename, 'sub')
     let included_files = []
 
     if empty(getfperm(target)) || getftime(filename) > getftime(target)
-	let included_files = s:FindIncludedFiles(filename)
+	let included_files = s:FindSubFiles(filename)
 	call writefile(included_files, target)
     endif
 
@@ -423,7 +433,7 @@ function! s:GetFilesToSearch(...)
 	    continue
 	endif
 
-	let root_incl = s:AuxFileName(root_file, 'incl')
+	let root_incl = s:AuxFileName(root_file, 'sub')
 	if !filereadable(root_incl)
 	    continue
 	endif
@@ -672,7 +682,7 @@ endfunction
 " when {filename} is also given.
 " When {filename} is omitted, each file (except for the current file)
 " listed in the file
-" 	substitute(b:tex_labels_MainFile, '\.tex$', '\.incl', '')
+" 	substitute(b:tex_labels_MainFile, '\.tex$', '\.sub', '')
 " is checked and updated, if necessary.
 " When {type} is not given, either, files with postfix ".label" and ".bibitem"
 " are all updated, if necessary.
@@ -734,7 +744,7 @@ function! s:Update_AuxFiles(...)
 	    let main_file = current_file
 	endif
 
-	let incl_file = s:AuxFileName(main_file, 'incl')
+	let incl_file = s:AuxFileName(main_file, 'sub')
 	if filereadable(incl_file)
 	    let searched_files = readfile(incl_file)
 	else
@@ -1787,7 +1797,7 @@ endfunction
 " '\tag{marker}' or '\include{marker}' is duplicated.
 function! s:Popup_CheckLabels()
     let type = s:TriggerCheck()
-    if type == "incl"
+    if type == "sub"
 	return s:Popup_CheckInclude()
     elseif type != "label" && type != "bibitem" && type != "tag"
 	return -1
@@ -1926,9 +1936,9 @@ function! s:TriggerCheck()
     elseif before_brace =~ '\v\\bibitem\s*(\[[^\]]*\])?\s*$'
 	return 'bibitem'
     elseif before_brace =~ '\v\\include\s*$'
-	return 'incl'
+	return 'sub'
     elseif before_brace =~ '\v\\input\s*$'
-	return 'input'
+	return 'sup'
     endif
 
     return ''
