@@ -3,10 +3,10 @@
 " 	Provides popup menu for \ref, \eqref, \pageref, and \cite commands
 "
 " Maintainer:   Bin Zhou   <zhoub@bnu.edu.cn>
-" Version:      0.5.2
+" Version:      0.6.0
 "
-" Upgraded on: Thu 2025-11-06 20:08:37 CST (+0800)
-" Last change: Thu 2025-11-06 20:28:22 CST (+0800)
+" Upgraded on: Fri 2025-11-07 12:17:44 CST (+0800)
+" Last change: Fri 2025-11-07 12:21:55 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -1928,6 +1928,8 @@ function! s:TriggerCheck()
 	return 'bibitem'
     elseif before_brace =~ '\v\\include\s*$'
 	return 'incl'
+    elseif before_brace =~ '\v\\input\s*$'
+	return 'input'
     endif
 
     return ''
