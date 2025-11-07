@@ -3,10 +3,10 @@
 " 	Provides popup menu for \ref, \eqref, \pageref, and \cite commands
 "
 " Maintainer:   Bin Zhou   <zhoub@bnu.edu.cn>
-" Version:      0.6.1
+" Version:      0.6.2
 "
-" Upgraded on: Fri 2025-11-07 12:25:43 CST (+0800)
-" Last change: Fri 2025-11-07 16:19:28 CST (+0800)
+" Upgraded on: Fri 2025-11-07 16:22:48 CST (+0800)
+" Last change: Fri 2025-11-07 16:23:34 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -233,6 +233,9 @@ function! s:FindMainFile(filename)
     endif
 
     let lines = readfile(a:filename, '', g:tex_labels_mainfile_scope)
+    if empty(lines)
+        return ''
+    endif
 
     let line_num = len(lines)
 
