@@ -3,10 +3,10 @@
 " 	Provides popup menu for \ref, \eqref, \pageref, and \cite commands
 "
 " Maintainer:   Bin Zhou   <zhoub@bnu.edu.cn>
-" Version:      0.6.0
+" Version:      0.6.1
 "
-" Upgraded on: Fri 2025-11-07 12:17:44 CST (+0800)
-" Last change: Fri 2025-11-07 12:21:55 CST (+0800)
+" Upgraded on: Fri 2025-11-07 12:25:43 CST (+0800)
+" Last change: Fri 2025-11-07 16:19:28 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -233,6 +233,7 @@ function! s:FindMainFile(filename)
     endif
 
     let lines = readfile(a:filename, '', g:tex_labels_mainfile_scope)
+
     let line_num = len(lines)
 
     for i in range(line_num)
@@ -353,26 +354,21 @@ function! s:Update_InclFile(...)
 	let filename = s:GetAbsolutePath("%")
     endif
 
+    " DEBUGGING:
     if filename !~ '\.tex$'
 	echo "s:Update_InclFile: File name <" .. filename ..
 		    \ "> without postfix <.tex>?"
 	echo "s:Update_InclFile stops."
-	return -1
-    endif
 
-    " The file <xxx.incl> is in the same directory of <xxx.tex>.
-    let target = s:AuxFileName(filename, 'incl')
-    let included_files = []
-
-"    if getftype(filename) == "link"
-"	let filename = resolve(filename)
-"    endif
-
-    if !filereadable(filename)
+    elseif !filereadable(filename)
 	echo "s:Update_InclFile: file <" .. filename .. "> not readable."
 	echo "s:Update_InclFile stops."
 	return -1
     endif
+
+    " The file <xxx.incl> is in the same directory of <xxx.tex> or <xxx>.
+    let target = s:AuxFileName(filename, 'incl')
+    let included_files = []
 
     if empty(getfperm(target)) || getftime(filename) > getftime(target)
 	let included_files = s:FindIncludedFiles(filename)
