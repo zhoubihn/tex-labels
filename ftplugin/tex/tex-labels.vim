@@ -3,10 +3,10 @@
 " 	Provides popup menu for \ref, \eqref, \pageref, and \cite commands
 "
 " Maintainer:   Bin Zhou   <zhoub@bnu.edu.cn>
-" Version:      0.6.9
+" Version:      0.7.0
 "
-" Upgraded on: Sat 2025-11-08 18:16:20 CST (+0800)
-" Last change: Sun 2025-11-09 01:04:26 CST (+0800)
+" Upgraded on: Sun 2025-11-09 01:09:51 CST (+0800)
+" Last change: Sun 2025-11-09 01:11:25 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -57,7 +57,7 @@ let b:tex_labels_item_overflow = 0
 
 " Function returning a List with repeated items in {list} removed.
 " Note that uniq() removes adjacent repeated items only.
-function! s:RemoveDuplicates(list) abort
+function! s:RemoveDuplicates(list)
     if empty(a:list)
 	return a:list
     endif
@@ -78,7 +78,7 @@ endfunction
 "   {filename}		file name of one to return its absolute path
 "   {supfile}		when present, relative path of {filename} is with
 "			respec to it
-function! s:GetAbsolutePath(filename, ...) abort
+function! s:GetAbsolutePath(filename, ...)
     let path = expand(trim(a:filename))
 
     if path =~ '^/'
@@ -106,7 +106,7 @@ endfunction
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 " Function returning a string with TeX comments removed from the string {text}.
-function! s:RemoveTeXComment(text) abort
+function! s:RemoveTeXComment(text)
     let i = stridx(a:text, '%')
     if i == 0
 	return ""
@@ -131,7 +131,7 @@ endfunction
 "	s:MatchCurlyBrace(text [, start])
 "   {text}	string
 "   {start}	offset where the search begins
-function! s:MatchCurlyBrace(text, ...) abort
+function! s:MatchCurlyBrace(text, ...)
     let positions = []
     let text_len = len(a:text)
 
@@ -190,7 +190,7 @@ endfunction
 
 " Function to locate '{', which is not part of '\{', in the string {expr}
 " with the greatest offset that is less than {curr_offset}
-function! s:SearchOpenBrace_left(expr, curr_offset) abort
+function! s:SearchOpenBrace_left(expr, curr_offset)
     if empty(a:expr) || a:curr_offset <= 0
 	return -1
     endif
@@ -231,7 +231,7 @@ endfunction
 
 " Function to find main file specification.
 " At most one main file supported.
-function! s:FindMainFile(filename) abort
+function! s:FindMainFile(filename)
     if !filereadable(a:filename)
         return ''
     endif
@@ -268,7 +268,7 @@ endif
 
 " Function to obtain the name of auxiliary file
 "   {type}	"aux", "subf", "supf", "label", "bibitem" or "tag"
-function! s:AuxFileName(filename, type) abort
+function! s:AuxFileName(filename, type)
     if empty(a:filename)
 	return ''
     elseif a:type != "aux" && a:type != "subf" && a:type != "supf" &&
@@ -286,7 +286,7 @@ endfunction
 " Function to find included/input files recursively
 "   s:FindSubFiles(file, recursively)
 "   {recursively}	to trigger a recursive search.
-function! s:FindSubFiles(file, ...) abort
+function! s:FindSubFiles(file, ...)
     let subfiles = []
     let file = s:GetAbsolutePath(a:file)
     let current_file = s:GetAbsolutePath("%")
@@ -367,7 +367,7 @@ endfunction
 " when it is nonempty; or
 "	the current file
 " provided that b:tex_labels_MainFile is empty.
-function! s:Update_SubFiles(...) abort
+function! s:Update_SubFiles(...)
     " Set the value of {filename}
     if a:0 > 0 && !empty(trim(a:1))
 	let filename = s:GetAbsolutePath(trim(a:1))
@@ -420,7 +420,7 @@ endfunction
 "    {exclude_currentfile}
 "			current file, its subfiles and subfiles of its subfiles,
 "			are not search if {exclude_currentfile} == 1.
-function! s:GetFilesToSearch(...) abort
+function! s:GetFilesToSearch(...)
     let current_file = s:GetAbsolutePath("%")
     let files = []
     let roots = []
@@ -480,7 +480,7 @@ endfunction
 " Function to extract labels and bibitems from a file, with
 "   {type}		'label', 'bibitem' or 'tag'
 " It does not search items in subfiles of {filename}.
-function! s:ExtractLabelsBibitemsTags(filename, type) abort
+function! s:ExtractLabelsBibitemsTags(filename, type)
     let items = []
     let eff_filename = trim(a:filename)
     let filename = s:GetAbsolutePath(eff_filename)
@@ -553,7 +553,7 @@ endfunction
 " Function to parse auxiliary file for numbering information.  Usage:
 "   call s:ParseAuxFile(aux_file)
 "   {aux_file}		a file name with extension ".aux"
-function! s:ParseAuxFile(aux_file) abort
+function! s:ParseAuxFile(aux_file)
     let label_data = {}
     let bib_data = {}
 
@@ -634,7 +634,7 @@ endfunction
 
 
 " Function to process selected file
-function! s:CompleteLabelInfo(file, type) abort
+function! s:CompleteLabelInfo(file, type)
     if a:type != "label" && a:type != "bibitem" && a:type != "tag"
 	echo "s:CompleteLabelInfo: Unknown type " .. a:type .. "."
 	return []
@@ -687,7 +687,7 @@ endfunction
 " 		or
 " 			s:ExtractLabelsBibitemsTags(file, type)
 "   {type}	'label', 'bibitem' or 'tag'
-function! s:FormatMenuItem(item, type) abort
+function! s:FormatMenuItem(item, type)
     if empty(a:item)
 	return ''
     endif
@@ -738,7 +738,7 @@ endfunction
 " are all updated, if necessary.
 "
 "   {type}	"label", "bibitem" or "tag"
-function! s:Update_AuxFiles(...) abort
+function! s:Update_AuxFiles(...)
     let current_file = s:GetAbsolutePath('%')
     let target_items = []
     let type = ''
@@ -825,7 +825,7 @@ endfunction
 " Function to get all relevant files containing \label, \bibitem or \tag
 "   s:GetFilesContainingCommand({type} [, {mainfile}])
 "   {type}	either "label", "bibitem" or "tag"
-function! s:GetFilesContainingCommand(type, ...) abort
+function! s:GetFilesContainingCommand(type, ...)
     if a:type != "label" && a:type != "bibitem" && a:type != "tag"
 	echo 's:GetFilesContainingCommand: unknown type "' .. a:type .. '"'
 	return -1
@@ -870,7 +870,7 @@ endfunction
 " the LaTeX counter {counter_name}, returning 1 or 0 for "yes" or "no".
 "
 " If {filename} is the current file, contents in the buffer are not checked.
-function! s:HasCounterLabels(filename, counter_name) abort
+function! s:HasCounterLabels(filename, counter_name)
     if empty(a:filename) || empty(a:counter_name)
 	return 0
     endif
@@ -903,7 +903,7 @@ endfunction
 " Function to generate a List for \ref , \eqref , \pageref , \cite ,
 " \label , \bibitem or \tag
 "   {type}	"label", "bibitem" or "tag"
-function! s:GetRefItems(filename, type) abort
+function! s:GetRefItems(filename, type)
     if a:type != "label" && a:type != "bibitem" && a:type != "tag"
 	echo "s:GetRefItems: unknown type \"" .. a:type .. "\""
 	return []
@@ -948,7 +948,7 @@ endfunction
 "		these items returned.
 "   {type}	"label", "bibitem" or "tag"
 "
-function! s:GetAllReferences(type, limit) abort
+function! s:GetAllReferences(type, limit)
     if a:type != "label" && a:type != "bibitem" && a:type != "tag"
 	echo 's:GetAllReferences: unknown type "' .. a:type .. '".'
 	return []
@@ -971,7 +971,7 @@ endfunction
 
 " Function to get all LaTeX counters related to \label{}.  Usage:
 "   s:GetAllCounters([filename])
-function! s:GetAllCounters(...) abort
+function! s:GetAllCounters(...)
     if a:0 > 0 && !empty(a:1)
 	let refs = s:GetRefItems(a:1, "label")
     else
@@ -1002,7 +1002,7 @@ function! s:GetAllCounters(...) abort
     endif
 endfunction
 
-function! s:GetLineNumber(ref) abort
+function! s:GetLineNumber(ref)
     if empty(a:ref)
 	return -1
     endif
@@ -1011,7 +1011,7 @@ function! s:GetLineNumber(ref) abort
     return line_num
 endfunction
 
-function! s:GetFileName(ref) abort
+function! s:GetFileName(ref)
     if empty(a:ref)
 	return ''
     endif
@@ -1032,7 +1032,7 @@ let b:tex_labels_popup = -1
 
 
 " Clean up popup when leaving buffer
-function! s:CleanupPopup() abort
+function! s:CleanupPopup()
   if b:tex_labels_popup != -1
     call popup_close(b:tex_labels_popup)
     let b:tex_labels_popup = -1
@@ -1040,7 +1040,7 @@ function! s:CleanupPopup() abort
 endfunction
 
 " Popup filter function when no labels found
-function! s:PopupFilter_void(winid, key) abort
+function! s:PopupFilter_void(winid, key)
     " Close popup on any other key
     "let b:tex_labels_popup = -1
     call popup_close(a:winid)
@@ -1048,7 +1048,7 @@ function! s:PopupFilter_void(winid, key) abort
 endfunction
 
 " Function showing a warning message
-function! s:ShowWarningMessage(message) abort
+function! s:ShowWarningMessage(message)
     let text = []
     call add(text, a:message)
     call add(text, "")
@@ -1073,7 +1073,7 @@ function! s:ShowWarningMessage(message) abort
 endfunction
 
 " Function to process some keys for popup filters
-function! s:Popup_KeyAction(winid, key, ...) abort
+function! s:Popup_KeyAction(winid, key, ...)
     " Store previous key for gg detection
     if !exists('b:prev_popup_key')
         let b:prev_popup_key = ''
@@ -1153,7 +1153,7 @@ function! s:Popup_KeyAction(winid, key, ...) abort
 endfunction
 
 " Insert selected reference
-function! s:InsertReference(ref) abort
+function! s:InsertReference(ref)
     let ref_name = a:ref
 
     " Find and replace reference in the triggering buffer
@@ -1175,7 +1175,7 @@ function! s:InsertReference(ref) abort
 endfunction
 
 " Popup filter function
-function! s:PopupFilter(winid, key) abort
+function! s:PopupFilter(winid, key)
     " Store previous key for gg detection
     if !exists('b:prev_popup_key')
         let b:prev_popup_key = ''
@@ -1233,7 +1233,7 @@ endfunction
 "		If {filename} is nonempty, only items from {filename} are
 "		displayed for selection.
 "
-function! s:Popup_Main(type, limit, ...) abort
+function! s:Popup_Main(type, limit, ...)
     " Close any existing popup first
     call s:CleanupPopup()
 
@@ -1300,7 +1300,7 @@ function! s:Popup_Main(type, limit, ...) abort
 endfunction
 
 " Popup filter function for counter menu
-function! s:PopupFilter_counter(winid, key) abort
+function! s:PopupFilter_counter(winid, key)
     let counter_then_file = getwinvar(a:winid, 'counter_then_file')
 
     if a:key == "\<CR>"
@@ -1330,7 +1330,7 @@ endfunction
 "   s:Popup_Counters(type, '')   or  s:Popup_Counters(type, "")
 " a file-selection window pops up.  Hence the above form is different from
 "   s:Popup_Counters(type)
-function! s:Popup_Counters(type, ...) abort
+function! s:Popup_Counters(type, ...)
     call s:CleanupPopup()
 
     if a:0 > 0 && !empty(a:1)
@@ -1396,7 +1396,7 @@ function! s:Popup_Counters(type, ...) abort
 endfunction
 
 " Popup filter function for file selection
-function! s:PopupFilter_file(winid, key) abort
+function! s:PopupFilter_file(winid, key)
     let type = getwinvar(a:winid, 'type')
     let file_then_counter = getwinvar(a:winid, 'file_then_counter')
 
@@ -1465,7 +1465,7 @@ endfunction
 " When one of these files is selected, all available cross reference markers,
 " belonging to this counter in the selected file, are listed in a new popup
 " window.
-function! s:Popup_Files(type, ...) abort
+function! s:Popup_Files(type, ...)
     " Close any existing popup first
     call s:CleanupPopup()
 
@@ -1546,7 +1546,7 @@ function! s:Popup_Files(type, ...) abort
 endfunction
 
 " Popup filter function
-function! s:PopupFilter_FileCounter(winid, key) abort
+function! s:PopupFilter_FileCounter(winid, key)
     let involved_files = getwinvar(a:winid, 'involved_files')
     let counters = getwinvar(a:winid, 'counters')
 
@@ -1646,7 +1646,7 @@ endfunction
 " Function to create a popup menu of how to list labels.  Usage:
 "   s:Popup_FilesCounters()
 " Only type "label" is processed.
-function! s:Popup_FilesCounters() abort
+function! s:Popup_FilesCounters()
     call s:CleanupPopup()
 
     let involved_files = s:GetFilesContainingCommand("label")
@@ -1717,7 +1717,7 @@ function! s:Popup_FilesCounters() abort
 endfunction
 
 " Popup filter function for selection and insertion of counter-labels
-function! s:PopupFilter_CounterItems(winid, key) abort
+function! s:PopupFilter_CounterItems(winid, key)
     " Store previous key for gg detection
     if !exists('b:prev_popup_key')
         let b:prev_popup_key = ''
@@ -1764,7 +1764,7 @@ endfunction
 "   s:Popup_LabelsOfCounter(counter_name [, filename])
 "   {counter_name}	the name of a LaTeX counter
 "   {filename}		search in this file when presented and non-empty
-function! s:Popup_LabelsOfCounter(counter_name, ...) abort
+function! s:Popup_LabelsOfCounter(counter_name, ...)
     "call s:CleanupPopup()
 
     if a:0 > 0 && !empty(a:1)
@@ -1814,7 +1814,7 @@ function! s:Popup_LabelsOfCounter(counter_name, ...) abort
     endif
 endfunction
 
-function! s:PopupFilter_CheckLabels(winid, key) abort
+function! s:PopupFilter_CheckLabels(winid, key)
     call popup_close(a:winid)
     let b:tex_labels_popup = -1
 
@@ -1827,7 +1827,7 @@ endfunction
 
 " Function to check whether 'marker' in '\label{marker}', '\bibitem{marker}',
 " '\tag{marker}' or '\include{marker}' is duplicated.
-function! s:Popup_CheckLabels() abort
+function! s:Popup_CheckLabels()
     let type = s:TriggerCheck()
     if type == "subf" || type == "supf"
 	return s:Popup_CheckInclude()
@@ -1924,12 +1924,12 @@ endfunction
 
 " Check included files
 " ????????????????????????????????????????????
-function! s:Popup_CheckInclude() abort
+function! s:Popup_CheckInclude()
     return 0
 endfunction
 
 " Check whether some action should be triggered
-function! s:TriggerCheck() abort
+function! s:TriggerCheck()
     let line = getline('.')
     let offset = col('.') - 1
 
@@ -2002,7 +2002,7 @@ if !exists('g:tex_labels_highlighted')
 endif
 
 " Setup function - called when this ftplugin is loaded
-function! s:SetupTexLabels() abort
+function! s:SetupTexLabels()
   " Trigger popup when entering insert mode
   autocmd InsertEnter <buffer> call s:TriggerCheck()
 
