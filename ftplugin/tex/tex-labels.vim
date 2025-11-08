@@ -3,10 +3,10 @@
 " 	Provides popup menu for \ref, \eqref, \pageref, and \cite commands
 "
 " Maintainer:   Bin Zhou   <zhoub@bnu.edu.cn>
-" Version:      0.6.7
+" Version:      0.6.8
 "
-" Upgraded on: Sat 2025-11-08 16:43:20 CST (+0800)
-" Last change: Sat 2025-11-08 17:44:34 CST (+0800)
+" Upgraded on: Sat 2025-11-08 17:58:02 CST (+0800)
+" Last change: Sat 2025-11-08 18:16:20 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -730,7 +730,7 @@ function! s:Update_AuxFiles(...)
     let type = ''
     let status = 0
 
-    if a:0 >= 2
+    if a:0 > 0
 	if a:1 != 'label' &&  a:1 != 'bibitem' && a:1 != 'tag'
 	    echo "s:Update_AuxFiles: type \'" .. a:1 ..
 			\ "\' not supported.  Nothing done."
@@ -738,9 +738,11 @@ function! s:Update_AuxFiles(...)
 	else
 	    let type = a:1
 	endif
+    endif
 
-	if !empty(a:2)
-	    let filename = s:GetAbsolutePath(a:2)
+    if a:0 >= 2
+	if !empty(trim(a:2))
+	    let filename = s:GetAbsolutePath(trim(a:2))
 	    let aux_file = s:AuxFileName(filename, type)
 	else
 	    return s:Update_AuxFiles(type)
@@ -780,15 +782,7 @@ function! s:Update_AuxFiles(...)
 	    let main_file = current_file
 	endif
 
-	let incl_file = s:AuxFileName(main_file, 'subf')
-	if filereadable(incl_file)
-	    " ????????????  should search recursively!
-	    let searched_files = readfile(incl_file)
-	else
-	    echo "s:Update_AuxFiles: File <" .. incl_file ..
-			\ "> does not exist or is not readble."
-	    return -1
-	endif
+	let searched_files = s:GetFilesToSearch(main_file)
 
 	for file in searched_files
 	    " Auxiliary files related to the current file are not updated:
@@ -796,7 +790,7 @@ function! s:Update_AuxFiles(...)
 	"	continue
 	    "endif
 
-	    if s:Update_AuxFiles(a:1, file) < 0
+	    if s:Update_AuxFiles(type, file) < 0
 		let status = -1
 	    endif
 	endfor
@@ -819,13 +813,6 @@ endfunction
 if !empty(b:tex_labels_MainFile)
     call s:Update_AuxFiles()
 endif
-
-" Necessary when {b:tex_labels_MainFile} is empty
-call s:Update_SubFiles(@%)
-for type in ["label", "bibitem", "tag"]
-    call s:Update_AuxFiles(type, @%)
-endfor
-
 
 " Function to get all relevant files containing \label, \bibitem or \tag
 "   s:GetFilesContainingCommand({type} [, {mainfile}])
