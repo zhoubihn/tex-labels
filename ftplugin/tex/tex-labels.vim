@@ -3,10 +3,10 @@
 " 	Provides popup menu for \ref, \eqref, \pageref, and \cite commands
 "
 " Maintainer:   Bin Zhou   <zhoub@bnu.edu.cn>
-" Version:      0.6.5
+" Version:      0.6.6
 "
-" Upgraded on: Sat 2025-11-08 14:07:32 CST (+0800)
-" Last change: Sat 2025-11-08 14:18:31 CST (+0800)
+" Upgraded on: Sat 2025-11-08 14:23:29 CST (+0800)
+" Last change: Sat 2025-11-08 16:36:20 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -72,10 +72,14 @@ function! s:RemoveDuplicates(list)
     return clean_list
 endfunction
 
-" Function to obtain the absolute path of {filename}, with respect to {a:1}
+" Function to obtain the absolute path of {filename}, with respect to {supfile}
 " if it presents.
+" call s:GetAbsolutePath(filename [, supfile])
+"   {filename}		file name of one to return its absolute path
+"   {supfile}		when present, relative path of {filename} is with
+"			respec to it
 function! s:GetAbsolutePath(filename, ...)
-    let path = expand(a:filename)
+    let path = expand(trim(a:filename))
 
     if path =~ '^/'
 	return simplify(path)
@@ -83,8 +87,9 @@ function! s:GetAbsolutePath(filename, ...)
 	return simplify(path)
     endif
 
-    if a:0 > 0 && !empty(a:1)
-	let relative = expand(a:1)
+    let supfile = trim(a:1)
+    if a:0 > 0 && !empty(supfile)
+	let relative = expand(supfile)
     else
 	let relative = expand("%")
     endif
@@ -124,7 +129,7 @@ function! s:RemoveTeXComment(text)
 endfunction
 
 " Function to match curly braces.  Note that '\{' and '\}' are ignored.
-"	s:MatchCurlyBrace(text[, start])
+"	s:MatchCurlyBrace(text [, start])
 "   {text}	string
 "   {start}	offset where the search begins
 function! s:MatchCurlyBrace(text, ...)
@@ -320,28 +325,28 @@ function! s:FindSubFiles(file, ...)
 
 	    let curlybrace_at = s:MatchCurlyBrace(clean_line, start)
 	    if !empty(curlybrace_at)
-		let included_file = strpart(clean_line, curlybrace_at[0] + 1,
+		let subfile = strpart(clean_line, curlybrace_at[0] + 1,
 			    \ curlybrace_at[1] - curlybrace_at[0] - 1
 			    \ )
-                let included_file = trim(included_file)
-		if empty(included_file)
+                let subfile = trim(subfile)
+		if empty(subfile)
 		    continue
 		endif
 
-		if included_file !~ '\.tex$'
-		    let included_file = included_file .. '.tex'
+		if subfile !~ '\.tex$'
+		    let subfile = subfile .. '.tex'
 		endif
-                let included_file = s:GetAbsolutePath(included_file, file)
-                call add(subfiles, included_file)
+                let subfile = s:GetAbsolutePath(subfile, file)
+                call add(subfiles, subfile)
 
 		if cmd == 'input'
-		    let file_sup = s:AuxFileName(included_file, 'supf')
+		    let file_sup = s:AuxFileName(subfile, 'supf')
 		    call writefile([file], file_sup)
 		endif
 
                 " Recursively find files in the included file
 		if a:0 > 0
-		    let sub_files = s:FindSubFiles(included_file, 1)
+		    let sub_files = s:FindSubFiles(subfile, 1)
 		    call extend(subfiles, sub_files)
 		endif
             endif
@@ -351,15 +356,21 @@ function! s:FindSubFiles(file, ...)
     return s:RemoveDuplicates(subfiles)
 endfunction
 
-" Behaving like GNU make, the function s:Update_InclFile([filename]) updates
-" the auxiliary file
-"   substitute(filename, '\.tex$', '\.subf', '').
+" Behaving like GNU make, the function
+"   s:Update_SubFiles([filename])
+" updates auxiliary files
+"   substitute(filename, '\.tex$', '\.subf', '')
+" and
+"   substitute(filename, '\.tex$', '\.supf', '')
+" when necessary.
 " If {filename} is omitted or empty, its default value is
-"	b:tex_labels_MainFile when it is nonempty; or
-"	the current file provided that b:tex_labels_MainFile is empty.
-function! s:Update_InclFile(...)
+"	b:tex_labels_MainFile
+" when it is nonempty; or
+"	the current file
+" provided that b:tex_labels_MainFile is empty.
+function! s:Update_SubFiles(...)
     " Set the value of {filename}
-    if a:0 > 0 && !empty(a:1)
+    if a:0 > 0 && !empty(trim(a:1))
 	let filename = s:GetAbsolutePath(a:1)
     elseif !empty(b:tex_labels_MainFile)
 	let filename = b:tex_labels_MainFile
@@ -369,13 +380,12 @@ function! s:Update_InclFile(...)
 
     " DEBUGGING:
     if filename !~ '\.tex$'
-	echo "s:Update_InclFile: File name <" .. filename ..
-		    \ "> without postfix <.tex>?"
-	echo "s:Update_InclFile stops."
+	echo "s:Update_SubFiles: File name <" .. filename ..
+		    \ "> without extension <.tex>?"
 
     elseif !filereadable(filename)
-	echo "s:Update_InclFile: file <" .. filename .. "> not readable."
-	echo "s:Update_InclFile stops."
+	echo "s:Update_SubFiles: file <" .. filename .. "> not readable."
+	echo "s:Update_SubFiles stops."
 	return -1
     endif
 
@@ -395,21 +405,25 @@ function! s:Update_InclFile(...)
     endif
 
     for file in included_files
-	if !empty(file) && s:Update_InclFile(file) < 0
+	if !empty(file) && s:Update_SubFiles(file) < 0
 	    return -1
 	endif
     endfor
     return 0
 endfunction
 
-" Function to get all relevant files to search
-" call s:GetFilesToSearch([main_file])
+" Function to get all relevant files to search.  Usage:
+"   call s:GetFilesToSearch([main_file])
+"   {main_file}		the name of the file to search which files (called
+"			subfiles) have been included (by \include) or input
+"			(by \input) into it, or into its subfiles and subfiles
+"			of subfiles...
 function! s:GetFilesToSearch(...)
     let current_file = s:GetAbsolutePath("%")
     let files = []
     let roots = []
 
-    if a:0 > 0 && !empty(a:1)
+    if a:0 > 0 && !empty(trim(a:1))
 	let main_file = s:GetAbsolutePath(a:1)
     elseif !empty(b:tex_labels_MainFile)
 	let main_file = b:tex_labels_MainFile
@@ -429,16 +443,16 @@ function! s:GetFilesToSearch(...)
     for root_file in roots
 	call add(files, root_file)
 
-	if s:Update_InclFile(root_file) < 0
+	if s:Update_SubFiles(root_file) < 0
 	    continue
 	endif
 
-	let root_incl = s:AuxFileName(root_file, 'subf')
-	if !filereadable(root_incl)
+	let root_sub = s:AuxFileName(root_file, 'subf')
+	if !filereadable(root_sub)
 	    continue
 	endif
 
-	let included_files = readfile(root_incl)
+	let included_files = readfile(root_sub)
 	call extend(files, included_files)
 
 	for file in included_files
@@ -452,13 +466,14 @@ endfunction
 
 " Function to extract labels and bibitems from a file, with
 "   {type}		'label', 'bibitem' or 'tag'
-" For the first time to call it, do the following:
+" It does not search items in subfiles of {filename}.
 function! s:ExtractLabelsBibitemsTags(filename, type)
     let items = []
-    let filename = s:GetAbsolutePath(a:filename)
+    let eff_filename = trim(a:filename)
+    let filename = s:GetAbsolutePath(eff_filename)
     let current_file = s:GetAbsolutePath("%")
 
-    if empty(a:filename) || !filereadable(filename)
+    if empty(eff_filename) || !filereadable(filename)
 	return items
     endif
 
@@ -684,7 +699,7 @@ endfunction
 " listed in the file
 " 	substitute(b:tex_labels_MainFile, '\.tex$', '\.subf', '')
 " is checked and updated, if necessary.
-" When {type} is not given, either, files with postfix ".label" and ".bibitem"
+" When {type} is not given, either, files with extension ".label" and ".bibitem"
 " are all updated, if necessary.
 "
 "   {type}	"label", "bibitem" or "tag"
@@ -696,8 +711,8 @@ function! s:Update_AuxFiles(...)
 
     if a:0 >= 2
 	if a:1 != 'label' &&  a:1 != 'bibitem' && a:1 != 'tag'
-	    echo "s:Update_AuxFiles: Unknown  type \'" .. a:1 ..
-			\ "\'.  Nothing done."
+	    echo "s:Update_AuxFiles: type \'" .. a:1 ..
+			\ "\' not supported.  Nothing done."
 	    return -1
 	else
 	    let type = a:1
@@ -719,7 +734,7 @@ function! s:Update_AuxFiles(...)
 	if filereadable(filename) && ( empty(getfperm(aux_file)) ||
 		    \ getftime(filename) > getftime(aux_file)
 		    \ )
-	    if s:Update_InclFile(filename) < 0
+	    if s:Update_SubFiles(filename) < 0
 		return -1
 	    endif
 
@@ -736,7 +751,7 @@ function! s:Update_AuxFiles(...)
 	return 0
 
     elseif a:0 == 1
-	call s:Update_InclFile()
+	call s:Update_SubFiles()
 
 	if !empty(b:tex_labels_MainFile)
 	    let main_file = b:tex_labels_MainFile
@@ -746,6 +761,7 @@ function! s:Update_AuxFiles(...)
 
 	let incl_file = s:AuxFileName(main_file, 'subf')
 	if filereadable(incl_file)
+	    " ????????????  should search recursively!
 	    let searched_files = readfile(incl_file)
 	else
 	    echo "s:Update_AuxFiles: File <" .. incl_file ..
@@ -784,14 +800,14 @@ if !empty(b:tex_labels_MainFile)
 endif
 
 " Necessary when {b:tex_labels_MainFile} is empty
-call s:Update_InclFile(@%)
+call s:Update_SubFiles(@%)
 for type in ["label", "bibitem", "tag"]
     call s:Update_AuxFiles(type, @%)
 endfor
 
 
 " Function to get all relevant files containing \label, \bibitem or \tag
-"   s:GetFilesContainingCommand({type}[, {mainfile}])
+"   s:GetFilesContainingCommand({type} [, {mainfile}])
 "   {type}	either "label", "bibitem" or "tag"
 function! s:GetFilesContainingCommand(type, ...)
     if a:type != "label" && a:type != "bibitem" && a:type != "tag"
@@ -1191,7 +1207,7 @@ function! s:PopupFilter(winid, key)
 endfunction
 
 " Show the reference popup menu
-"   s:Popup_Main(type, limit[, filename])
+"   s:Popup_Main(type, limit [, filename])
 "   {type}	"label" or "bibitem"
 "   {limit}	If {limit} is a positive integer and there are more than {limit}
 "		items to select, the menu shows options whether to show them
@@ -1291,7 +1307,7 @@ function! s:PopupFilter_counter(winid, key)
 endfunction
 
 " Open the counter-selection popup window
-"   s:Popup_Counters(type[, file])
+"   s:Popup_Counters(type [, file])
 "   {type}	either "label" or "bibitem"
 "   {file}	If not empty, search in this file only.
 " When it is called in the form of
@@ -1729,7 +1745,7 @@ endfunction
 
 " Open a popup window listing all labels under the LaTeX counter {counter_name}.
 " Usage:
-"   s:Popup_LabelsOfCounter(counter_name[, filename])
+"   s:Popup_LabelsOfCounter(counter_name [, filename])
 "   {counter_name}	the name of a LaTeX counter
 "   {filename}		search in this file when presented and non-empty
 function! s:Popup_LabelsOfCounter(counter_name, ...)
