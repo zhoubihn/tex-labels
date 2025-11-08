@@ -3,10 +3,10 @@
 " 	Provides popup menu for \ref, \eqref, \pageref, and \cite commands
 "
 " Maintainer:   Bin Zhou   <zhoub@bnu.edu.cn>
-" Version:      0.6.3
+" Version:      0.6.4
 "
-" Upgraded on: Fri 2025-11-07 16:24:30 CST (+0800)
-" Last change: Sat 2025-11-08 02:50:57 CST (+0800)
+" Upgraded on: Sat 2025-11-08 03:05:54 CST (+0800)
+" Last change: Sat 2025-11-08 13:48:38 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -263,11 +263,11 @@ if !exists('b:tex_labels_MainFile')
 endif
 
 " Function to obtain the name of auxiliary file
-"   {type}	"sub", "sup", "label", "bibitem" or "tag"
+"   {type}	"subf", "supf", "label", "bibitem" or "tag"
 function! s:AuxFileName(filename, type)
     if empty(a:filename)
 	return ''
-    elseif a:type != "sub" && a:type != "sup" && a:type != "label" &&
+    elseif a:type != "subf" && a:type != "supf" && a:type != "label" &&
 		\ a:type != "bibitem" && a:type != "tag"
 	return ''
     endif
@@ -335,7 +335,7 @@ function! s:FindSubFiles(file, ...)
                 call add(subfiles, included_file)
 
 		if cmd == 'input'
-		    let file_sup = s:AuxFileName(included_file, 'sup')
+		    let file_sup = s:AuxFileName(included_file, 'supf')
 		    call writefile([file], file_sup)
 		endif
 
@@ -353,7 +353,7 @@ endfunction
 
 " Behaving like GNU make, the function s:Update_InclFile([filename]) updates
 " the auxiliary file
-"   substitute(filename, '\.tex$', '\.sub', '').
+"   substitute(filename, '\.tex$', '\.subf', '').
 " If {filename} is omitted or empty, its default value is
 "	b:tex_labels_MainFile when it is nonempty; or
 "	the current file provided that b:tex_labels_MainFile is empty.
@@ -379,8 +379,8 @@ function! s:Update_InclFile(...)
 	return -1
     endif
 
-    " The file <xxx.sub> is in the same directory of <xxx.tex> or <xxx>.
-    let target = s:AuxFileName(filename, 'sub')
+    " The file <xxx.subf> is in the same directory of <xxx.tex> or <xxx>.
+    let target = s:AuxFileName(filename, 'subf')
     let included_files = []
 
     if empty(getfperm(target)) || getftime(filename) > getftime(target)
@@ -433,7 +433,7 @@ function! s:GetFilesToSearch(...)
 	    continue
 	endif
 
-	let root_incl = s:AuxFileName(root_file, 'sub')
+	let root_incl = s:AuxFileName(root_file, 'subf')
 	if !filereadable(root_incl)
 	    continue
 	endif
@@ -682,7 +682,7 @@ endfunction
 " when {filename} is also given.
 " When {filename} is omitted, each file (except for the current file)
 " listed in the file
-" 	substitute(b:tex_labels_MainFile, '\.tex$', '\.sub', '')
+" 	substitute(b:tex_labels_MainFile, '\.tex$', '\.subf', '')
 " is checked and updated, if necessary.
 " When {type} is not given, either, files with postfix ".label" and ".bibitem"
 " are all updated, if necessary.
@@ -744,7 +744,7 @@ function! s:Update_AuxFiles(...)
 	    let main_file = current_file
 	endif
 
-	let incl_file = s:AuxFileName(main_file, 'sub')
+	let incl_file = s:AuxFileName(main_file, 'subf')
 	if filereadable(incl_file)
 	    let searched_files = readfile(incl_file)
 	else
@@ -1797,7 +1797,7 @@ endfunction
 " '\tag{marker}' or '\include{marker}' is duplicated.
 function! s:Popup_CheckLabels()
     let type = s:TriggerCheck()
-    if type == "sub"
+    if type == "subf"
 	return s:Popup_CheckInclude()
     elseif type != "label" && type != "bibitem" && type != "tag"
 	return -1
@@ -1936,9 +1936,9 @@ function! s:TriggerCheck()
     elseif before_brace =~ '\v\\bibitem\s*(\[[^\]]*\])?\s*$'
 	return 'bibitem'
     elseif before_brace =~ '\v\\include\s*$'
-	return 'sub'
+	return 'subf'
     elseif before_brace =~ '\v\\input\s*$'
-	return 'sup'
+	return 'supf'
     endif
 
     return ''
