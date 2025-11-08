@@ -3,10 +3,10 @@
 " 	Provides popup menu for \ref, \eqref, \pageref, and \cite commands
 "
 " Maintainer:   Bin Zhou   <zhoub@bnu.edu.cn>
-" Version:      0.6.4
+" Version:      0.6.5
 "
-" Upgraded on: Sat 2025-11-08 03:05:54 CST (+0800)
-" Last change: Sat 2025-11-08 13:48:38 CST (+0800)
+" Upgraded on: Sat 2025-11-08 14:07:32 CST (+0800)
+" Last change: Sat 2025-11-08 14:18:31 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -1799,6 +1799,8 @@ function! s:Popup_CheckLabels()
     let type = s:TriggerCheck()
     if type == "subf"
 	return s:Popup_CheckInclude()
+    elseif type == "supf"
+	" ????????????????????????????
     elseif type != "label" && type != "bibitem" && type != "tag"
 	return -1
     endif
@@ -1891,6 +1893,7 @@ function! s:Popup_CheckLabels()
 endfunction
 
 " Check included files
+" ????????????????????????????????????????????
 function! s:Popup_CheckInclude()
     return 0
 endfunction
@@ -1924,20 +1927,27 @@ function! s:TriggerCheck()
     " Check if it's a command like \ref, \eqref, and so on
     let before_brace = strpart(line, 0, open_brace_at)
     if before_brace =~ '\v\\(ref|eqref|pageref)\s*$'
+	call s:Update_AuxFiles()
 	call s:Popup_Main("label", g:tex_labels_limit)
 	return ''
     elseif before_brace =~ '\v\\cite\s*$'
+	call s:Update_AuxFiles()
 	call s:Popup_Main("bibitem", g:tex_labels_limit)
 	return ''
     elseif before_brace =~ '\v\\label\s*$'
+	call s:Update_AuxFiles()
 	return 'label'
     elseif before_brace =~ '\v\\tag\s*$'
+	call s:Update_AuxFiles()
 	return 'tag'
     elseif before_brace =~ '\v\\bibitem\s*(\[[^\]]*\])?\s*$'
+	call s:Update_AuxFiles()
 	return 'bibitem'
     elseif before_brace =~ '\v\\include\s*$'
+	call s:Update_AuxFiles()
 	return 'subf'
     elseif before_brace =~ '\v\\input\s*$'
+	call s:Update_AuxFiles()
 	return 'supf'
     endif
 
