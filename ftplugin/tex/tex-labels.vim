@@ -3,10 +3,10 @@
 " 	Provides popup menu for \ref, \eqref, \pageref, and \cite commands
 "
 " Maintainer:   Bin Zhou   <zhoub@bnu.edu.cn>
-" Version:      0.6.6
+" Version:      0.6.7
 "
-" Upgraded on: Sat 2025-11-08 14:23:29 CST (+0800)
-" Last change: Sat 2025-11-08 16:36:20 CST (+0800)
+" Upgraded on: Sat 2025-11-08 16:43:20 CST (+0800)
+" Last change: Sat 2025-11-08 17:44:34 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -87,9 +87,8 @@ function! s:GetAbsolutePath(filename, ...)
 	return simplify(path)
     endif
 
-    let supfile = trim(a:1)
-    if a:0 > 0 && !empty(supfile)
-	let relative = expand(supfile)
+    if a:0 > 0 && !empty(trim(a:1))
+	let relative = expand(trim(a:1))
     else
 	let relative = expand("%")
     endif
@@ -268,12 +267,12 @@ if !exists('b:tex_labels_MainFile')
 endif
 
 " Function to obtain the name of auxiliary file
-"   {type}	"subf", "supf", "label", "bibitem" or "tag"
+"   {type}	"aux", "subf", "supf", "label", "bibitem" or "tag"
 function! s:AuxFileName(filename, type)
     if empty(a:filename)
 	return ''
-    elseif a:type != "subf" && a:type != "supf" && a:type != "label" &&
-		\ a:type != "bibitem" && a:type != "tag"
+    elseif a:type != "aux" && a:type != "subf" && a:type != "supf" &&
+		\ a:type != "label" && a:type != "bibitem" && a:type != "tag"
 	return ''
     endif
 
@@ -537,16 +536,38 @@ function! s:ExtractLabelsBibitemsTags(filename, type)
     return items
 endfunction
 
-" Function to parse auxiliary file for numbering information
+" Function to parse auxiliary file for numbering information.  Usage:
+"   call s:ParseAuxFile(aux_file)
+"   {aux_file}		a file name with extension ".aux"
 function! s:ParseAuxFile(aux_file)
     let label_data = {}
     let bib_data = {}
 
-    if !filereadable(a:aux_file)
+    let aux_file = trim(a:aux_file)
+    if empty(aux_file)
         return []
+    elseif empty(getfperm(aux_file))
+	let file_supf = substitute(aux_file, '.aux$', '.supf', '')
+	if empty(getfperm(file_supf)) || !filereadable(file_supf)
+	    return []
+	endif
+
+	let upper_file = readfile(file_supf)
+	if len(upper_file) != 1 || empty( upper_file[0] )
+	    return []
+	else
+	    let aux_file = s:AuxFileName(upper_file[0], "aux")
+	endif
     endif
 
-    let aux_lines = readfile(a:aux_file)
+    if !filereadable(aux_file)
+	return []
+    endif
+
+    let aux_lines = readfile(aux_file)
+    if empty(aux_lines)
+	return []
+    endif
 
     for line in aux_lines
         " Parse \newlabel commands
