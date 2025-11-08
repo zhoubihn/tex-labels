@@ -3,10 +3,10 @@
 " 	Provides popup menu for \ref, \eqref, \pageref, and \cite commands
 "
 " Maintainer:   Bin Zhou   <zhoub@bnu.edu.cn>
-" Version:      0.7.1
+" Version:      0.7.2
 "
-" Upgraded on: Sun 2025-11-09 01:54:16 CST (+0800)
-" Last change: Sun 2025-11-09 01:56:18 CST (+0800)
+" Upgraded on: Sun 2025-11-09 02:03:05 CST (+0800)
+" Last change: Sun 2025-11-09 03:03:19 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -745,20 +745,23 @@ function! s:Update_AuxFiles(...)
     let type = ''
     let status = 0
 
-    if a:0 > 0
+    if a:0 > 0 && !empty(trim(a:1))
 	if a:1 != 'label' &&  a:1 != 'bibitem' && a:1 != 'tag'
 	    echo "s:Update_AuxFiles: type \'" .. a:1 ..
 			\ "\' not supported.  Nothing done."
 	    return -1
 	else
-	    let type = a:1
+	    let type = trim(a:1)
 	endif
     endif
 
-    if a:0 >= 2
+    if a:0 >= 2 && !empty(type)
 	if !empty(trim(a:2))
 	    let filename = s:GetAbsolutePath(trim(a:2))
-	    let aux_file = s:AuxFileName(filename, type)
+	    let type_file = s:AuxFileName(filename, type)
+	    let file_aux = s:AuxFileName(filename, "aux")
+	    let file_subf = s:AuxFileName(filename, "subf")
+	    let file_supf = s:AuxFileName(filename, "supf")
 	else
 	    return s:Update_AuxFiles(type)
 	endif
@@ -768,9 +771,19 @@ function! s:Update_AuxFiles(...)
 "	else
 "	    let filename = a:2
 "	endif
+"
+	if filereadable(file_supf)
+	    let upper_file = readfile(file_supf)
+	    if !empty(upper_file)
+		call s:Update_AuxFiles(type, upper_file[0])
+	    endif
+	endif
 
-	if filereadable(filename) && ( empty(getfperm(aux_file)) ||
-		    \ getftime(filename) > getftime(aux_file)
+	if filereadable(filename) && (
+		    \ empty(getfperm(type_file)) ||
+		    \ getftime(filename) > getftime(type_file) ||
+		    \ getftime(file_aux) > getftime(type_file) ||
+		    \ getftime(file_subf) > getftime(type_file)
 		    \ )
 	    if s:Update_SubFiles(filename) < 0
 		return -1
@@ -783,12 +796,21 @@ function! s:Update_AuxFiles(...)
 		endfor
 	    endif
 
-	    return writefile(target_items, aux_file)
+	    return writefile(target_items, type_file)
 	endif
 
 	return 0
 
-    elseif a:0 == 1
+    elseif a:0 >= 2 && empty(type)
+	for type in ["label", "bibitem", "tag"]
+	    if s:Update_AuxFiles(type, a:2) < 0
+		let status = -1
+	    endif
+	endfor
+
+	return status
+
+    elseif a:0 == 1 && !empty(type)
 	call s:Update_SubFiles()
 
 	if !empty(b:tex_labels_MainFile)
