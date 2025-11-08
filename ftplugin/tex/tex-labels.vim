@@ -3,10 +3,10 @@
 " 	Provides popup menu for \ref, \eqref, \pageref, and \cite commands
 "
 " Maintainer:   Bin Zhou   <zhoub@bnu.edu.cn>
-" Version:      0.7.0
+" Version:      0.7.1
 "
-" Upgraded on: Sun 2025-11-09 01:09:51 CST (+0800)
-" Last change: Sun 2025-11-09 01:11:25 CST (+0800)
+" Upgraded on: Sun 2025-11-09 01:54:16 CST (+0800)
+" Last change: Sun 2025-11-09 01:56:18 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -94,7 +94,8 @@ function! s:GetAbsolutePath(filename, ...)
     endif
 
     " relative path calculated:
-    let path = fnamemodify(relative, ":p:h") .. "/" .. path
+    let path = fnamemodify(relative, ":p:h") ..
+		\ (has("win64") || has("win32") ? "\\" : "/") .. path
     return simplify(path)
 endfunction
 
