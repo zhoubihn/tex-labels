@@ -1,0 +1,339 @@
+*tex-labels.txt*	A LaTeX reference completion plugin for Vim
+
+==============================================================================
+CONTENTS							*tex-labels* *tex-labels-contents*
+
+    1. Introduction ................ |tex-labels-introduction|
+    2. Installation ................ |tex-labels-installation|
+    3. Configuration .............. |tex-labels-configuration|
+    4. Usage ...................... |tex-labels-usage|
+        4.1 Basic Usage ........... |tex-labels-basic-usage|
+        4.2 Navigation Keys ...... |tex-labels-navigation|
+        4.3 Multi-file Projects  |tex-labels-multi-file|
+        4.4 Advanced Features .... |tex-labels-advanced|
+    5. Commands .................. |tex-labels-commands|
+    6. Functions ................. |tex-labels-functions|
+    7. Troubleshooting ......... |tex-labels-troubleshooting|
+    8. Changelog ................. |tex-labels-changelog|
+
+==============================================================================
+1. Introduction							*tex-labels-introduction*
+
+The tex-labels plugin provides intelligent popup completion for LaTeX references
+in Vim. It automatically detects when you're working with LaTeX reference commands
+and provides context-sensitive popup menus for selecting labels, bibliography items,
+and other references.
+
+Features:
+- Automatic popup completion for \ref, \eqref, \pageref, and \cite commands
+- Support for multi-file LaTeX projects
+- Organization by LaTeX counters (equation, figure, table, etc.)
+- File-based browsing and navigation
+- Duplicate detection and warnings
+- Integration with LaTeX auxiliary files (.aux)
+
+==============================================================================
+2. Installation							*tex-labels-installation*
+
+MANUAL INSTALLATION ~
+
+1. Create the ftplugin directory structure:
+>
+    mkdir -p ~/.vim/ftplugin/tex/
+<
+
+2. Copy the plugin file:
+>
+    cp ftplugin/tex/tex-labels.vim ~/.vim/ftplugin/tex/
+<
+
+3. Restart Vim or reload your configuration:
+
+PLUGIN MANAGER INSTALLATION ~
+
+Using vim-plug:
+>
+    Plug 'your-username/tex-labels-stepped', { 'for': 'tex' }
+<
+
+Using Vundle:
+>
+    Plugin 'your-username/tex-labels-stepped'
+<
+
+Using Pathogen:
+>
+    git clone https://github.com/your-username/tex-labels-stepped.git \
+        ~/.vim/bundle/tex-labels-stepped
+<
+
+==============================================================================
+3. Configuration							*tex-labels-configuration*
+
+The plugin provides several configuration options that can be set in your |.vimrc|:
+
+							*g:tex_labels_popup_bg*
+Background color for popup windows. Default: 'LightYellow'
+
+Example: >
+    let g:tex_labels_popup_bg = 'lightblue'
+<
+
+							*g:tex_labels_popup_height*
+Height of popup windows in lines. Default: 8
+
+Example: >
+    let g:tex_labels_popup_height = 12
+<
+
+							*g:tex_labels_limit*
+Maximum number of items to display in popup menus. Default: 32
+
+Example: >
+    let g:tex_labels_limit = 50
+<
+
+							*g:tex_labels_mainfile_scope*
+Number of lines to search for main file specification comments. Default: 16
+
+Example: >
+    let g:tex_labels_mainfile_scope = 20
+<
+
+==============================================================================
+4. Usage								*tex-labels-usage*
+
+BASIC USAGE							*tex-labels-basic-usage*
+
+The plugin automatically activates when editing LaTeX files (.tex). When you
+type LaTeX reference commands, a popup menu appears with available references:
+
+1. Start typing a reference command:
+   - `\ref{` for cross-references
+   - `\eqref{` for equation references
+   - `\pageref{` for page references
+   - `\cite{` for citations
+
+2. A popup menu appears showing available references
+
+3. Use navigation keys (see |tex-labels-navigation|) to select an item
+
+4. Press Enter to insert the selected reference
+
+Example workflow:
+>
+    \ref{<cursor here>  " Popup appears with available labels
+<
+
+NAVIGATION KEYS						*tex-labels-navigation*
+
+The following keys can be used in popup menus:
+
+							*tex-labels-popup-keys*
+    <Enter>     Insert selected reference and close popup
+    j or n      Move cursor down one line
+    k or p or N Move cursor up one line
+    <Space>     Scroll down one page
+    <C-F>       Scroll down one page (alternative)
+    b           Scroll up one page
+    <C-B>       Scroll up one page (alternative)
+    G           Jump to last item
+    gg          Jump to first item
+    <Esc>       Close popup without selection
+
+Number prefixes work with movement commands (e.g., `5j` moves down 5 lines).
+
+MULTI-FILE PROJECTS					*tex-labels-multi-file*
+
+For projects spanning multiple LaTeX files, the plugin can automatically
+discover included files and provide unified reference completion.
+
+MAIN FILE SPECIFICATION ~
+
+To specify a main file (useful for large projects), add this comment to the
+top of your LaTeX files:
+
+>
+    %! Main file: main.tex
+<
+
+The plugin searches for this comment in the first `g:tex_labels_mainfile_scope`
+lines (default: 16) of each file.
+
+INCLUDE FILE DISCOVERY ~
+
+The plugin automatically parses `\include` and `\input` commands and recursively
+discovers all included files. This means references from any included file are
+available in the popup menus.
+
+Example structure:
+>
+    main.tex:
+        \include{chapter1}
+        \include{chapter2}
+
+    chapter1.tex:
+        \label{sec:intro}
+
+    chapter2.tex:
+        \label{sec:conclusion}
+<
+
+When editing any file in this project, references from all included files will be
+available in popup menus.
+
+ADVANCED FEATURES						*tex-labels-advanced*
+
+COUNTER-BASED ORGANIZATION ~
+
+When working with many labels, the plugin offers organized browsing by LaTeX
+counters (equation, figure, table, section, etc.).
+
+When the number of labels exceeds `g:tex_labels_limit`, you'll be presented
+with options:
+
+1. List all labels anyway
+2. Select according to files
+3. Select according to counters
+4. Select through "file → counter"
+5. Select through "counter → file"
+
+This hierarchical navigation makes it easy to find specific references in large
+documents.
+
+DUPLICATE DETECTION ~
+
+The plugin automatically checks for duplicate labels and bibliography items as
+you type. When potential duplicates are found, a warning popup appears showing
+matching references from other files or locations.
+
+This helps prevent common LaTeX errors where multiple labels share the same name.
+
+AUXILIARY FILE INTEGRATION ~
+
+The plugin integrates with LaTeX's auxiliary file system (.aux files) to provide:
+
+- Up-to-date reference numbers
+- Page information
+- Counter types (equation, figure, table, etc.)
+
+For best results, compile your LaTeX document before using the plugin to ensure
+auxiliary files are current.
+
+The plugin also maintains its own cache files for performance:
+- `.incl` files - Lists of included files
+- `.label` files - Cached label information
+- `.bibitem` files - Cached bibliography items
+
+These files are automatically updated when source files change.
+
+==============================================================================
+5. Commands							*tex-labels-commands*
+
+							*:TestTexLabelsPopup*
+Test the popup functionality. This command is only available in LaTeX buffers.
+
+Example: >
+    :TestTexLabelsPopup
+<
+
+==============================================================================
+6. Functions							*tex-labels-functions*
+
+Most functions are internal and not intended for direct use. However, some
+functions may be useful for debugging or advanced usage:
+
+							*s:FindMainFile()*
+Find main file specification in a given file.
+
+Parameters:
+    {filename} - Path to file to search
+
+Returns:
+    Path to main file or empty string if not found
+
+							*s:GetFilesToSearch()*
+Get all relevant files to search for references.
+
+Parameters:
+    {mainfile} - Optional main file path
+
+Returns:
+    List of file paths to search
+
+							*s:GetAllReferences()*
+Get all references of a specific type.
+
+Parameters:
+    {type}  - "label", "bibitem", or "tag"
+    {limit} - Maximum number of items (0 for unlimited)
+
+Returns:
+    List of formatted reference strings
+
+							*s:GetAllCounters()*
+Get all LaTeX counters related to labels.
+
+Returns:
+    List of counter names
+
+==============================================================================
+7. Troubleshooting						*tex-labels-troubleshooting*
+
+COMMON ISSUES ~
+
+Popup doesn't appear:
+- Ensure you're using Vim 8.0+ or Neovim 0.4+
+- Check popup support: `:echo has('popup')` should return 1
+- Verify file type: `:set ft?` should show "tex"
+- Check that plugin is loaded: `:echo b:loaded_tex_labels`
+
+References not found:
+- Compile your LaTeX document to generate .aux files
+- Verify main file specification if using multi-file projects
+- Check that labels are properly defined
+- Ensure included files are accessible
+
+Performance issues:
+- Reduce `g:tex_labels_limit` to display fewer items
+- Use main file specifications to limit search scope
+- Consider splitting very large documents
+
+DEBUGGING ~
+
+Check plugin status:
+
+Plugin loaded: >
+    :echo b:loaded_tex_labels
+<
+
+Main file setting: >
+    :echo b:tex_labels_MainFile
+<
+
+Popup ID: >
+    :echo b:tex_labels_popup
+<
+
+Test popup functionality: >
+    :TestTexLabelsPopup
+<
+
+==============================================================================
+8. Changelog							*tex-labels-changelog*
+
+VERSION 0.5.2 ~
+- Improved duplicate detection for labels and bibliography items
+- Enhanced performance with large document sets
+- Better error handling and user feedback
+- Added support for main file specifications
+- Improved popup navigation and selection
+
+VERSION 0.5.1 ~
+- Initial public release
+- Basic reference completion functionality
+- File discovery and auxiliary file integration
+- Popup-based user interface
+
+==============================================================================
+vim:tw=78:ts=8:ft=help:norl:
