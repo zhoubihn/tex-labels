@@ -3,10 +3,10 @@
 " 	Provides popup menu for \ref, \eqref, \pageref, and \cite commands
 "
 " Maintainer:   Bin Zhou   <zhoub@bnu.edu.cn>
-" Version:      0.7.2
+" Version:      0.7.3
 "
-" Upgraded on: Sun 2025-11-09 02:03:05 CST (+0800)
-" Last change: Sun 2025-11-09 03:03:19 CST (+0800)
+" Upgraded on: Sun 2025-11-09 18:01:45 CST (+0800)
+" Last change: Sun 2025-11-09 18:03:51 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -2036,7 +2036,8 @@ function! s:SetupTexLabels()
   autocmd BufLeave <buffer> call s:CleanupPopup()
 
   " Add test command
-  command! -buffer TestTexLabelsPopup call s:Popup_Main(g:tex_labels_limit)
+  command! -buffer TestTexLabelsPopup call s:Popup_Main("label", g:tex_labels_limit)
+  command! -buffer TestTexBibsPopup call s:Popup_Main("bibitem", g:tex_labels_limit)
 endfunction
 
 
