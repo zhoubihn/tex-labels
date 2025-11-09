@@ -18,13 +18,17 @@ editing more efficient.
 
 ## Features
 
-- **Intelligent Popup Menus**: Context-sensitive popup completion for LaTeX references
+- **Intelligent Popup Menus**: Context-sensitive popup completion for LaTeX
+  references
 - **Multiple Reference Types**: Support for labels, bibliography items, and tags
 - **File Discovery**: Automatic detection of included LaTeX files
-- **Counter-based Organization**: Organize labels by LaTeX counters (equation, figure, table, etc.)
+- **Counter-based Organization**: Organize labels by LaTeX counters (equation,
+  figure, table, etc.)
 - **File-based Navigation**: Browse references by source file
-- **Duplicate Detection**: Real-time checking for duplicate labels and bibliography items
-- **Auxiliary File Integration**: Seamless integration with LaTeX auxiliary files (.aux)
+- **Duplicate Detection**: Real-time checking for duplicate labels and
+  bibliography items
+- **Auxiliary File Integration**: Seamless integration with LaTeX auxiliary
+  files (.aux)
 - **Cross-file Search**: Search across multiple included LaTeX files
 - **Customizable Appearance**: Configurable popup colors and dimensions
 
@@ -158,9 +162,11 @@ When you have many labels (controlled by `g:tex_labels_limit`, with defalut
 value `32`), the plugin offers organized browsing:
 
 1. **List All Labels**: Browse all labels altogether
-2. **By Counter**: Browse labels grouped by LaTeX counters (equation, figure, table, section, etc.)
+2. **By Counter**: Browse labels grouped by LaTeX counters (equation, figure,
+  table, section, etc.)
 3. **By File**: Browse references defined in certain a source file
-4. **Hierarchical Navigation**: Navigate through files → counters → labels or through counters → files → labels
+4. **Hierarchical Navigation**: Navigate through files → counters → labels or
+  through counters → files → labels
 
 For an illustration, see, the above figure "File-counter organizing popup menu".
 
@@ -171,21 +177,26 @@ as you type.  When potential duplicates are found, a warning popup appears.
 
 ### Commands
 
-- `:TestTexLabelsPopup` and `:TestTexBibsPopup` - Test the popup functionality (available in LaTeX buffers)
+- `:TestTexLabelsPopup` and `:TestTexBibsPopup` - Test the popup functionality
+  (available in LaTeX buffers)
 
 ## How It Works
 
 ### File Discovery
 
-1. **Main File Detection**: The plugin searches for `%! Main file: ...` comments in the first 16 lines of each file
-2. **Include File Tracking**: Automatically parses `\include` and `\input` commands recursively
-3. **Auxiliary File Processing**: Reads `.aux` files for up-to-date reference numbers and page information
+1. **Main File Detection**: The plugin searches for `%! Main file: ...` comments
+  in the first 16 lines of each file
+2. **Include File Tracking**: Automatically parses `\include` and `\input`
+  commands recursively
+3. **Auxiliary File Processing**: Reads `.aux` files for up-to-date reference
+  numbers and page information
 
 ### Cache Management
 
 The plugin maintains auxiliary files for performance:
 - `xxx.subf` - Lists of files that are included/input by the file `xxx.tex`
-- `xxx.supf` - Contains which file inputs (by `\input`, not by `\include`) the file `xxx.tex`
+- `xxx.supf` - Contains which file inputs (by `\input`, not by `\include`)
+  the file `xxx.tex`
 - `xxx.label` - Cached label information defined in the file `xxx.tex`
 - `xxx.bibitem` - Cached bibliography items defined in the file `xxx.tex`
 - `xxx.tag` - Cached tag items defined in the file `xxx.tex`
@@ -256,7 +267,8 @@ To test the plugin:
 
 ## License
 
-This plugin is distributed under the same terms as Vim itself (see `:help license`).
+This plugin is distributed under the same terms as Vim itself (in Vim, see
+`:help license`).
 
 ## Changelog
 
