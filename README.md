@@ -285,7 +285,7 @@ and with the help of [Doubao (豆包)](https:/www.doubao.com),
 this plugin is coded rapidly.  They are all appreciated!
 
 A special thank is given to [Vim](https://vim.org)'s maintainers and its author,
-momorable Bram Moolenaar.  Thanks for giving us an open, free and powerful
+memorable Bram Moolenaar.  Thanks for giving us an open, free and powerful
 editor!
 
 ## Support
