@@ -121,6 +121,7 @@ with the default configuration.
    - `G` - Go to the last item
    - `gg` - Go to the first item
    - `Esc` - Close popup menu
+
    `Number + command` is supported.  For examples,
    - `12j` - Move down 12 lines
    - `8k` - Move up 8 lines
@@ -129,13 +130,15 @@ with the default configuration.
    The following popup menu does not accept `Number + command`:
    ![file-counter menu](images/limited.png "File-counter organizing popup menu.")
    In fact, when you press a digit from `1` to `5`, the corresponding item
-   is directly selected.  Alternatively, you can press `j`s or `k`s several times
-   to move the cursor up and down, and press `Enter` when you are ready to accept
-   the highlighted item.
+   is directly selected.  Alternatively, you can press `j`'s or `k`'s several
+   times to move the cursor up and down, and press `Enter` when you are ready
+   to accept the highlighted item.
 
 ### Working with Multiple Files
 
-The plugin automatically detects included files using `\include` and `\input` commands. To specify a main file (useful for multi-file projects), add this comment to the top of your LaTeX files:
+The plugin automatically detects included files using `\include` and `\input`
+commands.  To specify a main file (useful for multi-file projects), add this
+comment to the top of your LaTeX files:
 ```latex
 %! Main file: main.tex
 ```
@@ -151,8 +154,8 @@ is not predictable.
 
 #### Counter-based Selection
 
-When you have many labels (controlled by `g:tex_labels_limit`, with defalut value
-`32`), the plugin offers organized browsing:
+When you have many labels (controlled by `g:tex_labels_limit`, with defalut
+value `32`), the plugin offers organized browsing:
 
 1. **List All Labels**: Browse all labels altogether
 2. **By Counter**: Browse labels grouped by LaTeX counters (equation, figure, table, section, etc.)
@@ -278,5 +281,5 @@ editor!
 For issues, questions, or contributions, please open an issue
 on the [project repository](https://github.com/zhoubihn/tex-labels).
 
-This plugin has not been tested for neovim.  Any information with the application
-in neovim is welcome.
+This plugin has not been tested for [neovim](https://neovim.io).
+Any information with the application in neovim is welcome.
