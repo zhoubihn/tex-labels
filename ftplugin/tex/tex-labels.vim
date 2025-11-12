@@ -3,10 +3,10 @@
 " 	Provides popup menu for \ref, \eqref, \pageref, and \cite commands
 "
 " Maintainer:   Bin Zhou   <zhoub@bnu.edu.cn>
-" Version:      0.8.5
+" Version:      0.8.6
 "
-" Upgraded on: Thu 2025-11-13 00:23:38 CST (+0800)
-" Last change: Thu 2025-11-13 00:39:49 CST (+0800)
+" Upgraded on: Thu 2025-11-13 00:56:08 CST (+0800)
+" Last change: Thu 2025-11-13 01:18:08 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -99,14 +99,23 @@ endfunction
 "   {supfile}		when present, relative path of {filename} is with
 "			respec to it
 function! s:GetAbsolutePath(filename, ...)
-    let path = expand(trim(a:filename))
+    if trim(a:filename) == "%"
+	let path = expand("%:p")
+    else
+	let path = expand(trim(a:filename))
+    endif
+
 
     if s:IsAbsolutePath(path)
 	return simplify(path)
     endif
 
     if a:0 > 0 && !empty(trim(a:1))
-	let relative = expand(trim(a:1))
+	if trim(a:1) == "%"
+	    let relative = expand("%:p")
+	else
+	    let relative = expand(trim(a:1))
+	endif
     else
 	let relative = expand("%:p")
     endif
@@ -724,8 +733,8 @@ function! s:ExtractLabelsBibitemsTags(filename, type)
 			\ 'idnum': '??',
 			\ 'page': '??',
 			\ 'line': line_num,
-			\ 'file': fnamemodify(a:filename, ':t'),
-			\ 'full_path': a:filename
+			\ 'file': fnamemodify(filename, ':t'),
+			\ 'full_path': filename
 			\ }
 	    call add(items, item)
 	endif
@@ -882,7 +891,7 @@ function! s:FormatMenuItem(item, type)
 	return "(" .. a:item.counter .. ": " .. a:item.idnum .. ")\t{" ..
 		    \ a:item.idcode .. "} {page: " .. a:item.page ..
 		    \ "} {line: " .. a:item.line .. "} {file: " ..
-		    \ a:item.file .. "}"
+		    \ a:item.full_path .. "}"
 
     elseif a:type == "bibitem"
 	if a:item.counter != "bibitem"
@@ -892,7 +901,7 @@ function! s:FormatMenuItem(item, type)
 
 	return "Ref. [" .. a:item.idnum .. "]\t{" ..
 		    \ a:item.idcode .. "} {line: " .. a:item.line ..
-		    \ "} {file: " .. a:item.file .. "}"
+		    \ "} {file: " .. a:item.full_path .. "}"
 
     elseif a:type == "tag"
 	if a:item.counter != "tag"
@@ -901,7 +910,7 @@ function! s:FormatMenuItem(item, type)
 	endif
 
 	return "{tag: " .. a:item.idcode .. "} {line: " ..
-		    \ a:item.line .. "} {file: " .. a:item.file .. "}"
+		    \ a:item.line .. "} {file: " ..  a:item.full_path .. "}"
 
     else
 	echo "s:FormatMenuItem: Unknown type " .. a:type ..
