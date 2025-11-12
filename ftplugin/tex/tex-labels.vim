@@ -3,10 +3,10 @@
 " 	Provides popup menu for \ref, \eqref, \pageref, and \cite commands
 "
 " Maintainer:   Bin Zhou   <zhoub@bnu.edu.cn>
-" Version:      0.8.4
+" Version:      0.8.5
 "
-" Upgraded on: Wed 2025-11-12 22:57:11 CST (+0800)
-" Last change: Wed 2025-11-12 23:35:10 CST (+0800)
+" Upgraded on: Thu 2025-11-13 00:23:38 CST (+0800)
+" Last change: Thu 2025-11-13 00:39:49 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -108,7 +108,7 @@ function! s:GetAbsolutePath(filename, ...)
     if a:0 > 0 && !empty(trim(a:1))
 	let relative = expand(trim(a:1))
     else
-	let relative = expand("%")
+	let relative = expand("%:p")
     endif
 
     " relative path calculated:
@@ -434,7 +434,7 @@ endfunction
 " File name of the main LaTeX file
 " Maybe always updated?
 if !exists('b:tex_labels_MainFile')
-    let b:tex_labels_MainFile = s:FindMainFile(@%)
+    let b:tex_labels_MainFile = s:FindMainFile(expand("%:p"))
 endif
 
 " Function to obtain the name of auxiliary file
@@ -460,7 +460,7 @@ endfunction
 function! s:FindSubFiles(file, ...)
     let subfiles = []
     let file = s:GetAbsolutePath(a:file)
-    let current_file = s:GetAbsolutePath("%")
+    let current_file = expand("%:p")
 
     if !filereadable(file)
         return subfiles
@@ -557,7 +557,7 @@ function! s:Update_SubFiles(...)
     elseif !empty(b:tex_labels_MainFile)
 	let filename = b:tex_labels_MainFile
     else
-	let filename = s:GetAbsolutePath("%")
+	let filename = expand("%:p")
     endif
 
     " DEBUGGING:
@@ -573,11 +573,12 @@ function! s:Update_SubFiles(...)
 
     " The file <xxx.subf> is in the same directory of <xxx.tex> or <xxx>.
     let target = s:AuxFileName(filename, 'subf')
-    let included_files = []
 
     if empty(getfperm(target)) || getftime(filename) > getftime(target)
 	let included_files = s:FindSubFiles(filename)
 	call writefile(included_files, target)
+    else
+	let included_files = []
     endif
 
     let included_files = readfile(target)
@@ -604,7 +605,7 @@ endfunction
 "			current file, its subfiles and subfiles of its subfiles,
 "			are not search if {exclude_currentfile} == 1.
 function! s:GetFilesToSearch(...)
-    let current_file = s:GetAbsolutePath("%")
+    let current_file = expand("%:p")
     let files = []
     let roots = []
 
@@ -667,7 +668,7 @@ function! s:ExtractLabelsBibitemsTags(filename, type)
     let items = []
     let eff_filename = trim(a:filename)
     let filename = s:GetAbsolutePath(eff_filename)
-    let current_file = s:GetAbsolutePath("%")
+    let current_file = expand("%:p")
 
     if empty(eff_filename) || !filereadable(filename)
 	return items
@@ -924,7 +925,7 @@ endfunction
 "
 "   {type}	"label", "bibitem" or "tag"
 function! s:Update_AuxFiles(...)
-    let current_file = s:GetAbsolutePath('%')
+    let current_file = expand('%:p')
     let target_items = []
     let type = ''
     let status = 0
@@ -1117,7 +1118,7 @@ function! s:GetRefItems(filename, type)
     endif
 
     let filename = s:GetAbsolutePath(a:filename)
-    let current_file = s:GetAbsolutePath('%')
+    let current_file = expand('%:p')
 
     let aux_file = s:AuxFileName(filename, a:type)
 
@@ -2095,7 +2096,7 @@ function! s:Popup_CheckLabels()
             if label_name =~ '^' . curr_marker && (
 			\ s:GetLineNumber(ref) != line_number ||
 			\ s:GetAbsolutePath(s:GetFileName(ref)) !=
-			\ s:GetAbsolutePath("%")
+			\ expand("%:p")
 			\ )
                 call add(matching_refs, ref)
             endif
