@@ -3,10 +3,10 @@
 " 	Provides popup menu for \ref, \eqref, \pageref, and \cite commands
 "
 " Maintainer:   Bin Zhou   <zhoub@bnu.edu.cn>
-" Version:      0.8.3
+" Version:      0.8.4
 "
-" Upgraded on: Wed 2025-11-12 22:00:48 CST (+0800)
-" Last change: Wed 2025-11-12 22:04:41 CST (+0800)
+" Upgraded on: Wed 2025-11-12 22:57:11 CST (+0800)
+" Last change: Wed 2025-11-12 23:35:10 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -76,33 +76,6 @@ function! On_Windows()
     return has("win64") || has("win32") || has("win95") || has("win16")
 endfunction
 
-" Function to obtain the absolute path of {filename}, with respect to {supfile}
-" if it presents.
-" call s:GetAbsolutePath(filename [, supfile])
-"   {filename}		file name of one to return its absolute path
-"   {supfile}		when present, relative path of {filename} is with
-"			respec to it
-function! s:GetAbsolutePath(filename, ...)
-    let path = expand(trim(a:filename))
-
-    if path =~ '^/'
-	return simplify(path)
-    elseif On_Windows() && path =~ '^[A-Za-z]:'
-	return simplify(path)
-    endif
-
-    if a:0 > 0 && !empty(trim(a:1))
-	let relative = expand(trim(a:1))
-    else
-	let relative = expand("%")
-    endif
-
-    " relative path calculated:
-    let path = fnamemodify(relative, ":p:h") ..
-		\ (On_Windows() ? "\\" : "/") .. path
-    return simplify(path)
-endfunction
-
 " Function to check if {path} is absolute
 function! s:IsAbsolutePath(path)
     let path = trim(a:path)
@@ -117,6 +90,31 @@ function! s:IsAbsolutePath(path)
 
     " Unix-like systems: Path starts with /
     return a:path =~ '^/'
+endfunction
+
+" Function to obtain the absolute path of {filename}, with respect to {supfile}
+" if it presents.
+" call s:GetAbsolutePath(filename [, supfile])
+"   {filename}		file name of one to return its absolute path
+"   {supfile}		when present, relative path of {filename} is with
+"			respec to it
+function! s:GetAbsolutePath(filename, ...)
+    let path = expand(trim(a:filename))
+
+    if s:IsAbsolutePath(path)
+	return simplify(path)
+    endif
+
+    if a:0 > 0 && !empty(trim(a:1))
+	let relative = expand(trim(a:1))
+    else
+	let relative = expand("%")
+    endif
+
+    " relative path calculated:
+    let path = fnamemodify(relative, ":p:h") ..
+		\ (On_Windows() ? "\\" : "/") .. path
+    return simplify(path)
 endfunction
 
 " Function to get the environment variable initialed with '$' or '%'
@@ -508,7 +506,19 @@ function! s:FindSubFiles(file, ...)
 		if subfile !~ '\.tex$'
 		    let subfile = subfile .. '.tex'
 		endif
-                let subfile = s:GetAbsolutePath(subfile, file)
+		if !empty(b:tex_labels_MainFile)
+		    let subfile = s:GetAbsolutePath(subfile,
+				\ b:tex_labels_MainFile)
+		else
+		    let main_file = s:FindMainFile(file)
+		    if !empty(main_file)
+			let b:tex_labels_MainFile = main_file
+			let subfile = s:GetAbsolutePath(subfile, main_file)
+		    else
+			let subfile = s:GetAbsolutePath(subfile, file)
+		    endif
+		endif
+
                 call add(subfiles, subfile)
 
 		if cmd == 'input'
