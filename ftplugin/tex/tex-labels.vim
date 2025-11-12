@@ -3,10 +3,10 @@
 " 	Provides popup menu for \ref, \eqref, \pageref, and \cite commands
 "
 " Maintainer:   Bin Zhou   <zhoub@bnu.edu.cn>
-" Version:      0.8.2
+" Version:      0.8.3
 "
-" Upgraded on: Wed 2025-11-12 21:25:53 CST (+0800)
-" Last change: Wed 2025-11-12 21:56:55 CST (+0800)
+" Upgraded on: Wed 2025-11-12 22:00:48 CST (+0800)
+" Last change: Wed 2025-11-12 22:04:41 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -733,7 +733,9 @@ function! s:ParseAuxFile(aux_file)
     let aux_file = trim(a:aux_file)
     if empty(aux_file)
         return []
-    elseif empty(getfperm(aux_file))
+    endif
+
+    while empty(getfperm(aux_file))
 	let file_supf = substitute(aux_file, '.aux$', '.supf', '')
 	if empty(getfperm(file_supf)) || !filereadable(file_supf)
 	    return []
@@ -745,7 +747,7 @@ function! s:ParseAuxFile(aux_file)
 	else
 	    let aux_file = s:AuxFileName(upper_file[0], "aux")
 	endif
-    endif
+    endwhile
 
     if !filereadable(aux_file)
 	return []
