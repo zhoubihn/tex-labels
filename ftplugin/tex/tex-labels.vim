@@ -3,10 +3,10 @@
 " 	Provides popup menu for \ref, \eqref, \pageref, and \cite commands
 "
 " Maintainer:   Bin Zhou   <zhoub@bnu.edu.cn>
-" Version:      0.7.3
+" Version:      0.8.0
 "
-" Upgraded on: Sun 2025-11-09 18:01:45 CST (+0800)
-" Last change: Sun 2025-11-09 18:03:51 CST (+0800)
+" Upgraded on: Sun 2025-11-09 23:46:10 CST (+0800)
+" Last change: Wed 2025-11-12 16:26:24 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -72,6 +72,10 @@ function! s:RemoveDuplicates(list)
     return clean_list
 endfunction
 
+function! On_Windows()
+    return has("win64") || has("win32") || has("win95") || has("win16")
+endfunction
+
 " Function to obtain the absolute path of {filename}, with respect to {supfile}
 " if it presents.
 " call s:GetAbsolutePath(filename [, supfile])
@@ -83,7 +87,7 @@ function! s:GetAbsolutePath(filename, ...)
 
     if path =~ '^/'
 	return simplify(path)
-    elseif ( has("win64") || has("win32") ) && path =~ '^[A-Za-z]:'
+    elseif On_Windows() && path =~ '^[A-Za-z]:'
 	return simplify(path)
     endif
 
@@ -95,8 +99,167 @@ function! s:GetAbsolutePath(filename, ...)
 
     " relative path calculated:
     let path = fnamemodify(relative, ":p:h") ..
-		\ (has("win64") || has("win32") ? "\\" : "/") .. path
+		\ (On_Windows() ? "\\" : "/") .. path
     return simplify(path)
+endfunction
+
+" Function to check if {path} is absolute
+function! s:IsAbsolutePath(path)
+    let path = trim(a:path)
+    if empty(path)
+        return 0
+    endif
+
+    " Windows systems: Path starts with drive letter (e.g., C:\ or D:/)
+    if On_Windows()
+        return a:path =~# '^[a-zA-Z]:[\\/]'
+    endif
+
+    " Unix-like systems: Path starts with /
+    return a:path =~ '^/'
+endfunction
+
+" Function to get the environment variable initialed with '$' or '%'
+" If an environment variable is embedded into another environment variable,
+" this function cannot get it.
+"
+" In fact, latex does not support most of shell environment variables.
+function! s:PopEnvironmentVariable(path)
+    let path = trim(a:path)
+
+    if empty(path)
+	return ''
+    endif
+
+    if On_Windows()
+	let env_var = matchstr(path, '^%[a-zA-Z_][a-zA-Z0-9_]*%')
+	if len(env_var) > 2
+	    return env_var
+	endif
+    endif
+
+    let env_var = matchstr(path, '^\$[a-zA-Z_][a-zA-Z0-9_]*')
+    if len(env_var) > 1
+	return env_var
+    endif
+
+    let env_var = matchstr(path, '^\${[a-zA-Z_][a-zA-Z0-9_]*}')
+    if len(env_var) > 3
+	return env_var
+    endif
+
+    let env_var = matchstr(path, '^\${[a-zA-Z_][a-zA-Z0-9_]*\s*:.*}')
+    if len(env_var) > 5
+	return env_var
+    endif
+
+    return ''
+endfunction
+
+" Function to get relative path from absolute path.  Usage:
+"   call s:GetRelativePath(absolute_path [, base_path])
+" Parameters:
+"   {absolute_path}	the absolute path to convert (must be an absolute path)
+"   {base}		the base path to calculate relative to (can be relative
+"			or absolute, defaults to current working directory)
+" Returns:
+"   Relative path from {base_path} to {absolute_path}
+function! s:GetRelativePath(absolute_path, ...)
+    let l:abs_path = trim(a:absolute_path)
+
+    " Validate input parameters
+    if empty(l:abs_path)
+	" DEBUGGING:
+        echohl ErrorMsg
+        echo "Error: Absolute path must be provided"
+        echohl None
+
+        return ''
+    endif
+
+    if a:0 > 0 && !empty(trim(a:1))
+	let l:base_abs = simplify(fnamemodify(trim(a:1), ':p'))
+    else
+	" If no base path provided, use current working directory
+	let l:base_abs = getcwd()
+    endif
+
+    " Get normalized absolute paths (resolve symlinks and convert to full path
+    " format)
+    let l:absolute = simplify(fnamemodify(l:abs_path, ':p'))
+
+    " If paths are the same, return current directory
+    if l:absolute == l:base_abs
+        return '.'
+    endif
+
+    " Check if running on Windows to handle path separators correctly
+    let l:is_windows = On_Windows()
+
+    " Handle path separators (Windows uses backslash, other systems use forward
+    " slash)
+    if l:is_windows
+	let l:abs_parts = split(l:absolute, '(/|\\)+', 1)
+    else
+	let l:base_parts = split(l:base_abs, '/')
+    endif
+
+    " Remove empty string elements (handle leading separators)
+    let l:abs_parts = filter(l:abs_parts, '!empty(v:val)')
+    let l:base_parts = filter(l:base_parts, '!empty(v:val)')
+
+    if len(l:abs_parts) == 0 && len(l:base_parts) == 0
+	return l:absolute
+    elseif l:absolute[0] != l:base_parts[0]
+	return l:absolute
+    endif
+
+    " Find the longest common prefix
+    let l:common_len = 0
+    let l:max_len = min([len(l:abs_parts), len(l:base_parts)])
+
+    while l:common_len < l:max_len &&
+		\ l:abs_parts[l:common_len] == l:base_parts[l:common_len]
+        let l:common_len += 1
+    endwhile
+
+    " Build relative path parts
+    let l:relative_parts = []
+
+    " Add upward path parts (from base path to common prefix)
+    " Number of '..'s: len(l:base_parts) - l:common_len
+    for i in range(l:common_len, len(l:base_parts) - 1)
+        call add(l:relative_parts, '..')
+    endfor
+
+    " Add downward path parts (from common prefix to target path)
+    for i in range(l:common_len, len(l:abs_parts) - 1)
+        call add(l:relative_parts, l:abs_parts[i])
+    endfor
+
+    " Join path parts
+    let l:relative_path = join(l:relative_parts, (l:is_windows ? '\' : '/'))
+
+    return l:relative_path
+endfunction
+
+" Simplified version: Get relative path to current working directory
+" Parameters:
+"   absolute_path: The absolute path to convert
+" Returns:
+"   Relative path from current working directory to absolute_path
+function! GetRelativeToCwd(absolute_path) abort
+    if empty(a:absolute_path)
+        echohl ErrorMsg
+        echo "Error: Absolute path not provided"
+        echohl None
+        return ''
+    endif
+
+    " Use Vim's built-in filename modifiers to get relative path
+    " :~ means relative to home directory (optional)
+    " :. means relative to current directory
+    return fnamemodify(a:absolute_path, ':~:.')
 endfunction
 
 
