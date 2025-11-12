@@ -3,10 +3,10 @@
 " 	Provides popup menu for \ref, \eqref, \pageref, and \cite commands
 "
 " Maintainer:   Bin Zhou   <zhoub@bnu.edu.cn>
-" Version:      0.8.0
+" Version:      0.8.1
 "
-" Upgraded on: Sun 2025-11-09 23:46:10 CST (+0800)
-" Last change: Wed 2025-11-12 16:26:24 CST (+0800)
+" Upgraded on: Wed 2025-11-12 21:18:18 CST (+0800)
+" Last change: Wed 2025-11-12 21:24:27 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -210,7 +210,7 @@ function! s:GetRelativePath(absolute_path, ...)
 
     if len(l:abs_parts) == 0 && len(l:base_parts) == 0
 	return l:absolute
-    elseif l:absolute[0] != l:base_parts[0]
+    elseif l:abs_parts[0] != l:base_parts[0]
 	return l:absolute
     endif
 
@@ -228,7 +228,12 @@ function! s:GetRelativePath(absolute_path, ...)
 
     " Add upward path parts (from base path to common prefix)
     " Number of '..'s: len(l:base_parts) - l:common_len
-    for i in range(l:common_len, len(l:base_parts) - 1)
+    let l:num_updirs = len(l:base_parts) - l:common_len
+    if l:num_updirs > 3
+	return l:absolute
+    endif
+
+    for i in range(l:num_updirs - 1)
         call add(l:relative_parts, '..')
     endfor
 
