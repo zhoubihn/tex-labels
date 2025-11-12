@@ -3,10 +3,10 @@
 " 	Provides popup menu for \ref, \eqref, \pageref, and \cite commands
 "
 " Maintainer:   Bin Zhou   <zhoub@bnu.edu.cn>
-" Version:      0.8.1
+" Version:      0.8.2
 "
-" Upgraded on: Wed 2025-11-12 21:18:18 CST (+0800)
-" Last change: Wed 2025-11-12 21:24:27 CST (+0800)
+" Upgraded on: Wed 2025-11-12 21:25:53 CST (+0800)
+" Last change: Wed 2025-11-12 21:56:55 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -200,7 +200,9 @@ function! s:GetRelativePath(absolute_path, ...)
     " slash)
     if l:is_windows
 	let l:abs_parts = split(l:absolute, '(/|\\)+', 1)
+	let l:base_parts = split(l:base_abs, '(/|\\)+', 1)
     else
+	let l:abs_parts = split(l:absolute, '/')
 	let l:base_parts = split(l:base_abs, '/')
     endif
 
@@ -233,9 +235,11 @@ function! s:GetRelativePath(absolute_path, ...)
 	return l:absolute
     endif
 
-    for i in range(l:num_updirs - 1)
-        call add(l:relative_parts, '..')
-    endfor
+    if l:num_updirs > 0
+	for i in range(l:num_updirs - 1)
+	    call add(l:relative_parts, '..')
+	endfor
+    endif
 
     " Add downward path parts (from common prefix to target path)
     for i in range(l:common_len, len(l:abs_parts) - 1)
@@ -1695,7 +1699,7 @@ function! s:Popup_Files(type, ...)
 	let effective_files = []
 	for file in files
 	    if s:HasCounterLabels(file, a:1)
-		call add(effective_files, file)
+		call add(effective_files, s:GetRelativePath(file))
 	    endif
 	endfor
 
@@ -1705,6 +1709,12 @@ function! s:Popup_Files(type, ...)
 	    call s:ShowWarningMessage('No files containing a label belonging to the LaTeX counter "' .. a:1 .. '".')
 	    return -1
 	endif
+    else
+	let rel_files = []
+	for file in files
+	    call add(rel_files, s:GetRelativePath(file))
+	endfor
+	let files = rel_files
     endif
 
     let popup_config = {
