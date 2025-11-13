@@ -3,10 +3,10 @@
 " 	Provides popup menu for \ref, \eqref, \pageref, and \cite commands
 "
 " Maintainer:   Bin Zhou   <zhoub@bnu.edu.cn>
-" Version:      0.8.6
+" Version:      0.8.7
 "
-" Upgraded on: Thu 2025-11-13 00:56:08 CST (+0800)
-" Last change: Thu 2025-11-13 01:18:08 CST (+0800)
+" Upgraded on: Thu 2025-11-13 01:34:41 CST (+0800)
+" Last change: Thu 2025-11-13 22:57:20 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -243,7 +243,7 @@ function! s:GetRelativePath(absolute_path, ...)
     endif
 
     if l:num_updirs > 0
-	for i in range(l:num_updirs - 1)
+	for i in range(l:num_updirs)
 	    call add(l:relative_parts, '..')
 	endfor
     endif
@@ -919,6 +919,49 @@ function! s:FormatMenuItem(item, type)
     endif
 endfunction
 
+" Function to replace filename with relative path
+function! s:Refs_RelativePath(fomatted_line, type)
+    if empty(a:fomatted_line)
+	return ''
+    endif
+
+    if a:type == "label"
+	let l:num_bracePairs = 4
+    elseif a:type == "bibitem" || a:type == "tag"
+	let l:num_bracePairs = 3
+    else
+        echohl ErrorMsg
+	echo "s:Refs_RelativePath: type \"" .. a:type "\" not supported."
+        echohl None
+	return ''
+    endif
+
+    let l:positions = [-1, -1]
+    for i in range(1, l:num_bracePairs)
+	let l:positions = s:MatchCurlyBrace(a:fomatted_line, l:positions[1] + 1)
+	if empty(l:positions)
+	    echohl ErrorMsg
+	    echo "s:Refs_RelativePath: incorrect format."
+	    echohl None
+	    return ''
+	endif
+    endfor
+
+    if strpart(a:fomatted_line, l:positions[0],
+		\ l:positions[1] - l:positions[0] + 1) !~ '^{file: '
+	echohl ErrorMsg
+	echo "s:Refs_RelativePath: incorrect format."
+	echohl None
+	return ''
+    endif
+
+    let l:full_path = strpart(a:fomatted_line, l:positions[0] + 7,
+		\ l:positions[1] - l:positions[0] - 7)
+    let l:ref = strpart(a:fomatted_line, 0, l:positions[0]) .. '{file: ' ..
+		\ s:GetRelativePath(l:full_path) .. '}'
+    return l:ref
+endfunction
+
 " Behaving like GNU make, the function
 "	s:Update_AuxFiles([type [, filename]])
 " updates auxiliary files <file.type> when {type} is given as "label", "bibitem"
@@ -1133,7 +1176,7 @@ function! s:GetRefItems(filename, type)
 
     let refs = []
     if filename == current_file && &modified
-	let items = s:CompleteLabelInfo(a:filename, a:type)
+	let items = s:CompleteLabelInfo(filename, a:type)
 
 	if empty(items)
 	    return refs
@@ -1507,7 +1550,12 @@ function! s:Popup_Main(type, limit, ...)
 		\ }
 
     " Create popup menu
-    let b:tex_labels_popup = popup_create(refs, popup_config)
+    let refs_relative = []
+    for formatted_line in refs
+	call add(refs_relative, s:Refs_RelativePath(formatted_line, a:type))
+    endfor
+
+    let b:tex_labels_popup = popup_create(refs_relative, popup_config)
     if b:tex_labels_popup < 0
 	return -1
     endif
