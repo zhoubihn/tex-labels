@@ -3,10 +3,10 @@
 " 	Provides popup menu for \ref, \eqref, \pageref, and \cite commands
 "
 " Maintainer:   Bin Zhou   <zhoub@bnu.edu.cn>
-" Version:      0.8.7
+" Version:      0.8.8
 "
-" Upgraded on: Thu 2025-11-13 01:34:41 CST (+0800)
-" Last change: Thu 2025-11-13 22:57:20 CST (+0800)
+" Upgraded on: Thu 2025-11-13 23:04:12 CST (+0800)
+" Last change: Fri 2025-11-14 10:46:00 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -131,6 +131,7 @@ endfunction
 " this function cannot get it.
 "
 " In fact, latex does not support most of shell environment variables.
+" Obsolete.
 function! s:PopEnvironmentVariable(path)
     let path = trim(a:path)
 
@@ -163,16 +164,17 @@ function! s:PopEnvironmentVariable(path)
     return ''
 endfunction
 
-" Function to get relative path from absolute path.  Usage:
-"   call s:GetRelativePath(absolute_path [, base_path])
+" Function to get relative path from a given path.  Usage:
+"   call s:GetRelativePath(path [, base_path])
 " Parameters:
-"   {absolute_path}	the absolute path to convert (must be an absolute path)
-"   {base}		the base path to calculate relative to (can be relative
-"			or absolute, defaults to current working directory)
+"   {path}	the path to convert (must be an absolute path)
+"   {base}	the base path to calculate relative to (can be relative
+"		or absolute, defaults to current working directory)
 " Returns:
-"   Relative path from {base_path} to {absolute_path}
-function! s:GetRelativePath(absolute_path, ...)
-    let l:abs_path = trim(a:absolute_path)
+"   Relative path from {base_path} to {path}, or absolute path in some
+"   extraordinary situation.
+function! s:GetRelativePath(path, ...)
+    let l:abs_path = trim(a:path)
 
     " Validate input parameters
     if empty(l:abs_path)
@@ -185,7 +187,11 @@ function! s:GetRelativePath(absolute_path, ...)
     endif
 
     if a:0 > 0 && !empty(trim(a:1))
-	let l:base_abs = simplify(fnamemodify(trim(a:1), ':p'))
+	if trim(a:1) == '%:p:h' || trim(a:1) == '%:p' || trim(a:1) == '%'
+	    let l:base_abs = expand("%:p:h")
+	else
+	    let l:base_abs = simplify(fnamemodify(trim(a:1), ':p'))
+	endif
     else
 	" If no base path provided, use current working directory
 	let l:base_abs = getcwd()
@@ -231,6 +237,7 @@ function! s:GetRelativePath(absolute_path, ...)
 		\ l:abs_parts[l:common_len] == l:base_parts[l:common_len]
         let l:common_len += 1
     endwhile
+    " It is sure that l:common_len > 0.
 
     " Build relative path parts
     let l:relative_parts = []
@@ -249,9 +256,16 @@ function! s:GetRelativePath(absolute_path, ...)
     endif
 
     " Add downward path parts (from common prefix to target path)
-    for i in range(l:common_len, len(l:abs_parts) - 1)
-        call add(l:relative_parts, l:abs_parts[i])
-    endfor
+    let l:num_dirs = len(l:abs_parts) - l:common_len
+    if l:num_dirs == 0 && l:num_updirs == 0
+	" Normally this won't happen, because it has been tested by
+	" 'l:absolute == l:base_abs'.
+	return '.'
+    elseif l:num_dirs > 0
+	for i in range(l:common_len, len(l:abs_parts) - 1)
+	    call add(l:relative_parts, l:abs_parts[i])
+	endfor
+    endif
 
     " Join path parts
     let l:relative_path = join(l:relative_parts, (l:is_windows ? '\' : '/'))
