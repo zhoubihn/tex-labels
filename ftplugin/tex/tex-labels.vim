@@ -3,10 +3,10 @@
 " 	Provides popup menu for \ref, \eqref, \pageref, and \cite commands
 "
 " Maintainer:   Bin Zhou   <zhoub@bnu.edu.cn>
-" Version:      0.8.8
+" Version:      0.9.0
 "
-" Upgraded on: Thu 2025-11-13 23:04:12 CST (+0800)
-" Last change: Fri 2025-11-14 10:46:00 CST (+0800)
+" Upgraded on: Fri 2025-11-14 20:12:39 CST (+0800)
+" Last change: Fri 2025-11-14 20:45:53 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -42,6 +42,13 @@ endif
 " {g:tex_labels_mainfile_scope} lines of the current file.
 if !exists('g:tex_labels_mainfile_scope')
     let g:tex_labels_mainfile_scope = 16
+endif
+
+if !exists('g:tex_labels_path_WRT')
+    " CFD: directory of current file (Defalut)
+    " PWD: current working directory
+    " MFD: directory of the main file
+    let g:tex_labels_path_WRT = 'CFD'
 endif
 
 
@@ -193,8 +200,15 @@ function! s:GetRelativePath(path, ...)
 	    let l:base_abs = simplify(fnamemodify(trim(a:1), ':p'))
 	endif
     else
-	" If no base path provided, use current working directory
-	let l:base_abs = getcwd()
+	" If no base path provided, define l:base_abs according to the value
+	" of g:tex_labels_path_WRT .
+	if g:tex_labels_path_WRT == 'MFD' && !empty(b:tex_labels_MainFile)
+	    let l:base_abs = fnamemodify(b:tex_labels_MainFile, ":p:h")
+	elseif g:tex_labels_path_WRT == 'PWD'
+	    let l:base_abs = fnamemodify($PWD, ":p")
+	else
+	    let l:base_abs = getcwd()
+	endif
     endif
 
     " Get normalized absolute paths (resolve symlinks and convert to full path
