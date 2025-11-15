@@ -3,10 +3,10 @@
 " 	Provides popup menu for \ref, \eqref, \pageref, and \cite commands
 "
 " Maintainer:   Bin Zhou   <zhoub@bnu.edu.cn>
-" Version:      0.9.2
+" Version:      1.0.0
 "
-" Upgraded on: Sat 2025-11-15 13:43:22 CST (+0800)
-" Last change: Sat 2025-11-15 14:57:35 CST (+0800)
+" Upgraded on: Sat 2025-11-15 15:02:14 CST (+0800)
+" Last change: Sat 2025-11-15 16:52:54 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -76,14 +76,14 @@ function! s:RemoveDuplicates(list)
 	return a:list
     endif
 
-    let clean_list = []
-    for item in a:list
-	if index(clean_list, item) == -1
-	    call add(clean_list, item)
+    let l:clean_list = []
+    for l:item in a:list
+	if index(l:clean_list, l:item) == -1
+	    call add(l:clean_list, l:item)
 	endif
     endfor
 
-    return clean_list
+    return l:clean_list
 endfunction
 
 function! On_Windows()
@@ -92,18 +92,18 @@ endfunction
 
 " Function to check if {path} is absolute
 function! s:IsAbsolutePath(path)
-    let path = trim(a:path)
-    if empty(path)
+    let l:path = trim(a:path)
+    if empty(l:path)
         return 0
     endif
 
     " Windows systems: Path starts with drive letter (e.g., C:\ or D:/)
     if On_Windows()
-        return a:path =~# '^[a-zA-Z]:[\\/]'
+        return l:path =~# '^[a-zA-Z]:[\\/]'
     endif
 
     " Unix-like systems: Path starts with /
-    return a:path =~ '^/'
+    return l:path =~ '^/'
 endfunction
 
 " Function to obtain the absolute path of {filename}, with respect to {supfile}
@@ -114,30 +114,30 @@ endfunction
 "			respec to it
 function! s:GetAbsolutePath(filename, ...)
     if trim(a:filename) == "%"
-	let path = expand("%:p")
+	let l:path = expand("%:p")
     else
-	let path = expand(trim(a:filename))
+	let l:path = expand(trim(a:filename))
     endif
 
 
-    if s:IsAbsolutePath(path)
-	return simplify(path)
+    if s:IsAbsolutePath(l:path)
+	return simplify(l:path)
     endif
 
     if a:0 > 0 && !empty(trim(a:1))
 	if trim(a:1) == "%"
-	    let relative = expand("%:p")
+	    let l:relative = expand("%:p")
 	else
-	    let relative = expand(trim(a:1))
+	    let l:relative = expand(trim(a:1))
 	endif
     else
-	let relative = expand("%:p")
+	let l:relative = expand("%:p")
     endif
 
     " relative path calculated:
-    let path = fnamemodify(relative, ":p:h") ..
-		\ (On_Windows() ? "\\" : "/") .. path
-    return simplify(path)
+    let l:path = fnamemodify(l:relative, ":p:h") ..
+		\ (On_Windows() ? "\\" : "/") .. l:path
+    return simplify(l:path)
 endfunction
 
 " Function to get the environment variable initialed with '$' or '%'
@@ -147,32 +147,32 @@ endfunction
 " In fact, latex does not support most of shell environment variables.
 " Obsolete.
 function! s:PopEnvironmentVariable(path)
-    let path = trim(a:path)
+    let l:path = trim(a:path)
 
-    if empty(path)
+    if empty(l:path)
 	return ''
     endif
 
     if On_Windows()
-	let env_var = matchstr(path, '^%[a-zA-Z_][a-zA-Z0-9_]*%')
-	if len(env_var) > 2
-	    return env_var
+	let l:env_var = matchstr(l:path, '^%[a-zA-Z_][a-zA-Z0-9_]*%')
+	if len(l:env_var) > 2
+	    return l:env_var
 	endif
     endif
 
-    let env_var = matchstr(path, '^\$[a-zA-Z_][a-zA-Z0-9_]*')
-    if len(env_var) > 1
-	return env_var
+    let l:env_var = matchstr(l:path, '^\$[a-zA-Z_][a-zA-Z0-9_]*')
+    if len(l:env_var) > 1
+	return l:env_var
     endif
 
-    let env_var = matchstr(path, '^\${[a-zA-Z_][a-zA-Z0-9_]*}')
-    if len(env_var) > 3
-	return env_var
+    let l:env_var = matchstr(l:path, '^\${[a-zA-Z_][a-zA-Z0-9_]*}')
+    if len(l:env_var) > 3
+	return l:env_var
     endif
 
-    let env_var = matchstr(path, '^\${[a-zA-Z_][a-zA-Z0-9_]*\s*:.*}')
-    if len(env_var) > 5
-	return env_var
+    let l:env_var = matchstr(l:path, '^\${[a-zA-Z_][a-zA-Z0-9_]*\s*:.*}')
+    if len(l:env_var) > 5
+	return l:env_var
     endif
 
     return ''
@@ -304,6 +304,7 @@ function! GetRelativeToCwd(absolute_path) abort
         echohl ErrorMsg
         echo "Error: Absolute path not provided"
         echohl None
+
         return ''
     endif
 
@@ -322,20 +323,19 @@ endfunction
 
 " Function returning a string with TeX comments removed from the string {text}.
 function! s:RemoveTeXComment(text)
-    let i = stridx(a:text, '%')
-    if i == 0
+    let l:index = stridx(a:text, '%')
+    if l:index == 0
 	return ""
-    elseif i < 0
+    elseif l:index < 0
 	return a:text
     endif
 
     " Now there is '%' in {text} somewhere not in the beginning:
-    while i > 0
-	if  strpart(a:text, i - 1, 1) != '\'
-	    return strpart(a:text, 0, i)
+    while l:index > 0
+	if  strpart(a:text, l:index - 1, 1) != '\'
+	    return strpart(a:text, 0, l:index)
 	else
-	    let length = i
-	    let i = stridx(a:text, '%', i + 1)
+	    let l:index = stridx(a:text, '%', l:index + 1)
 	endif
     endwhile
 
@@ -347,29 +347,29 @@ endfunction
 "   {text}	string
 "   {start}	offset where the search begins
 function! s:MatchCurlyBrace(text, ...)
-    let positions = []
-    let text_len = len(a:text)
+    let l:positions = []
+    let l:text_len = len(a:text)
 
     if a:0 > 0
-	let start = a:1
+	let l:start = a:1
     else
-	let start = 0
+	let l:start = 0
     endif
 
-    if start >= text_len - 1
+    if l:start >= l:text_len - 1
 	" Starting position is so far away that no '}' can be found.
-	return positions
+	return l:positions
     endif
 
     while 1
-	let left_ind = match(a:text, '{', start)
+	let l:left_ind = match(a:text, '{', l:start)
 
-	if left_ind < 0 || left_ind == text_len - 1
+	if l:left_ind < 0 || l:left_ind == l:text_len - 1
 	    " No '{' found, or no '}' at all.
-	    return positions
-	elseif strpart(a:text, left_ind - 1, 1) == '\'
+	    return l:positions
+	elseif strpart(a:text, l:left_ind - 1, 1) == '\'
 	    " '\{' is found, which is ignored.
-	    let start = left_ind + 1
+	    let l:start = l:left_ind + 1
 	    continue
 	else
 	    " Now '{' but not '\{' is found.
@@ -378,28 +378,28 @@ function! s:MatchCurlyBrace(text, ...)
     endwhile
 
     " The first '{' has been found, not at the end.  That is,
-    "		left_ind <= text_len -2 .
-    let level = 0
-    let right_ind = -1
-    for i in range(left_ind + 1, text_len - 1)
-	let char = strpart(a:text, i, 1)
-	if char == '}' && strpart(a:text, i - 1, 1) != '\'
-	    if level == 0
-		let right_ind = i
+    "		l:left_ind <= l:text_len -2 .
+    let l:level = 0
+    let l:right_ind = -1
+    for i in range(l:left_ind + 1, l:text_len - 1)
+	let l:char = strpart(a:text, i, 1)
+	if l:char == '}' && strpart(a:text, i - 1, 1) != '\'
+	    if l:level == 0
+		let l:right_ind = i
 		break
 	    else
-		let level -= 1
+		let l:level -= 1
 	    endif
-	elseif char == '{' && strpart(a:text, i - 1, 1) != '\'
-	    let level += 1
+	elseif l:char == '{' && strpart(a:text, i - 1, 1) != '\'
+	    let l:level += 1
 	endif
     endfor
 
-    if right_ind < 0
-	return positions
+    if l:right_ind < 0
+	return l:positions
     else
-	call extend(positions, [left_ind, right_ind])
-	return positions
+	call extend(l:positions, [l:left_ind, l:right_ind])
+	return l:positions
     endif
 endfunction
 
@@ -410,26 +410,26 @@ function! s:SearchOpenBrace_left(expr, curr_offset)
 	return -1
     endif
 
-    let length = min([len(a:expr), a:curr_offset])
-    " Then {length} >= 1
+    let l:length = min([len(a:expr), a:curr_offset])
+    " Then {l:length} >= 1
 
-    while length > 0
-	let offset = strridx( strpart(a:expr, 0, length), '{' )
-	if offset <= 0
+    while l:length > 0
+	let l:offset = strridx( strpart(a:expr, 0, l:length), '{' )
+	if l:offset <= 0
 	    " '{' not found, or at the beginning of {expr}
-	    return offset
+	    return l:offset
 	endif
 
-	" Then {offset} >= 1
+	" Then {l:offset} >= 1
 
-	if strpart(a:expr, offset - 1, 1) != '\'
-	    return offset
-	elseif offset == 1
+	if strpart(a:expr, l:offset - 1, 1) != '\'
+	    return l:offset
+	elseif l:offset == 1
 	    " Only a single '\{' is found.
 	    return -1
 	else
-	    " {offset} >= 2
-	    let length = offset - 1
+	    " {l:offset} >= 2
+	    let l:length = l:offset - 1
 	endif
     endwhile
 
@@ -451,22 +451,22 @@ function! s:FindMainFile(filename)
         return ''
     endif
 
-    let lines = readfile(a:filename, '', g:tex_labels_mainfile_scope)
-    if empty(lines)
+    let l:lines = readfile(a:filename, '', g:tex_labels_mainfile_scope)
+    if empty(l:lines)
         return ''
     endif
 
-    let line_num = len(lines)
+    let l:line_num = len(l:lines)
 
-    for i in range(line_num)
-        let line = lines[i]
-        let matches = matchlist(line, '%! Main file:[ \t]*\([^ \t\n\r]*\)')
-        if len(matches) > 1
-            let main_file = matches[1]
-	    if empty(main_file)
+    for i in range(l:line_num)
+        let l:line = l:lines[i]
+        let l:matches = matchlist(l:line, '%! Main file:[ \t]*\([^ \t\n\r]*\)')
+        if len(l:matches) > 1
+            let l:main_file = l:matches[1]
+	    if empty(l:main_file)
 		continue
 	    else
-		return s:GetAbsolutePath(main_file, a:filename)
+		return s:GetAbsolutePath(l:main_file, a:filename)
 	    endif
         endif
     endfor
@@ -502,84 +502,85 @@ endfunction
 "   s:FindSubFiles(file, recursively)
 "   {recursively}	to trigger a recursive search.
 function! s:FindSubFiles(file, ...)
-    let subfiles = []
-    let file = s:GetAbsolutePath(a:file)
-    let current_file = expand("%:p")
+    let l:subfiles = []
+    let l:file = s:GetAbsolutePath(a:file)
+    let l:current_file = expand("%:p")
 
-    if !filereadable(file)
-        return subfiles
+    if !filereadable(l:file)
+        return l:subfiles
     endif
 
-    if file ==# current_file && &modified
-	" {file} is the current file and is modified:
-	let lines_read = getbufline('%', 1, '$')
+    if l:file ==# l:current_file && &modified
+	" {l:file} is the current file and is modified:
+	let l:lines_read = getbufline('%', 1, '$')
     elseif has("win64") || has("win32")
-	let lines_read = readfile(file)
+	let l:lines_read = readfile(l:file)
     else
-	let lines_read = systemlist('grep \include{ ' .. shellescape(file))
-	let lines_read = extend(lines_read,
-		    \ systemlist('grep \input{ ' .. shellescape(file))
+	let l:lines_read = systemlist('grep \include{ ' .. shellescape(l:file))
+	let l:lines_read = extend(l:lines_read,
+		    \ systemlist('grep \input{ ' .. shellescape(l:file))
 		    \ )
     endif
 
-    if empty(lines_read)
-        return subfiles
+    if empty(l:lines_read)
+        return l:subfiles
     endif
 
-    for line in lines_read
+    for line in l:lines_read
         " Remove comments
-        let clean_line = s:RemoveTeXComment(line)
+        let l:clean_line = s:RemoveTeXComment(line)
 
         " Check for \include and \input
         for cmd in ['include', 'input']
-	    let start = match(clean_line, '\\' .. cmd)
-	    if start < 0
+	    let l:start = match(l:clean_line, '\\' .. cmd)
+	    if l:start < 0
 		continue
 	    endif
 
-	    let curlybrace_at = s:MatchCurlyBrace(clean_line, start)
-	    if !empty(curlybrace_at)
-		let subfile = strpart(clean_line, curlybrace_at[0] + 1,
-			    \ curlybrace_at[1] - curlybrace_at[0] - 1
+	    let l:curlybrace_at = s:MatchCurlyBrace(l:clean_line, l:start)
+	    if !empty(l:curlybrace_at)
+		let l:subfile = strpart(l:clean_line, l:curlybrace_at[0] + 1,
+			    \ l:curlybrace_at[1] - l:curlybrace_at[0] - 1
 			    \ )
-                let subfile = trim(subfile)
-		if empty(subfile)
+                let l:subfile = trim(l:subfile)
+		if empty(l:subfile)
 		    continue
 		endif
 
-		if subfile !~ '\.tex$'
-		    let subfile = subfile .. '.tex'
+		if l:subfile !~ '\.tex$'
+		    let l:subfile = l:subfile .. '.tex'
 		endif
 		if !empty(b:tex_labels_MainFile)
-		    let subfile = s:GetAbsolutePath(subfile,
+		    let l:subfile = s:GetAbsolutePath(l:subfile,
 				\ b:tex_labels_MainFile)
 		else
-		    let main_file = s:FindMainFile(file)
-		    if !empty(main_file)
-			let b:tex_labels_MainFile = main_file
-			let subfile = s:GetAbsolutePath(subfile, main_file)
+		    let l:main_file = s:FindMainFile(l:file)
+		    if !empty(l:main_file)
+			let b:tex_labels_MainFile = l:main_file
+			let l:subfile = s:GetAbsolutePath(l:subfile,
+				    \ l:main_file)
 		    else
-			let subfile = s:GetAbsolutePath(subfile, file)
+			let l:subfile = s:GetAbsolutePath(l:subfile, l:file)
 		    endif
 		endif
 
-                call add(subfiles, subfile)
+                call add(l:subfiles, l:subfile)
 
 		if cmd == 'input'
-		    let file_sup = s:AuxFileName(subfile, 'supf')
-		    call writefile([file], file_sup)
+		    let l:file_sup = s:AuxFileName(l:subfile, 'supf')
+		    call writefile([l:file], l:file_sup)
 		endif
 
                 " Recursively find files in the included file
 		if a:0 > 0
-		    let sub_files = s:FindSubFiles(subfile, 1)
-		    call extend(subfiles, sub_files)
+		    let l:sub_files = s:FindSubFiles(l:subfile, 1)
+		    call extend(l:subfiles, l:sub_files)
 		endif
             endif
         endfor
     endfor
 
-    return s:RemoveDuplicates(subfiles)
+    return s:RemoveDuplicates(l:subfiles)
 endfunction
 
 " Behaving like GNU make, the function
@@ -597,41 +598,46 @@ endfunction
 function! s:Update_SubFiles(...)
     " Set the value of {filename}
     if a:0 > 0 && !empty(trim(a:1))
-	let filename = s:GetAbsolutePath(trim(a:1))
+	let l:filename = s:GetAbsolutePath(trim(a:1))
     elseif !empty(b:tex_labels_MainFile)
-	let filename = b:tex_labels_MainFile
+	let l:filename = b:tex_labels_MainFile
     else
-	let filename = expand("%:p")
+	let l:filename = expand("%:p")
     endif
 
     " DEBUGGING:
-    if filename !~ '\.tex$'
-	echo "s:Update_SubFiles: File name <" .. filename ..
+    if l:filename !~ '\.tex$'
+        echohl ErrorMsg
+	echo "s:Update_SubFiles: File name <" .. l:filename ..
 		    \ "> without extension <.tex>?"
+        echohl None
 
-    elseif !filereadable(filename)
-	echo "s:Update_SubFiles: file <" .. filename .. "> not readable."
+    elseif !filereadable(l:filename)
+        echohl ErrorMsg
+	echo "s:Update_SubFiles: file <" .. l:filename .. "> not readable."
 	echo "s:Update_SubFiles stops."
+        echohl None
+
 	return -1
     endif
 
     " The file <xxx.subf> is in the same directory of <xxx.tex> or <xxx>.
-    let target = s:AuxFileName(filename, 'subf')
+    let l:target = s:AuxFileName(l:filename, 'subf')
 
-    if empty(getfperm(target)) || getftime(filename) > getftime(target)
-	let included_files = s:FindSubFiles(filename)
-	call writefile(included_files, target)
+    if empty(getfperm(l:target)) || getftime(l:filename) > getftime(l:target)
+	let l:included_files = s:FindSubFiles(l:filename)
+	call writefile(l:included_files, l:target)
     else
-	let included_files = []
+	let l:included_files = []
     endif
 
-    let included_files = readfile(target)
+    let l:included_files = readfile(l:target)
 
-    if empty(included_files)
+    if empty(l:included_files)
 	return 0
     endif
 
-    for file in included_files
+    for file in l:included_files
 	if !empty(file) && s:Update_SubFiles(file) < 0
 	    return -1
 	endif
@@ -649,267 +655,271 @@ endfunction
 "			current file, its subfiles and subfiles of its subfiles,
 "			are not search if {exclude_currentfile} == 1.
 function! s:GetFilesToSearch(...)
-    let current_file = expand("%:p")
-    let files = []
-    let roots = []
+    let l:current_file = expand("%:p")
+    let l:files = []
+    let l:roots = []
 
     if a:0 > 0 && !empty(trim(a:1))
-	let main_file = s:GetAbsolutePath(a:1)
+	let l:main_file = s:GetAbsolutePath(a:1)
     elseif !empty(b:tex_labels_MainFile)
-	let main_file = b:tex_labels_MainFile
+	let l:main_file = b:tex_labels_MainFile
     else
-	let main_file = current_file
+	let l:main_file = l:current_file
     endif
-    " Now {main_file} is nonempty
+    " Now {l:main_file} is nonempty
 
     " The current file is included, if {a:2} == 1.
-    if current_file != main_file && (a:0 <= 1 || (a:0 >= 2 && !a:2))
-	call add(roots, current_file)
+    if l:current_file != l:main_file && (a:0 <= 1 || (a:0 >= 2 && !a:2))
+	call add(l:roots, l:current_file)
     endif
 
-    if filereadable(main_file)
-	call add(roots, main_file)
+    if filereadable(l:main_file)
+	call add(l:roots, l:main_file)
     endif
 
-    if empty(roots)
-	return files
+    if empty(l:roots)
+	return l:files
     endif
 
     " Files included by searched files are also searched.
-    for root_file in roots
-	call add(files, root_file)
+    for root_file in l:roots
+	call add(l:files, root_file)
 
 	if s:Update_SubFiles(root_file) < 0
 	    continue
 	endif
 
-	let root_sub = s:AuxFileName(root_file, 'subf')
-	if !filereadable(root_sub)
+	let l:root_sub = s:AuxFileName(root_file, 'subf')
+	if !filereadable(l:root_sub)
 	    continue
 	endif
 
-	let included_files = readfile(root_sub)
-	if !empty(included_files)
-	    call extend(files, included_files)
+	let l:included_files = readfile(l:root_sub)
+	if !empty(l:included_files)
+	    call extend(l:files, l:included_files)
 	endif
 
-	for file in included_files
-	    let subsub_files = s:GetFilesToSearch(file, 1)
-	    if !empty(subsub_files)
-		call extend(files, subsub_files)
+	for file in l:included_files
+	    let l:subsub_files = s:GetFilesToSearch(file, 1)
+	    if !empty(l:subsub_files)
+		call extend(l:files, l:subsub_files)
 	    endif
 	endfor
     endfor
 
     " Remove duplicates
-    return s:RemoveDuplicates(files)
+    return s:RemoveDuplicates(l:files)
 endfunction
 
 " Function to extract labels and bibitems from a file, with
 "   {type}		'label', 'bibitem' or 'tag'
 " It does not search items in subfiles of {filename}.
 function! s:ExtractLabelsBibitemsTags(filename, type)
-    let items = []
-    let eff_filename = trim(a:filename)
-    let filename = s:GetAbsolutePath(eff_filename)
-    let current_file = expand("%:p")
+    let l:items = []
+    let l:eff_filename = trim(a:filename)
+    let l:filename = s:GetAbsolutePath(l:eff_filename)
+    let l:current_file = expand("%:p")
 
-    if empty(eff_filename) || !filereadable(filename)
-	return items
+    if empty(l:eff_filename) || !filereadable(l:filename)
+	return l:items
     endif
 
-    let grep_called = 0
-    if filename ==# current_file && &modified
-	" {main_file} is the current file and is modified:
-	let lines = getbufline('%', 1, '$')
+    let l:grep_called = 0
+    if l:filename ==# l:current_file && &modified
+	" {l:filename} is the current file and is modified:
+	let l:lines = getbufline('%', 1, '$')
     elseif has("win64") || has("win32")
-	let lines = readfile(filename)
+	let l:lines = readfile(l:filename)
     else
-	let lines = systemlist('grep -n ''\\' .. a:type .. '.*{'' ' ..
-		    \ shellescape(filename))
-	let grep_called = 1
+	let l:lines = systemlist('grep -n ''\\' .. a:type .. '.*{'' ' ..
+		    \ shellescape(l:filename))
+	let l:grep_called = 1
     endif
 
-    if empty(lines)
-	return items
+    if empty(l:lines)
+	return l:items
     endif
 
-    for i in range(len(lines))
-        let line = lines[i]
-        let line_num = i + 1
+    for i in range(len(l:lines))
+        let l:line = l:lines[i]
+        let l:line_num = i + 1
 
         " Remove comments
-        let clean_line = s:RemoveTeXComment(line)
-        if empty(clean_line)
+        let l:clean_line = s:RemoveTeXComment(l:line)
+        if empty(l:clean_line)
             continue
         endif
 
         " Search commands \label, \bibitem or \tag
-        let start = match(clean_line, '\\' .. a:type)
-	if start < 0
+        let l:start = match(l:clean_line, '\\' .. a:type)
+	if l:start < 0
 	    continue
 	endif
 
-	let curlybrace_at = s:MatchCurlyBrace(clean_line, start)
-	if !empty(curlybrace_at)
-	    let label = strpart(clean_line, curlybrace_at[0] + 1,
-			\ curlybrace_at[1] - curlybrace_at[0] - 1
+	let l:curlybrace_at = s:MatchCurlyBrace(l:clean_line, l:start)
+	if !empty(l:curlybrace_at)
+	    let l:label = strpart(l:clean_line, l:curlybrace_at[0] + 1,
+			\ l:curlybrace_at[1] - l:curlybrace_at[0] - 1
 			\ )
 
-	    if grep_called
-		let line_num = matchlist(clean_line, '^\([^:]*\):')
-		let line_num = line_num[1]
+	    if l:grep_called
+		let l:line_num = matchlist(l:clean_line, '^\([^:]*\):')
+		let l:line_num = l:line_num[1]
 	    else
-		let line_num = i + 1
+		let l:line_num = i + 1
 	    endif
 
-            let item = {
-			\ 'idcode': label,
+            let l:item = {
+			\ 'idcode': l:label,
 			\ 'counter': a:type == 'label' ? '??' : a:type,
 			\ 'idnum': '??',
 			\ 'page': '??',
-			\ 'line': line_num,
-			\ 'file': fnamemodify(filename, ':t'),
-			\ 'full_path': filename
+			\ 'line': l:line_num,
+			\ 'file': fnamemodify(l:filename, ':t'),
+			\ 'full_path': l:filename
 			\ }
-	    call add(items, item)
+	    call add(l:items, l:item)
 	endif
     endfor
 
-    return items
+    return l:items
 endfunction
 
 " Function to parse auxiliary file for numbering information.  Usage:
 "   call s:ParseAuxFile(aux_file)
 "   {aux_file}		a file name with extension ".aux"
 function! s:ParseAuxFile(aux_file)
-    let label_data = {}
-    let bib_data = {}
+    let l:label_data = {}
+    let l:bib_data = {}
 
-    let aux_file = trim(a:aux_file)
-    if empty(aux_file)
+    let l:aux_file = trim(a:aux_file)
+    if empty(l:aux_file)
         return []
     endif
 
-    while empty(getfperm(aux_file))
-	let file_supf = substitute(aux_file, '.aux$', '.supf', '')
-	if empty(getfperm(file_supf)) || !filereadable(file_supf)
+    while empty(getfperm(l:aux_file))
+	let l:file_supf = substitute(l:aux_file, '.aux$', '.supf', '')
+	if empty(getfperm(l:file_supf)) || !filereadable(l:file_supf)
 	    return []
 	endif
 
-	let upper_file = readfile(file_supf)
-	if len(upper_file) != 1 || empty( upper_file[0] )
+	let l:upper_file = readfile(l:file_supf)
+	if len(l:upper_file) != 1 || empty( l:upper_file[0] )
 	    return []
 	else
-	    let aux_file = s:AuxFileName(upper_file[0], "aux")
+	    let l:aux_file = s:AuxFileName(l:upper_file[0], "aux")
 	endif
     endwhile
 
-    if !filereadable(aux_file)
+    if !filereadable(l:aux_file)
 	return []
     endif
 
-    let aux_lines = readfile(aux_file)
-    if empty(aux_lines)
+    let l:aux_lines = readfile(l:aux_file)
+    if empty(l:aux_lines)
 	return []
     endif
 
-    for line in aux_lines
+    for line in l:aux_lines
         " Parse \newlabel commands
-	let start = match(line, '\\newlabel')
-	if start >= 0
-	    let curlybrace_at = s:MatchCurlyBrace(line, start)
-	    if !empty(curlybrace_at)
-		let label = strpart(line, curlybrace_at[0] + 1,
-			    \ curlybrace_at[1] - curlybrace_at[0] - 1
+	let l:start = match(line, '\\newlabel')
+	if l:start >= 0
+	    let l:curlybrace_at = s:MatchCurlyBrace(line, l:start)
+	    if !empty(l:curlybrace_at)
+		let l:label = strpart(line, l:curlybrace_at[0] + 1,
+			    \ l:curlybrace_at[1] - l:curlybrace_at[0] - 1
 			    \ )
 
-		let start = curlybrace_at[1] + 2
-		let curlybrace_at = s:MatchCurlyBrace(line, start)
-		let num = strpart(line, curlybrace_at[0] + 1,
-			    \ curlybrace_at[1] - curlybrace_at[0] - 1
+		let l:start = l:curlybrace_at[1] + 2
+		let l:curlybrace_at = s:MatchCurlyBrace(line, l:start)
+		let l:num = strpart(line, l:curlybrace_at[0] + 1,
+			    \ l:curlybrace_at[1] - l:curlybrace_at[0] - 1
 			    \ )
 
-		let start = curlybrace_at[1] + 1
-		let matches = matchlist(line, '{\([^}]*\)}{\([^}]*\)}{\([^\.]*\)\.', start)
+		let l:start = l:curlybrace_at[1] + 1
+		let l:matches = matchlist(line,
+			    \ '{\([^}]*\)}{\([^}]*\)}{\([^\.]*\)\.', l:start)
 
-		if len(matches) > 3
-		    let page = matches[1]
-		    let counter = matches[3]
-		    let label_data[label] = {'counter': counter, 'idnum': num, 'page': page}
+		if len(l:matches) > 3
+		    let l:page = l:matches[1]
+		    let l:counter = l:matches[3]
+		    let l:label_data[l:label] = {'counter': l:counter, 'idnum': l:num, 'page': l:page}
 		endif
 	    endif
 	endif
 
         " Parse \bibcite commands
-	let start = match(line, '\\bibcite')
-	if start >= 0
-	    let curlybrace_at = s:MatchCurlyBrace(line, start)
-	    if !empty(curlybrace_at)
-		let bibitem = strpart(line, curlybrace_at[0] + 1,
-			    \ curlybrace_at[1] - curlybrace_at[0] - 1
+	let l:start = match(line, '\\bibcite')
+	if l:start >= 0
+	    let l:curlybrace_at = s:MatchCurlyBrace(line, l:start)
+	    if !empty(l:curlybrace_at)
+		let l:bibitem = strpart(line, l:curlybrace_at[0] + 1,
+			    \ l:curlybrace_at[1] - l:curlybrace_at[0] - 1
 			    \ )
-		let start = curlybrace_at[1] + 1
+		let l:start = l:curlybrace_at[1] + 1
 
-		let matches = matchlist(line, '{\([^}]*\)}', start)
-		if len(matches) > 1
-		    let num = matches[1]
-		    let bib_data[bibitem] = {'counter': 'bibitem', 'idnum': num, 'page': ''}
+		let l:matches = matchlist(line, '{\([^}]*\)}', l:start)
+		if len(l:matches) > 1
+		    let l:num = l:matches[1]
+		    let l:bib_data[l:bibitem] = {'counter': 'bibitem', 'idnum': l:num, 'page': ''}
 		endif
 	    endif
         endif
     endfor
 
-    return [label_data, bib_data]
+    return [l:label_data, l:bib_data]
 endfunction
 
 
 " Function to process selected file
 function! s:CompleteLabelInfo(file, type)
     if a:type != "label" && a:type != "bibitem" && a:type != "tag"
+        echohl ErrorMsg
 	echo "s:CompleteLabelInfo: Unknown type " .. a:type .. "."
+        echohl None
+
 	return []
     endif
 
-    let file = s:GetAbsolutePath(a:file)
+    let l:file = s:GetAbsolutePath(a:file)
     let b:tex_labels_item_overflow = 0
-    let items = s:ExtractLabelsBibitemsTags(file, a:type)
+    let l:items = s:ExtractLabelsBibitemsTags(l:file, a:type)
 
-    if empty(items)
-	return items
+    if empty(l:items)
+	return l:items
     elseif b:tex_labels_item_overflow
-	call remove(items, 0, -1)
+	call remove(l:items, 0, -1)
 	return []
     endif
 
     if a:type == "tag"
-	return items
+	return l:items
     endif
 
     " Parse auxiliary file for numbering
-    let aux_file = fnamemodify(a:file, ':r') .. '.aux'
-    let data_ParseAuxFile = s:ParseAuxFile(aux_file)
+    let l:aux_file = fnamemodify(l:file, ':r') .. '.aux'
+    let l:data_ParseAuxFile = s:ParseAuxFile(l:aux_file)
 
-    if empty(data_ParseAuxFile)
-	return items
+    if empty(l:data_ParseAuxFile)
+	return l:items
     elseif a:type == 'label'
-	let aux_data = data_ParseAuxFile[0]
+	let l:aux_data = l:data_ParseAuxFile[0]
     else
-	let aux_data = data_ParseAuxFile[1]
+	let l:aux_data = l:data_ParseAuxFile[1]
     endif
 
     " Merge auxiliary data
-    for item in items
-        if has_key(aux_data, item.idcode)
-            let item.idnum = aux_data[item.idcode].idnum
+    for item in l:items
+        if has_key(l:aux_data, item.idcode)
+            let item.idnum = l:aux_data[item.idcode].idnum
 	    if a:type == "label"
-		let item.counter = aux_data[item.idcode].counter
-		let item.page = aux_data[item.idcode].page
+		let item.counter = l:aux_data[item.idcode].counter
+		let item.page = l:aux_data[item.idcode].page
 	    endif
         endif
     endfor
 
-    return items
+    return l:items
 endfunction
 
 " Function to format menu item
@@ -931,7 +941,10 @@ function! s:FormatMenuItem(item, type)
 
     elseif a:type == "bibitem"
 	if a:item.counter != "bibitem"
+	    echohl ErrorMsg
 	    echo "s:FormatMenuItem: corrupted data.  Nothing returned."
+	    echohl None
+
 	    "return ''
 	endif
 
@@ -941,7 +954,10 @@ function! s:FormatMenuItem(item, type)
 
     elseif a:type == "tag"
 	if a:item.counter != "tag"
+	    echohl ErrorMsg
 	    echo "s:FormatMenuItem: corrupted data.  Nothing returned."
+	    echohl None
+
 	    return ''
 	endif
 
@@ -949,8 +965,11 @@ function! s:FormatMenuItem(item, type)
 		    \ a:item.line .. "} {file: " ..  a:item.full_path .. "}"
 
     else
+	echohl ErrorMsg
 	echo "s:FormatMenuItem: Unknown type " .. a:type ..
 		    \ ".  Nothing returned."
+	echohl None
+
 	return ''
     endif
 endfunction
@@ -967,6 +986,7 @@ function! s:AlignMenuItem(data, type)
         echohl ErrorMsg
 	echo 's:AlignMenuItem: type "' .. a:type .. '" not supported.'
 	echohl None
+
 	return l:output
     endif
 
@@ -1055,6 +1075,7 @@ function! s:Refs_RelativePath(fomatted_line, type)
         echohl ErrorMsg
 	echo "s:Refs_RelativePath: type \"" .. a:type "\" not supported."
         echohl None
+
 	return ''
     endif
 
@@ -1065,6 +1086,7 @@ function! s:Refs_RelativePath(fomatted_line, type)
 	    echohl ErrorMsg
 	    echo "s:Refs_RelativePath: incorrect format."
 	    echohl None
+
 	    return ''
 	endif
     endfor
@@ -1074,6 +1096,7 @@ function! s:Refs_RelativePath(fomatted_line, type)
 	echohl ErrorMsg
 	echo "s:Refs_RelativePath: incorrect format."
 	echohl None
+
 	return ''
     endif
 
@@ -1099,108 +1122,111 @@ endfunction
 "
 "   {type}	"label", "bibitem" or "tag"
 function! s:Update_AuxFiles(...)
-    let current_file = expand('%:p')
-    let target_items = []
-    let type = ''
-    let status = 0
+    let l:current_file = expand('%:p')
+    let l:target_items = []
+    let l:type = ''
+    let l:status = 0
 
     if a:0 > 0 && !empty(trim(a:1))
 	if a:1 != 'label' &&  a:1 != 'bibitem' && a:1 != 'tag'
+	    echohl ErrorMsg
 	    echo "s:Update_AuxFiles: type \'" .. a:1 ..
 			\ "\' not supported.  Nothing done."
+	    echohl None
+
 	    return -1
 	else
-	    let type = trim(a:1)
+	    let l:type = trim(a:1)
 	endif
     endif
 
-    if a:0 >= 2 && !empty(type)
+    if a:0 >= 2 && !empty(l:type)
 	if !empty(trim(a:2))
-	    let filename = s:GetAbsolutePath(trim(a:2))
-	    let type_file = s:AuxFileName(filename, type)
-	    let file_aux = s:AuxFileName(filename, "aux")
-	    let file_subf = s:AuxFileName(filename, "subf")
-	    let file_supf = s:AuxFileName(filename, "supf")
+	    let l:filename = s:GetAbsolutePath(trim(a:2))
+	    let l:type_file = s:AuxFileName(l:filename, l:type)
+	    let l:file_aux = s:AuxFileName(l:filename, "aux")
+	    let l:file_subf = s:AuxFileName(l:filename, "subf")
+	    let l:file_supf = s:AuxFileName(l:filename, "supf")
 	else
-	    return s:Update_AuxFiles(type)
+	    return s:Update_AuxFiles(l:type)
 	endif
 
 "	if getftype(a:2) == "link"
-"	    let filename = resolve(a:2)
+"	    let l:filename = resolve(a:2)
 "	else
-"	    let filename = a:2
+"	    let l:filename = a:2
 "	endif
 "
-	if filereadable(file_supf)
-	    let upper_file = readfile(file_supf)
-	    if !empty(upper_file)
-		call s:Update_AuxFiles(type, upper_file[0])
+	if filereadable(l:file_supf)
+	    let l:upper_file = readfile(l:file_supf)
+	    if !empty(l:upper_file)
+		call s:Update_AuxFiles(l:type, l:upper_file[0])
 	    endif
 	endif
 
-	if filereadable(filename) && (
-		    \ empty(getfperm(type_file)) ||
-		    \ getftime(filename) > getftime(type_file) ||
-		    \ getftime(file_aux) > getftime(type_file) ||
-		    \ getftime(file_subf) > getftime(type_file)
+	if filereadable(l:filename) && (
+		    \ empty(getfperm(l:type_file)) ||
+		    \ getftime(l:filename) > getftime(l:type_file) ||
+		    \ getftime(l:file_aux) > getftime(l:type_file) ||
+		    \ getftime(l:file_subf) > getftime(l:type_file)
 		    \ )
-	    if s:Update_SubFiles(filename) < 0
+	    if s:Update_SubFiles(l:filename) < 0
 		return -1
 	    endif
 
-	    let info_items = s:CompleteLabelInfo(filename, type)
-	    if len(info_items) > 0
-		for item in info_items
-		    call add(target_items, s:FormatMenuItem(item, type))
+	    let l:info_items = s:CompleteLabelInfo(l:filename, l:type)
+	    if len(l:info_items) > 0
+		for item in l:info_items
+		    call add(l:target_items, s:FormatMenuItem(item, l:type))
 		endfor
 	    endif
 
-	    return writefile(target_items, type_file)
+	    return writefile(l:target_items, l:type_file)
 	endif
 
 	return 0
 
-    elseif a:0 >= 2 && empty(type)
-	for type in ["label", "bibitem", "tag"]
-	    if s:Update_AuxFiles(type, a:2) < 0
-		let status = -1
+    elseif a:0 >= 2 && empty(l:type)
+	for each_type in ["label", "bibitem", "tag"]
+	    if s:Update_AuxFiles(each_type, a:2) < 0
+		let l:status = -1
 	    endif
 	endfor
 
-	return status
+	return l:status
 
-    elseif a:0 == 1 && !empty(type)
+    elseif a:0 == 1 && !empty(l:type)
 	call s:Update_SubFiles()
 
 	if !empty(b:tex_labels_MainFile)
-	    let main_file = b:tex_labels_MainFile
+	    let l:main_file = b:tex_labels_MainFile
 	else
-	    let main_file = current_file
+	    let l:main_file = l:current_file
 	endif
 
-	let searched_files = s:GetFilesToSearch(main_file)
+	let l:searched_files = s:GetFilesToSearch(l:main_file)
 
-	for file in searched_files
+	for file in l:searched_files
 	    " Auxiliary files related to the current file are not updated:
-	    "if fnamemodify(file, ':p') == current_file
+	    "if fnamemodify(file, ':p') == l:current_file
 	"	continue
 	    "endif
 
-	    if s:Update_AuxFiles(type, file) < 0
-		let status = -1
+	    if s:Update_AuxFiles(l:type, file) < 0
+		let l:status = -1
 	    endif
 	endfor
 
-	return status
+	return l:status
 
     else
-	for type in ["label", "bibitem", "tag"]
-	    if s:Update_AuxFiles(type) < 0
-		let status = -1
+	for each_type in ["label", "bibitem", "tag"]
+	    if s:Update_AuxFiles(each_type) < 0
+		let l:status = -1
 	    endif
 	endfor
 
-	return status
+	return l:status
     endif
 endfunction
 
@@ -1209,43 +1235,52 @@ endfunction
 "   {type}	either "label", "bibitem" or "tag"
 function! s:GetFilesContainingCommand(type, ...)
     if a:type != "label" && a:type != "bibitem" && a:type != "tag"
+	echohl ErrorMsg
 	echo 's:GetFilesContainingCommand: unknown type "' .. a:type .. '"'
+	echohl None
+
 	return -1
     endif
 
     if a:0 > 0
-	let mainfile = a:1
-	if s:Update_AuxFiles(a:type, mainfile) < 0
+	let l:mainfile = a:1
+	if s:Update_AuxFiles(a:type, l:mainfile) < 0
+	    echohl ErrorMsg
 	    echo 's:GetFilesContainingCommand: error form s:Update_AuxFiles'
+	    echohl None
+
 	    return -1
 	endif
 
     else
-	let mainfile = ''
+	let l:mainfile = ''
 	if s:Update_AuxFiles(a:type) < 0
+	    echohl ErrorMsg
 	    echo 's:GetFilesContainingCommand: error form s:Update_AuxFiles'
+	    echohl None
+
 	    return -1
 	endif
     endif
 
 
-    let effective_files = []
+    let l:effective_files = []
     let b:tex_labels_item_overflow = 0
-    if empty(mainfile)
-	let files = s:GetFilesToSearch()
+    if empty(l:mainfile)
+	let l:files = s:GetFilesToSearch()
     else
-	let files = s:GetFilesToSearch(mainfile)
+	let l:files = s:GetFilesToSearch(l:mainfile)
     endif
 
-    for file in files
-	let aux_file = s:AuxFileName(file, a:type)
+    for file in l:files
+	let l:aux_file = s:AuxFileName(file, a:type)
 
-	if getfsize(aux_file) > 0 || getfsize(aux_file) == -2
-	    call add(effective_files, file)
+	if getfsize(l:aux_file) > 0 || getfsize(l:aux_file) == -2
+	    call add(l:effective_files, file)
 	endif
     endfor
 
-    return effective_files
+    return l:effective_files
 endfunction
 
 " Function to check whether there are, in the file {filename}, labels related to
@@ -1257,24 +1292,24 @@ function! s:HasCounterLabels(filename, counter_name)
 	return 0
     endif
 
-    let file = s:GetAbsolutePath(a:filename)
-    let aux_file = s:AuxFileName(file, "label")
-    if !filereadable(aux_file)
+    let l:file = s:GetAbsolutePath(a:filename)
+    let l:aux_file = s:AuxFileName(l:file, "label")
+    if !filereadable(l:aux_file)
 	return 0
     endif
 
-    let labels = readfile(aux_file)
-    if empty(labels)
+    let l:labels = readfile(l:aux_file)
+    if empty(l:labels)
 	return 0
     endif
 
-    for item in labels
-	let matched = matchlist(item, '^(\([^:]*\):.*)')
-	if len(matched) < 2
+    for item in l:labels
+	let l:matched = matchlist(item, '^(\([^:]*\):.*)')
+	if len(l:matched) < 2
 	    continue
 	endif
 
-	if a:counter_name == matched[1]
+	if a:counter_name == l:matched[1]
 	    return 1
 	endif
     endfor
@@ -1287,36 +1322,39 @@ endfunction
 "   {type}	"label", "bibitem" or "tag"
 function! s:GetRefItems(filename, type)
     if a:type != "label" && a:type != "bibitem" && a:type != "tag"
+	echohl ErrorMsg
 	echo "s:GetRefItems: unknown type \"" .. a:type .. "\""
+	echohl None
+
 	return []
     endif
 
-    let filename = s:GetAbsolutePath(a:filename)
-    let current_file = expand('%:p')
+    let l:filename = s:GetAbsolutePath(a:filename)
+    let l:current_file = expand('%:p')
 
-    let aux_file = s:AuxFileName(filename, a:type)
+    let l:aux_file = s:AuxFileName(l:filename, a:type)
 
-    let refs = []
-    if filename == current_file && &modified
-	let items = s:CompleteLabelInfo(filename, a:type)
+    let l:refs = []
+    if l:filename == l:current_file && &modified
+	let l:items = s:CompleteLabelInfo(l:filename, a:type)
 
-	if empty(items)
-	    return refs
+	if empty(l:items)
+	    return l:refs
 	endif
 
-	for i in items
-	    let ref_item = s:FormatMenuItem(i, a:type)
-	    call add(refs, ref_item)
+	for i in l:items
+	    let l:ref_item = s:FormatMenuItem(i, a:type)
+	    call add(l:refs, l:ref_item)
 	endfor
 
-	return refs
+	return l:refs
 
-    elseif !filereadable(aux_file)
-	return refs
+    elseif !filereadable(l:aux_file)
+	return l:refs
     else
-	call s:Update_AuxFiles(a:type, filename)
-	let refs = readfile(aux_file)
-	return refs
+	call s:Update_AuxFiles(a:type, l:filename)
+	let l:refs = readfile(l:aux_file)
+	return l:refs
     endif
 endfunction
 
@@ -1332,55 +1370,58 @@ endfunction
 "
 function! s:GetAllReferences(type, limit)
     if a:type != "label" && a:type != "bibitem" && a:type != "tag"
+	echohl ErrorMsg
 	echo 's:GetAllReferences: unknown type "' .. a:type .. '".'
+	echohl None
+
 	return []
     endif
 
-    let refs = []
-    let files = s:GetFilesToSearch()
+    let l:refs = []
+    let l:files = s:GetFilesToSearch()
 
-    for file in files
-	call extend(refs, s:GetRefItems(file, a:type))
-	if a:limit > 0 && len(refs) > a:limit
-	    call remove(refs, 0, -1)
+    for file in l:files
+	call extend(l:refs, s:GetRefItems(file, a:type))
+	if a:limit > 0 && len(l:refs) > a:limit
+	    call remove(l:refs, 0, -1)
 	    let b:tex_labels_item_overflow = 1
-	    return refs
+	    return l:refs
 	endif
     endfor
 
-    return refs
+    return l:refs
 endfunction
 
 " Function to get all LaTeX counters related to \label{}.  Usage:
 "   s:GetAllCounters([filename])
 function! s:GetAllCounters(...)
     if a:0 > 0 && !empty(a:1)
-	let refs = s:GetRefItems(a:1, "label")
+	let l:refs = s:GetRefItems(a:1, "label")
     else
-	let refs = s:GetAllReferences("label", 0)
+	let l:refs = s:GetAllReferences("label", 0)
     endif
 
-    if empty(refs)
+    if empty(l:refs)
 	return []
     endif
 
-    let counters = []
-    for item in refs
+    let l:counters = []
+    for item in l:refs
 	if empty(item)
 	    continue
 	endif
 
-	let counter_name = matchlist(item, '^(\([^:]*\):.*)')
-	if !empty(counter_name) && !empty(counter_name[1])
-	    call add(counters, counter_name[1])
+	let l:counter_name = matchlist(item, '^(\([^:]*\):.*)')
+	if !empty(l:counter_name) && !empty(l:counter_name[1])
+	    call add(l:counters, l:counter_name[1])
 	endif
     endfor
 
-    let counters = s:RemoveDuplicates(counters)
-    if empty(counters)
+    let l:counters = s:RemoveDuplicates(l:counters)
+    if empty(l:counters)
 	return []
     else
-	return sort(counters)
+	return sort(l:counters)
     endif
 endfunction
 
@@ -1389,8 +1430,8 @@ function! s:GetLineNumber(ref)
 	return -1
     endif
 
-    let line_num = matchstr(a:ref, '{line: \([0-9]*\)}')
-    return line_num
+    let l:line_num = matchstr(a:ref, '{line: \([0-9]*\)}')
+    return l:line_num
 endfunction
 
 function! s:GetFileName(ref)
@@ -1398,8 +1439,8 @@ function! s:GetFileName(ref)
 	return ''
     endif
 
-    let file_name = matchstr(a:ref, '{file: \([^}]*\)}')
-    return file_name
+    let l:file_name = matchstr(a:ref, '{file: \([^}]*\)}')
+    return l:file_name
 endfunction
 
 
@@ -1431,12 +1472,12 @@ endfunction
 
 " Function showing a warning message
 function! s:ShowWarningMessage(message)
-    let text = []
-    call add(text, a:message)
-    call add(text, "")
-    call add(text, "Press any key to close this window.")
+    let l:text = []
+    call add(l:text, a:message)
+    call add(l:text, "")
+    call add(l:text, "Press any key to close this window.")
 
-    let popup_config = {
+    let l:popup_config = {
 		\ 'line': winline() + 1,
 		\ 'col': wincol(),
 		\ 'pos': 'topleft',
@@ -1451,7 +1492,7 @@ function! s:ShowWarningMessage(message)
 		\ 'zindex': 200,
 		\ 'filter': function('s:PopupFilter_void')
 		\ }
-    call popup_create(text, popup_config)
+    call popup_create(l:text, l:popup_config)
 endfunction
 
 " Function to process some keys for popup filters
@@ -1536,24 +1577,24 @@ endfunction
 
 " Insert selected reference
 function! s:InsertReference(ref)
-    let ref_name = a:ref
+    let l:ref_name = a:ref
 
     " Find and replace reference in the triggering buffer
-    let line = getline('.')
-    let curr_offset = col('.') - 1
+    let l:line = getline('.')
+    let l:curr_offset = col('.') - 1
 
     " Find brace boundaries
-    let start_col = s:SearchOpenBrace_left(line, curr_offset)
-    let curlybrace_at = s:MatchCurlyBrace(line, start_col)
-    let start_col += 1
-    let end_col = curlybrace_at[1]
+    let l:start_col = s:SearchOpenBrace_left(l:line, l:curr_offset)
+    let l:curlybrace_at = s:MatchCurlyBrace(l:line, l:start_col)
+    let l:start_col += 1
+    let l:end_col = l:curlybrace_at[1]
 
     " Replace reference and position cursor
-    let new_line = strpart(line, 0, start_col) .. ref_name ..
-		\ strpart(line, end_col)
-    call setline('.', new_line)
+    let l:new_line = strpart(l:line, 0, l:start_col) .. l:ref_name ..
+		\ strpart(l:line, l:end_col)
+    call setline('.', l:new_line)
     call feedkeys("\<Esc>", 'n')
-    call cursor(line('.'), start_col + len(ref_name) + 2)
+    call cursor(line('.'), l:start_col + len(l:ref_name) + 2)
 endfunction
 
 " Popup filter function
@@ -1563,7 +1604,7 @@ function! s:PopupFilter(winid, key)
         let b:prev_popup_key = ''
     endif
 
-    "let type = getwinvar(a:winid, 'type', '')
+    "let l:type = getwinvar(a:winid, 'l:type', '')
 
     " Store a digital number for repeated command
     if !exists('b:count')
@@ -1573,31 +1614,31 @@ function! s:PopupFilter(winid, key)
     " Handle different keys
     if a:key == "\<CR>"
         " Enter key - select and insert reference
-        let buf = winbufnr(a:winid)
-        let cursor_line = getbufoneline(buf, line('.', a:winid))
-        if !empty(cursor_line)
+        let l:buf = winbufnr(a:winid)
+        let l:cursor_line = getbufoneline(l:buf, line('.', a:winid))
+        if !empty(l:cursor_line)
             " Extract label from the line using the same format as in
 	    " s:FormatMenuItem
-            "let label = matchstr(cursor_line, '\v\{[^}]+\}')
+            "let l:label = matchstr(l:cursor_line, '\v\{[^}]+\}')
             " Remove the braces
-            "let label = substitute(label, '[{}]', '', 'g')
-	    let curlybrace_at = s:MatchCurlyBrace(cursor_line)
-	    if !empty(curlybrace_at)
-		let label = strpart(cursor_line, curlybrace_at[0] + 1,
-			    \ curlybrace_at[1] - curlybrace_at[0] - 1)
+            "let l:label = substitute(l:label, '[{}]', '', 'g')
+	    let l:curlybrace_at = s:MatchCurlyBrace(l:cursor_line)
+	    if !empty(l:curlybrace_at)
+		let l:label = strpart(l:cursor_line, l:curlybrace_at[0] + 1,
+			    \ l:curlybrace_at[1] - l:curlybrace_at[0] - 1)
 	    else
-		let label = ''
+		let l:label = ''
 	    endif
 	else
-	    let label = ''
+	    let l:label = ''
         endif
 
-	if !empty(label)
-	    call s:InsertReference(label)
+	if !empty(l:label)
+	    call s:InsertReference(l:label)
 	endif
         let b:tex_labels_popup = -1
         call popup_close(a:winid)
-        return !empty(label)
+        return !empty(l:label)
 
     else
         return s:Popup_KeyAction(a:winid, a:key)
@@ -1626,36 +1667,36 @@ function! s:Popup_Main(type, limit, ...)
 
     let b:tex_labels_item_overflow = 0
     if a:0 > 0 && !empty(a:1)
-	let refs = s:GetRefItems(a:1, a:type)
-	if a:limit > 0 && len(refs) > a:limit
-	    call remove(refs, 0, -1)
+	let l:refs = s:GetRefItems(a:1, a:type)
+	if a:limit > 0 && len(l:refs) > a:limit
+	    call remove(l:refs, 0, -1)
 	    let b:tex_labels_item_overflow = 1
 	endif
     else
-	let refs = s:GetAllReferences(a:type, a:limit)
+	let l:refs = s:GetAllReferences(a:type, a:limit)
     endif
 
     if b:tex_labels_item_overflow
 	let b:tex_labels_item_overflow = 0
-	" Here {refs} is empty. See, the codes of s:GetAllReferences() .
+	" Here {l:refs} is empty. See, the codes of s:GetAllReferences() .
 
 	if a:type == "label"
 	    return s:Popup_FilesCounters()
 	elseif a:type == "bibitem"
 	    return s:Popup_Files("bibitem")
 	endif
-    elseif empty(refs)
+    elseif empty(l:refs)
 	" Create error message or keep silence?
 	call s:ShowWarningMessage("No labels found.")
 	return -1
     endif
 
     if a:type == "label"
-	let title = ' Label items '
+	let l:title = ' Label items '
     elseif a:type == "bibitem"
-	let title = ' Bibliography items '
+	let l:title = ' Bibliography items '
     endif
-    let popup_config = {
+    let l:popup_config = {
 		\ 'line': winline() + 1,
 		\ 'col': wincol(),
 		\ 'pos': 'topleft',
@@ -1664,7 +1705,7 @@ function! s:Popup_Main(type, limit, ...)
 		\ 'highlight': 'TexLabelsPopup',
 		\ 'border': [1, 1, 1, 1],
 		\ 'borderhighlight': ['TexLabelsPopupBorder'],
-		\ 'title': title,
+		\ 'title': l:title,
 		\ 'titlehighlight': 'TexLabelsPopupTitle',
 		\ 'cursorline': 1,
 		\ 'zindex': 200,
@@ -1672,14 +1713,14 @@ function! s:Popup_Main(type, limit, ...)
 		\ }
 
     " Create popup menu
-    let refs_relative = []
-    for formatted_line in refs
-	call add(refs_relative, s:Refs_RelativePath(formatted_line, a:type))
+    let l:refs_relative = []
+    for formatted_line in l:refs
+	call add(l:refs_relative, s:Refs_RelativePath(formatted_line, a:type))
     endfor
 
-    let refs_relative = s:AlignMenuItem(refs_relative, a:type)
+    let l:refs_relative = s:AlignMenuItem(l:refs_relative, a:type)
 
-    let b:tex_labels_popup = popup_create(refs_relative, popup_config)
+    let b:tex_labels_popup = popup_create(l:refs_relative, l:popup_config)
     if b:tex_labels_popup < 0
 	return -1
     endif
@@ -1690,21 +1731,21 @@ endfunction
 
 " Popup filter function for counter menu
 function! s:PopupFilter_counter(winid, key)
-    let counter_then_file = getwinvar(a:winid, 'counter_then_file')
+    let l:counter_then_file = getwinvar(a:winid, 'l:counter_then_file')
 
     if a:key == "\<CR>"
-        let buf = winbufnr(a:winid)
-        let counter = getbufoneline(buf, line('.', a:winid))
-        if !empty(counter)
+        let l:buf = winbufnr(a:winid)
+        let l:counter = getbufoneline(l:buf, line('.', a:winid))
+        if !empty(l:counter)
 	    call popup_close(a:winid)
 	    let b:tex_labels_popup = -1
 
-	    if counter_then_file
-		let status = s:Popup_Files("label", counter)
+	    if l:counter_then_file
+		let l:status = s:Popup_Files("label", l:counter)
 	    else
-		let status = s:Popup_LabelsOfCounter(counter)
+		let l:status = s:Popup_LabelsOfCounter(l:counter)
 	    endif
-	    return (status == 0)
+	    return (l:status == 0)
 	endif
     else
         return s:Popup_KeyAction(a:winid, a:key)
@@ -1723,10 +1764,10 @@ function! s:Popup_Counters(type, ...)
     call s:CleanupPopup()
 
     if a:0 > 0 && !empty(a:1)
-	let filename = a:1
+	let l:filename = a:1
     else
-	let filename = ''
-	let counter_then_file = (a:0 > 0)
+	let l:filename = ''
+	let l:counter_then_file = (a:0 > 0)
     endif
 
     if a:type == "bibitem"
@@ -1745,18 +1786,18 @@ function! s:Popup_Counters(type, ...)
 
     " From now on, a:type == 'label'
 
-    let counters = s:GetAllCounters()
-    if len(counters) == 1
-	if counter_then_file
+    let l:counters = s:GetAllCounters()
+    if len(l:counters) == 1
+	if l:counter_then_file
 	    return s:Popup_Files("label")
 	else
-	    return s:Popup_Main("label", 0, filename)
+	    return s:Popup_Main("label", 0, l:filename)
 	endif
     endif
 
     " In the following, there are at least two LaTeX counters.
 
-    let popup_config = {
+    let l:popup_config = {
 		\ 'line': winline() + 1,
 		\ 'col': wincol(),
 		\ 'pos': 'topleft',
@@ -1772,11 +1813,11 @@ function! s:Popup_Counters(type, ...)
 		\ 'filter': function('s:PopupFilter_counter')
 		\ }
 
-    let b:tex_labels_popup = popup_create(counters, popup_config)
+    let b:tex_labels_popup = popup_create(l:counters, l:popup_config)
 
     if b:tex_labels_popup > 0
-	call setwinvar(b:tex_labels_popup, 'counter_then_file',
-		    \ counter_then_file)
+	call setwinvar(b:tex_labels_popup, 'l:counter_then_file',
+		    \ l:counter_then_file)
 	return 0
     else
 	let b:tex_labels_popup = -1
@@ -1786,8 +1827,8 @@ endfunction
 
 " Popup filter function for file selection
 function! s:PopupFilter_file(winid, key)
-    let type = getwinvar(a:winid, 'type')
-    let file_then_counter = getwinvar(a:winid, 'file_then_counter')
+    let l:type = getwinvar(a:winid, 'l:type')
+    let l:file_then_counter = getwinvar(a:winid, 'l:file_then_counter')
 
     " Store previous key for gg detection
     if !exists('b:prev_popup_key')
@@ -1802,16 +1843,16 @@ function! s:PopupFilter_file(winid, key)
     " Handle different keys
     if a:key == "\<CR>"
         " Enter key - select and insert reference
-        let buf = winbufnr(a:winid)
-        let file = getbufoneline(buf, line('.', a:winid))
-        if !empty(file)
+        let l:buf = winbufnr(a:winid)
+        let l:file = getbufoneline(l:buf, line('.', a:winid))
+        if !empty(l:file)
 	    let b:tex_labels_popup = -1
 	    call popup_close(a:winid)
 
-	    if file_then_counter
+	    if l:file_then_counter
 		call s:Popup_Counters("label")
 	    else
-		call s:Popup_Main(type, 0, file)
+		call s:Popup_Main(l:type, 0, l:file)
 	    endif
 	    return 1
 	else
@@ -1859,9 +1900,9 @@ function! s:Popup_Files(type, ...)
     call s:CleanupPopup()
 
     if a:0 > 0 && empty(a:1) && a:type == "label"
-	let file_then_counter = 1
+	let l:file_then_counter = 1
     else
-	let file_then_counter = 0
+	let l:file_then_counter = 0
     endif
 
     if a:type != "label" && a:type != "bibitem"
@@ -1870,48 +1911,48 @@ function! s:Popup_Files(type, ...)
 	return -1
     endif
 
-    let files = s:GetFilesContainingCommand(a:type)
+    let l:files = s:GetFilesContainingCommand(a:type)
 
-    if empty(files)
+    if empty(l:files)
 	call s:ShowWarningMessage('No files containing "' .. a:type .. '".')
 	return -1
 
-    elseif len(files) == 1
-	if file_then_counter
-	    let status = s:Popup_Counters(a:type, files[0])
-	    return (status == 0)
+    elseif len(l:files) == 1
+	if l:file_then_counter
+	    let l:status = s:Popup_Counters(a:type, l:files[0])
+	    return (l:status == 0)
 	else
-	    let status = s:Popup_Main(a:type, 0, files[0])
-	    return (status == 0)
+	    let l:status = s:Popup_Main(a:type, 0, l:files[0])
+	    return (l:status == 0)
 	endif
 
     endif
 
-    " Now len(files) > 1
+    " Now len(l:files) > 1
 
     if a:0 > 0 && !empty(a:1) && a:type == "label"
-	let effective_files = []
-	for file in files
+	let l:effective_files = []
+	for file in l:files
 	    if s:HasCounterLabels(file, a:1)
-		call add(effective_files, s:GetRelativePath(file))
+		call add(l:effective_files, s:GetRelativePath(file))
 	    endif
 	endfor
 
-	if !empty(effective_files)
-	    let files = effective_files
+	if !empty(l:effective_files)
+	    let l:files = l:effective_files
 	else
 	    call s:ShowWarningMessage('No files containing a label belonging to the LaTeX counter "' .. a:1 .. '".')
 	    return -1
 	endif
     else
-	let rel_files = []
-	for file in files
-	    call add(rel_files, s:GetRelativePath(file))
+	let l:rel_files = []
+	for file in l:files
+	    call add(l:rel_files, s:GetRelativePath(file))
 	endfor
-	let files = rel_files
+	let l:files = l:rel_files
     endif
 
-    let popup_config = {
+    let l:popup_config = {
 		\ 'line': winline() + 1,
 		\ 'col': wincol(),
 		\ 'pos': 'topleft',
@@ -1928,12 +1969,12 @@ function! s:Popup_Files(type, ...)
 		\ }
 
     " Create popup menu
-    let b:tex_labels_popup = popup_create(files, popup_config)
+    let b:tex_labels_popup = popup_create(l:files, l:popup_config)
     if b:tex_labels_popup > 0
 	call setwinvar(b:tex_labels_popup, 'type', a:type)
-	call setwinvar(b:tex_labels_popup, 'file_then_counter',
-		    \ file_then_counter)
-	"call setwinvar(b:tex_labels_popup, 'files', files)
+	call setwinvar(b:tex_labels_popup, 'l:file_then_counter',
+		    \ l:file_then_counter)
+	"call setwinvar(b:tex_labels_popup, 'l:files', l:files)
 	return 0
     else
 	return -1
@@ -1942,8 +1983,8 @@ endfunction
 
 " Popup filter function
 function! s:PopupFilter_FileCounter(winid, key)
-    let involved_files = getwinvar(a:winid, 'involved_files')
-    let counters = getwinvar(a:winid, 'counters')
+    let l:involved_files = getwinvar(a:winid, 'l:involved_files')
+    let l:counters = getwinvar(a:winid, 'l:counters')
 
     " Handle different keys
     "if a:key =~# '^[1-3]'
@@ -1959,7 +2000,7 @@ function! s:PopupFilter_FileCounter(winid, key)
 	return 1
 
     elseif a:key == '2'
-	if len(involved_files) > 1
+	if len(l:involved_files) > 1
 	    let b:tex_labels_popup = -1
 	    let b:prev_popup_key = ''
 	    call popup_close(a:winid)
@@ -1970,7 +2011,7 @@ function! s:PopupFilter_FileCounter(winid, key)
 	return 1
 
     elseif a:key == '3'
-	if len(counters) > 1
+	if len(l:counters) > 1
 	    let b:tex_labels_popup = -1
 	    let b:prev_popup_key = ''
 	    call popup_close(a:winid)
@@ -1981,7 +2022,7 @@ function! s:PopupFilter_FileCounter(winid, key)
 	return 1
 
     elseif a:key == '4'
-	if len(involved_files) > 1 && len(counters) > 1
+	if len(l:involved_files) > 1 && len(l:counters) > 1
 	    let b:tex_labels_popup = -1
 	    let b:prev_popup_key = ''
 	    call popup_close(a:winid)
@@ -1993,7 +2034,7 @@ function! s:PopupFilter_FileCounter(winid, key)
 	return 1
 
     elseif a:key == '5'
-	if len(involved_files) > 1 && len(counters) > 1
+	if len(l:involved_files) > 1 && len(l:counters) > 1
 	    let b:tex_labels_popup = -1
 	    let b:prev_popup_key = ''
 	    call popup_close(a:winid)
@@ -2004,23 +2045,23 @@ function! s:PopupFilter_FileCounter(winid, key)
 	return 1
 
     elseif a:key == "\<CR>"
-	let selection = line('.', a:winid)
-	if selection == '1'
+	let l:selection = line('.', a:winid)
+	if l:selection == '1'
 	    call s:Popup_Main("label", 0)
-	elseif selection == '2'
-	    if len(involved_files) > 1
+	elseif l:selection == '2'
+	    if len(l:involved_files) > 1
 		call s:Popup_Files("label")
 	    endif
-	elseif selection == '3'
-	    if len(counters) > 1
+	elseif l:selection == '3'
+	    if len(l:counters) > 1
 		call s:Popup_Counters("label")
 	    endif
-	elseif selection == '4'
-	    if len(involved_files) > 1 && len(counters) > 1
+	elseif l:selection == '4'
+	    if len(l:involved_files) > 1 && len(l:counters) > 1
 		call s:Popup_Files("label", '')
 	    endif
-	elseif selection == '5'
-	    if len(involved_files) > 1 && len(counters) > 1
+	elseif l:selection == '5'
+	    if len(l:involved_files) > 1 && len(l:counters) > 1
 		call s:Popup_Counters("label", '')
 	    endif
 	endif
@@ -2032,9 +2073,9 @@ function! s:PopupFilter_FileCounter(winid, key)
         return 1
 
     else
-        let status = s:Popup_KeyAction(a:winid, a:key)
+        let l:status = s:Popup_KeyAction(a:winid, a:key)
 	let b:prev_popup_key = ''
-	return status
+	return l:status
     endif
 endfunction
 
@@ -2044,42 +2085,42 @@ endfunction
 function! s:Popup_FilesCounters()
     call s:CleanupPopup()
 
-    let involved_files = s:GetFilesContainingCommand("label")
-    if empty(involved_files)
+    let l:involved_files = s:GetFilesContainingCommand("label")
+    if empty(l:involved_files)
 	call s:ShowWarningMessage("No files found.")
 	return -1
     endif
 
-    let counters = s:GetAllCounters()
-    if empty(counters)
+    let l:counters = s:GetAllCounters()
+    if empty(l:counters)
 	call s:ShowWarningMessage("No cross reference labels found.")
 	return -1
     endif
 
-    " Now both involved_files and counters are non-empty.
+    " Now both l:involved_files and l:counters are non-empty.
 
-    let items = []
-    call add(items, '[1] List all labels anyway')
+    let l:items = []
+    call add(l:items, '[1] List all labels anyway')
 
-    if len(involved_files) > 1 && len(counters) > 1
-	call add(items, "[2] Select according to files")
-	call add(items, "[3] Select according to counters")
-	call add(items, "[4] Select through \"file -> counter\"")
-	call add(items, "[5] Select through \"counter -> file\"")
-    elseif len(involved_files) > 1
-	call add(items, "[2] Select according to files")
-	call add(items, "[3]")
-	call add(items, "[4]")
-	call add(items, "[5]")
-    elseif len(counters) > 1
-	call add(items, "[2]")
-	call add(items, "[3] Select according to counters")
-	call add(items, "[4]")
-	call add(items, "[5]")
+    if len(l:involved_files) > 1 && len(l:counters) > 1
+	call add(l:items, "[2] Select according to files")
+	call add(l:items, "[3] Select according to counters")
+	call add(l:items, "[4] Select through \"file -> counter\"")
+	call add(l:items, "[5] Select through \"counter -> file\"")
+    elseif len(l:involved_files) > 1
+	call add(l:items, "[2] Select according to files")
+	call add(l:items, "[3]")
+	call add(l:items, "[4]")
+	call add(l:items, "[5]")
+    elseif len(l:counters) > 1
+	call add(l:items, "[2]")
+	call add(l:items, "[3] Select according to counters")
+	call add(l:items, "[4]")
+	call add(l:items, "[5]")
     endif
 
-    if len(items) > 1
-	let popup_config = {
+    if len(l:items) > 1
+	let l:popup_config = {
 		    \ 'line': winline() + 1,
 		    \ 'col': wincol(),
 		    \ 'pos': 'topleft',
@@ -2094,18 +2135,19 @@ function! s:Popup_FilesCounters()
 		    \ 'zindex': 200,
 		    \ 'filter': function('s:PopupFilter_FileCounter')
 		    \ }
-	let b:tex_labels_popup = popup_create(items, popup_config)
+	let b:tex_labels_popup = popup_create(l:items, l:popup_config)
 	if b:tex_labels_popup > 0
 	    call win_execute(b:tex_labels_popup, 'normal! j')
-	    call setwinvar(b:tex_labels_popup, 'involved_files', involved_files)
-	    call setwinvar(b:tex_labels_popup, 'counters', counters)
+	    call setwinvar(b:tex_labels_popup, 'l:involved_files',
+			\ l:involved_files)
+	    call setwinvar(b:tex_labels_popup, 'l:counters', l:counters)
 	    return 0
 	else
 	    return -1
 	endif
 
-    elseif len(involved_files) == 1
-	return s:Popup_Counters("label", involved_files)
+    elseif len(l:involved_files) == 1
+	return s:Popup_Counters("label", l:involved_files)
     else
 	return 0
     endif
@@ -2126,28 +2168,28 @@ function! s:PopupFilter_CounterItems(winid, key)
     " Handle different keys
     if a:key == "\<CR>"
         " Enter key - select and insert reference
-        let buf = winbufnr(a:winid)
-        let cursor_line = getbufoneline(buf, line('.', a:winid))
-        if !empty(cursor_line)
+        let l:buf = winbufnr(a:winid)
+        let l:cursor_line = getbufoneline(l:buf, line('.', a:winid))
+        if !empty(l:cursor_line)
             " Extract label from the line using the same format as in
 	    " s:FormatMenuItem
-	    let curlybrace_at = s:MatchCurlyBrace(cursor_line)
-	    if !empty(curlybrace_at)
-		let label = strpart(cursor_line, curlybrace_at[0] + 1,
-			    \ curlybrace_at[1] - curlybrace_at[0] - 1)
+	    let l:curlybrace_at = s:MatchCurlyBrace(l:cursor_line)
+	    if !empty(l:curlybrace_at)
+		let l:label = strpart(l:cursor_line, l:curlybrace_at[0] + 1,
+			    \ l:curlybrace_at[1] - l:curlybrace_at[0] - 1)
 	    else
-		let label = ''
+		let l:label = ''
 	    endif
 	else
-	    let label = ''
+	    let l:label = ''
         endif
 
-	if !empty(label)
-	    call s:InsertReference(label)
+	if !empty(l:label)
+	    call s:InsertReference(l:label)
 	endif
         let b:tex_labels_popup = -1
         call popup_close(a:winid)
-        return !empty(label)
+        return !empty(l:label)
 
     else
         return s:Popup_KeyAction(a:winid, a:key)
@@ -2163,28 +2205,28 @@ function! s:Popup_LabelsOfCounter(counter_name, ...)
     "call s:CleanupPopup()
 
     if a:0 > 0 && !empty(a:1)
-	let refs = s:GetRefItems(a:1, "label")
+	let l:refs = s:GetRefItems(a:1, "label")
     else
-	let refs = s:GetAllReferences("label", 0)
+	let l:refs = s:GetAllReferences("label", 0)
     endif
 
     if empty(a:counter_name)
 	call s:ShowWarningMessage('No counter name')
 	return -1
-    elseif empty(refs)
+    elseif empty(l:refs)
 	call s:ShowWarningMessage('No labels related to the counter ' ..
 		    \ a:counter_name)
 	return -1
     endif
 
-    let labels = []
-    for item in refs
+    let l:labels = []
+    for item in l:refs
 	if item =~ a:counter_name
-	    call add(labels, item)
+	    call add(l:labels, item)
 	endif
     endfor
 
-    let popup_config = {
+    let l:popup_config = {
 		\ 'line': winline() + 1,
 		\ 'col': wincol(),
 		\ 'pos': 'topleft',
@@ -2200,9 +2242,9 @@ function! s:Popup_LabelsOfCounter(counter_name, ...)
 		\ 'filter': function('s:PopupFilter_CounterItems')
 		\ }
 
-    let b:tex_labels_popup = popup_create(labels, popup_config)
+    let b:tex_labels_popup = popup_create(l:labels, l:popup_config)
     if b:tex_labels_popup > 0
-	"call setwinvar(b:tex_labels_popup, 'labels', labels)
+	"call setwinvar(b:tex_labels_popup, 'l:labels', l:labels)
 	return 0
     else
 	return -1
@@ -2223,73 +2265,73 @@ endfunction
 " Function to check whether 'marker' in '\label{marker}', '\bibitem{marker}',
 " '\tag{marker}' or '\include{marker}' is duplicated.
 function! s:Popup_CheckLabels()
-    let type = s:TriggerCheck()
-    if type == "subf" || type == "supf"
+    let l:type = s:TriggerCheck()
+    if l:type == "subf" || l:type == "supf"
 	return s:Popup_CheckInclude()
-    elseif type != "label" && type != "bibitem" && type != "tag"
+    elseif l:type != "label" && l:type != "bibitem" && l:type != "tag"
 	return -1
     endif
 
-    let line = getline('.')
-    let line_number = line('.')
-    let curr_offset = col('.') - 1
+    let l:line = getline('.')
+    let l:line_number = line('.')
+    let l:curr_offset = col('.') - 1
 
     " Find the nearest '{' (not part of '\{') on the left of cursor
-    let open_brace_at = s:SearchOpenBrace_left(line, curr_offset)
-    if open_brace_at < 0
+    let l:open_brace_at = s:SearchOpenBrace_left(l:line, l:curr_offset)
+    if l:open_brace_at < 0
         return -1
     endif
 
     " Check if cursor is between '{' and '}'
-    let curlybrace_at = s:MatchCurlyBrace(line, open_brace_at)
-    if empty(curlybrace_at)
+    let l:curlybrace_at = s:MatchCurlyBrace(l:line, l:open_brace_at)
+    if empty(l:curlybrace_at)
         return -1
     endif
 
-    let close_brace_at = curlybrace_at[1]
-    if close_brace_at < curr_offset
+    let l:close_brace_at = l:curlybrace_at[1]
+    if l:close_brace_at < l:curr_offset
         return -1
     endif
 
     " Extract curr_marker: the string after the '{' and up to cursor position
-    let curr_marker = strpart(line, open_brace_at + 1,
-		\ curr_offset - open_brace_at - 1) .. v:char
+    let l:curr_marker = strpart(l:line, l:open_brace_at + 1,
+		\ l:curr_offset - l:open_brace_at - 1) .. v:char
 
-    " If curr_marker is empty, don't show popup
-    if empty(curr_marker)
+    " If l:curr_marker is empty, don't show popup
+    if empty(l:curr_marker)
         return -1
     endif
 
     " Get all label references
-    let all_refs = s:GetAllReferences(type, 0)
-    if empty(all_refs)
+    let l:all_refs = s:GetAllReferences(l:type, 0)
+    if empty(l:all_refs)
         return -1
     endif
 
-    " Find labels that start with curr_marker
-    let matching_refs = []
-    for ref in all_refs
+    " Find labels that start with l:curr_marker
+    let l:matching_refs = []
+    for ref in l:all_refs
         " Extract label name from the formatted reference line
-        let curlybrace_at_ref = s:MatchCurlyBrace(ref)
-        if !empty(curlybrace_at_ref)
-            let label_name = strpart(ref, curlybrace_at_ref[0] + 1,
-			\ curlybrace_at_ref[1] - curlybrace_at_ref[0] - 1)
-            if label_name =~ '^' . curr_marker && (
-			\ s:GetLineNumber(ref) != line_number ||
+        let l:curlybrace_at_ref = s:MatchCurlyBrace(ref)
+        if !empty(l:curlybrace_at_ref)
+            let l:label_name = strpart(ref, l:curlybrace_at_ref[0] + 1,
+			\ l:curlybrace_at_ref[1] - l:curlybrace_at_ref[0] - 1)
+            if l:label_name =~ '^' .. l:curr_marker && (
+			\ s:GetLineNumber(ref) != l:line_number ||
 			\ s:GetAbsolutePath(s:GetFileName(ref)) !=
 			\ expand("%:p")
 			\ )
-                call add(matching_refs, ref)
+                call add(l:matching_refs, ref)
             endif
         endif
     endfor
 
     " If there are matching labels, show them in a popup
-    if !empty(matching_refs)
+    if !empty(l:matching_refs)
         " Close any existing popup first
         call s:CleanupPopup()
 
-        let popup_config = {
+        let l:popup_config = {
                     \ 'line': winline() + 1,
                     \ 'col': wincol() + 2,
                     \ 'pos': 'topleft',
@@ -2306,7 +2348,7 @@ function! s:Popup_CheckLabels()
                     \ }
 
         " Create popup menu
-        let b:tex_labels_popup = popup_create(matching_refs, popup_config)
+        let b:tex_labels_popup = popup_create(l:matching_refs, l:popup_config)
         if b:tex_labels_popup > 0
             return 0
         else
@@ -2325,53 +2367,53 @@ endfunction
 
 " Check whether some action should be triggered
 function! s:TriggerCheck()
-    let line = getline('.')
-    let offset = col('.') - 1
+    let l:line = getline('.')
+    let l:offset = col('.') - 1
 
     " Quick check: if no '{' before cursor, return early
-    let open_brace_at = s:SearchOpenBrace_left(line, offset)
-    if open_brace_at < 0
+    let l:open_brace_at = s:SearchOpenBrace_left(l:line, l:offset)
+    if l:open_brace_at < 0
 	return ''
     endif
 
     " Check if cursor is between '{' and '}' .
-    " Note that '{' with offset {open_brace_at} is not part of '\{'.
-    let curlybrace_at = s:MatchCurlyBrace(line, open_brace_at)
-    if empty(curlybrace_at)
+    " Note that '{' with offset {l:open_brace_at} is not part of '\{'.
+    let l:curlybrace_at = s:MatchCurlyBrace(l:line, l:open_brace_at)
+    if empty(l:curlybrace_at)
 	return ''
     endif
 
-    let close_brace_at = curlybrace_at[1]
-    if close_brace_at < offset
+    let l:close_brace_at = l:curlybrace_at[1]
+    if l:close_brace_at < l:offset
 	return ''
     endif
 
     " Now the cursor is behide '{', and is before or at '}'.  That is,
-    "	{open_brace_at} < {offset} <= {close_brace_at} .
+    "	{l:open_brace_at} < {l:offset} <= {l:close_brace_at} .
 
     " Check if it's a command like \ref, \eqref, and so on
-    let before_brace = strpart(line, 0, open_brace_at)
-    if before_brace =~ '\v\\(ref|eqref|pageref)\s*$'
+    let l:before_brace = strpart(l:line, 0, l:open_brace_at)
+    if l:before_brace =~ '\v\\(ref|eqref|pageref)\s*$'
 	call s:Update_AuxFiles()
 	call s:Popup_Main("label", g:tex_labels_limit)
 	return 'label'
-    elseif before_brace =~ '\v\\cite\s*$'
+    elseif l:before_brace =~ '\v\\cite\s*$'
 	call s:Update_AuxFiles()
 	call s:Popup_Main("bibitem", g:tex_labels_limit)
 	return 'bibitem'
-    elseif before_brace =~ '\v\\label\s*$'
+    elseif l:before_brace =~ '\v\\label\s*$'
 	call s:Update_AuxFiles()
 	return 'label'
-    elseif before_brace =~ '\v\\tag\s*$'
+    elseif l:before_brace =~ '\v\\tag\s*$'
 	call s:Update_AuxFiles()
 	return 'tag'
-    elseif before_brace =~ '\v\\bibitem\s*(\[[^\]]*\])?\s*$'
+    elseif l:before_brace =~ '\v\\bibitem\s*(\[[^\]]*\])?\s*$'
 	call s:Update_AuxFiles()
 	return 'bibitem'
-    elseif before_brace =~ '\v\\include\s*$'
+    elseif l:before_brace =~ '\v\\include\s*$'
 	call s:Update_AuxFiles()
 	return 'subf'
-    elseif before_brace =~ '\v\\input\s*$'
+    elseif l:before_brace =~ '\v\\input\s*$'
 	call s:Update_AuxFiles()
 	return 'supf'
     endif
