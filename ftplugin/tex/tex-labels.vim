@@ -3,10 +3,10 @@
 " 	Provides popup menu for \ref, \eqref, \pageref, and \cite commands
 "
 " Maintainer:   Bin Zhou   <zhoub@bnu.edu.cn>
-" Version:      0.9.1
+" Version:      0.9.2
 "
-" Upgraded on: Fri 2025-11-14 20:56:32 CST (+0800)
-" Last change: Sat 2025-11-15 13:30:23 CST (+0800)
+" Upgraded on: Sat 2025-11-15 13:43:22 CST (+0800)
+" Last change: Sat 2025-11-15 14:57:35 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -725,7 +725,7 @@ function! s:ExtractLabelsBibitemsTags(filename, type)
     elseif has("win64") || has("win32")
 	let lines = readfile(filename)
     else
-	let lines = systemlist('grep -n \' .. a:type .. '.*{ ' ..
+	let lines = systemlist('grep -n ''\\' .. a:type .. '.*{'' ' ..
 		    \ shellescape(filename))
 	let grep_called = 1
     endif
@@ -757,7 +757,8 @@ function! s:ExtractLabelsBibitemsTags(filename, type)
 			\ )
 
 	    if grep_called
-		let line_num = matchstr(clean_line, '^\([^:]*\):')
+		let line_num = matchlist(clean_line, '^\([^:]*\):')
+		let line_num = line_num[1]
 	    else
 		let line_num = i + 1
 	    endif
@@ -924,8 +925,8 @@ function! s:FormatMenuItem(item, type)
 
     if a:type == "label"
 	return "(" .. a:item.counter .. ": " .. a:item.idnum .. ") {" ..
-		    \ a:item.idcode .. "} {page: " .. a:item.page ..
-		    \ "} {line: " .. a:item.line .. "} {file: " ..
+		    \ a:item.idcode .. "} {p." .. a:item.page ..
+		    \ "} {l." .. a:item.line .. "} {file: " ..
 		    \ a:item.full_path .. "}"
 
     elseif a:type == "bibitem"
@@ -935,7 +936,7 @@ function! s:FormatMenuItem(item, type)
 	endif
 
 	return "Ref. [" .. a:item.idnum .. "] {" ..
-		    \ a:item.idcode .. "} {line: " .. a:item.line ..
+		    \ a:item.idcode .. "} {l." .. a:item.line ..
 		    \ "} {file: " .. a:item.full_path .. "}"
 
     elseif a:type == "tag"
@@ -944,7 +945,7 @@ function! s:FormatMenuItem(item, type)
 	    return ''
 	endif
 
-	return "{tag: " .. a:item.idcode .. "} {line: " ..
+	return "{tag: " .. a:item.idcode .. "} {l." ..
 		    \ a:item.line .. "} {file: " ..  a:item.full_path .. "}"
 
     else
