@@ -20,7 +20,7 @@ CONTENTS				*tex-labels* *tex-labels-contents*
 ==============================================================================
 1. Introduction						*tex-labels-introduction*
 
-The tex-labels plugin provides intelligent popup completion for LaTeX references
+The plugin tex-labels provides intelligent popup completion for LaTeX references
 in Vim.  It automatically detects when you're working with LaTeX reference
 commands and provides context-sensitive popup menus for selecting labels,
 bibliography items, and other references.
@@ -40,13 +40,16 @@ Features:
 
 MANUAL INSTALLATION ~
 
-1. Create the ftplugin directory structure:
+1. Create the ftplugin directory structure.  If there are no directories
+|.vim/ftplugin/tex| and |.vim/doc| in your home directory, create them as
+follows:
 >
     mkdir -p ~/.vim/ftplugin/tex/
     mkdir -p ~/.vim/doc/
 <
 
-2. Copy the plugin file:
+2. Copy the plugin file.  After changing to the top directory of the source
+tree, copy the plugin script as follows:
 >
     cp ftplugin/tex/tex-labels.vim ~/.vim/ftplugin/tex/
 <
@@ -56,7 +59,7 @@ MANUAL INSTALLATION ~
     cp doc/tex-labels.txt ~/.vim/doc/
 <
 
-4. Generate help tags:
+4. Generate help tags.  In Vim, execute the following command:
 >
     :helptags ~/.vim/doc
 <
@@ -114,6 +117,23 @@ Example: >
     let g:tex_labels_mainfile_scope = 20
 <
 
+						*g:tex_labels_path_WRT*
+Determining the base directory for relative paths of files in various popup windows.
+Default: 'CFD'
+
+Possible values:
+   - 'CFD'	paths relative to the directory of the current file
+   - 'PWD'	paths relative to current working direcotry
+   - 'MFD'	paths relative to the directory of the main file, falling back
+		to 'CFD' when there is no main file specified (i.e., when
+		|b:tex_labels_MainFile| is empty)
+
+Example:
+>
+    let g:tex_labels_path_WRT = 'PWD'
+<
+
+
 ==============================================================================
 4. Usage						*tex-labels-usage*
 
@@ -128,30 +148,29 @@ type LaTeX reference commands, a popup menu appears with available references:
    - `\pageref{}` for page references
    - `\cite{}` for citations
 
-2. Pressing <Esc>, you turn Vim to normal mode.  Now move the cursor to `}`
-as in the above, and turn Vim to insert mode by pressing `i`. Then a popup menu
+2. Pressing <Esc>, you turn Vim to normal mode.  Now move the cursor to |}|
+as in the above, and turn Vim to insert mode by pressing |i|. Then a popup menu
 appears showing available references.
 
 This might be somehow tedious.  In fact, you can add a file in
-`~/.vim/ftplugin/tex`.  Assume this file is `remap.vim`.  It makes all the above
-perfect to add the following six lines in it:
----------------------------------------
-inoremap \ref{ \ref{}<Esc>i
-inoremap \eqref{ \eqref{}<Esc>i
-inoremap \pageref{ \pageref{}<Esc>i
-inoremap \label{ \label{}<Esc>i
-inoremap \bibitem{ \bibitem{}<Esc>i
-inoremap \tag{ \tag{}<Esc>i
----------------------------------------
-Save this file and restart your Vim.  From now on, inputting `\ref{` in your
-LaTeX file is equivalent to inputting `\ref{}` followed by <Esc> and `i`.
-That is, whenever you input `\ref{` into you LaTeX file, Vim automatically
-translates it to `\ref{}` and turns to normal mode, then enter insert mode
+|~/.vim/ftplugin/tex|.  Assume this file is |remap.vim|.  It makes all the above
+perfect to add the following six lines in it: >
+    inoremap \ref{ \ref{}<Esc>i
+    inoremap \eqref{ \eqref{}<Esc>i
+    inoremap \pageref{ \pageref{}<Esc>i
+    inoremap \label{ \label{}<Esc>i
+    inoremap \bibitem{ \bibitem{}<Esc>i
+    inoremap \tag{ \tag{}<Esc>i
+<
+Save this file and restart your Vim.  From now on, inputting |\ref{| in your
+LaTeX file is equivalent to inputting |\ref{}| followed by <Esc> and |i|.
+That is, whenever you input |\ref{| into you LaTeX file, Vim automatically
+translates it to |\ref{}| and turns to normal mode, then enter insert mode
 again.  This triggers a popup menu.
 
 3. Use navigation keys (see |tex-labels-navigation|) to select an item.
 
-4. Press Enter to insert the selected reference.
+4. Press <Enter> to insert the selected reference.
 
 Example workflow:
 >
@@ -175,21 +194,20 @@ The following keys can be used in popup menus:
     gg              Jump to first item
     <Esc>           Close popup without selection
 
-Number prefixes work with movement commands (e.g., `5j` moves down 5 lines,
-`12G` goes to line 12).
+Number prefixes work with movement commands (e.g., |5j| moves down 5 lines,
+|12G| goes to line 12).
 
 SPECIAL NAVIGATION IN FILE-COUNTER MENU ~
 
-When the number of items exceeds `g:tex_labels_limit`, a special menu appears
+When the number of items exceeds |g:tex_labels_limit|, a special menu appears
 offering organization options. In this menu, pressing keys 1-5 directly
-selects the corresponding option without needing Enter:
---------------------------------------------
+selects the corresponding option without needing Enter: >
     [1]  List all labels anyway
     [2]  Select according to files
     [3]  Select according to counters
     [4]  Select through "file → counter"
     [5]  Select through "counter → file"
---------------------------------------------
+<
 
 MULTI-FILE PROJECTS					*tex-labels-multi-file*
 
@@ -442,6 +460,23 @@ Manually trigger updates: >
 
 ==============================================================================
 8. Changelog					*tex-labels-changelog*
+
+VERSION 1.0 ~
+- All variables in functions begin with "`l:`"
+- All warning message highlighed
+- Screenshot of new version
+- Updating |doc/tex-labels.txt|
+
+VERSION 0.9 ~
+- Configuration for relative paths
+- Alignment of information in popup windows
+
+VERSION 0.8 ~
+- Full paths contained in cache files
+- Displaying relative paths in popup windows
+- s:ParseAuxFile() searches ".aux" files recursively
+- |README.md| and help document |doc/tex-labels.txt| in English
+- Fix Ex command :TestTexLabelsPopup
 
 VERSION 0.7.3 ~
 - Enhanced duplicate detection for labels and bibliography items
