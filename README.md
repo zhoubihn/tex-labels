@@ -96,11 +96,18 @@ let g:tex_labels_popup_bg = 'LightYellow'
 " Popup window height (default: 8)
 let g:tex_labels_popup_height = 8
 
-" Maximum number of labels to display (default: 32)
+" Maximum number of labels to display
+" (default: 4 times of g:tex_labels_popup_height)
 let g:tex_labels_limit = 32
 
 " Number of lines to search for main file specification (default: 16)
 let g:tex_labels_mainfile_scope = 16
+
+" Which are file paths relative to (default: 'CFD')
+"   'CFD': relative to directory of current file
+"   'PWD': relative to current working directory
+"   'MFD': relative to directory of the main file
+let g:tex_labels_path_WRT = 'CFD'
 ```
 
 On a Windows system, `.vimrc` might be `~\_vimrc` if your Vim is installed
@@ -133,7 +140,7 @@ with the default configuration.
 
    The following popup menu does not accept `Number + command`:
    ![file-counter menu](images/limited.png "File-counter organizing popup menu.")
-   In fact, when you press a digit from `1` to `5`, the corresponding item
+   In fact, when you press a digit between `1` and `5`, the corresponding item
    is directly selected.  Alternatively, you can press `j`'s or `k`'s several
    times to move the cursor up and down, and press `Enter` when you are ready
    to accept the highlighted item.
@@ -285,7 +292,7 @@ and with the help of [Doubao (豆包)](https:/www.doubao.com),
 this plugin is coded rapidly.  They are all appreciated!
 
 A special thank is given to [Vim](https://vim.org)'s maintainers and its author,
-momorable Bram Moolenaar.  Thanks for giving us an open, free and powerful
+memorable Bram Moolenaar.  Thanks for giving us an open, free and powerful
 editor!
 
 ## Support
