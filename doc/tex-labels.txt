@@ -462,9 +462,10 @@ Manually trigger updates: >
 8. Changelog					*tex-labels-changelog*
 
 VERSION 1.0 ~
-- All variables in functions begin with "l:"
+- All variables in functions begin with "`l:`"
 - All warning message highlighed
 - Screenshot of new version
+- Updating |doc/tex-labels.txt|
 
 VERSION 0.9 ~
 - Configuration for relative paths
@@ -474,7 +475,7 @@ VERSION 0.8 ~
 - Full paths contained in cache files
 - Displaying relative paths in popup windows
 - s:ParseAuxFile() searches ".aux" files recursively
-- `README.md` and help document `doc/tex-labels.txt`in English
+- |README.md| and help document |doc/tex-labels.txt| in English
 - Fix Ex command :TestTexLabelsPopup
 
 VERSION 0.7.3 ~
