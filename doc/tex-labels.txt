@@ -26,12 +26,13 @@ commands and provides context-sensitive popup menus for selecting labels,
 bibliography items, and other references.
 
 Features:
-- Automatic popup completion for \ref, \eqref, \pageref, and \cite commands
+- Automatic popup completion for `\ref`, `\eqref`, `\pageref`, and `\cite`
+  commands
 - Support for multi-file LaTeX projects with automatic file discovery
 - Organization by LaTeX counters (equation, figure, table, section, etc.)
 - File-based browsing and navigation
 - Real-time duplicate detection and warnings
-- Integration with LaTeX auxiliary files (.aux)
+- Integration with LaTeX auxiliary files (`.aux`)
 - Hierarchical navigation through counters and files
 - Customizable popup appearance and behavior
 
@@ -41,7 +42,7 @@ Features:
 MANUAL INSTALLATION ~
 
 1. Create the ftplugin directory structure.  If there are no directories
-|.vim/ftplugin/tex| and |.vim/doc| in your home directory, create them as
+`.vim/ftplugin/tex` and `.vim/doc` in your home directory, create them as
 follows:
 >
     mkdir -p ~/.vim/ftplugin/tex/
@@ -85,47 +86,51 @@ Using Pathogen:
 3. Configuration				*tex-labels-configuration*
 
 The plugin provides several configuration options that can be set in your
-|.vimrc|:
+`.vimrc`:
 
 						*g:tex_labels_popup_bg*
-Background color for popup windows. Default: 'LightYellow'
+Background color for popup windows. Default: `'LightYellow'`
 
-Example: >
+Example:
+>
     let g:tex_labels_popup_bg = 'lightblue'
 <
 
 						*g:tex_labels_popup_height*
-Height of popup windows in lines. Default: 8
+Height of popup windows in lines. Default: `8`
 
-Example: >
+Example:
+>
     let g:tex_labels_popup_height = 12
 <
 
 						*g:tex_labels_limit*
-Maximum number of items to display in popup menus. Default: 32
+Maximum number of items to display in popup menus. Default: `32`
 When there are more items than this limit, the plugin shows organized
 browsing options (by files, by counters, or hierarchical navigation).
 
-Example: >
+Example:
+>
     let g:tex_labels_limit = 50
 <
 
 						*g:tex_labels_mainfile_scope*
-Number of lines to search for main file specification comments. Default: 16
+Number of lines to search for main file specification comments. Default: `16`
 
-Example: >
+Example:
+>
     let g:tex_labels_mainfile_scope = 20
 <
 
 						*g:tex_labels_path_WRT*
-Determining the base directory for relative paths of files in various popup windows.
-Default: 'CFD'
+Determining the base directory for relative paths of files in various popup
+windows.  Default: `'CFD'`
 
 Possible values:
-   - 'CFD'	paths relative to the directory of the current file
-   - 'PWD'	paths relative to current working direcotry
-   - 'MFD'	paths relative to the directory of the main file, falling back
-		to 'CFD' when there is no main file specified (i.e., when
+   - `'CFD'`	paths relative to the directory of the current file
+   - `'PWD'`	paths relative to current working directory
+   - `'MFD'`	paths relative to the directory of the main file, falling back
+		to `'CFD'` when there is no main file specified (i.e., when
 		|b:tex_labels_MainFile| is empty)
 
 Example:
@@ -139,7 +144,7 @@ Example:
 
 BASIC USAGE						*tex-labels-basic-usage*
 
-The plugin automatically activates when editing LaTeX files (.tex). When you
+The plugin automatically activates when editing LaTeX files (`.tex`). When you
 type LaTeX reference commands, a popup menu appears with available references:
 
 1. Start typing a reference command:
@@ -148,29 +153,30 @@ type LaTeX reference commands, a popup menu appears with available references:
    - `\pageref{}` for page references
    - `\cite{}` for citations
 
-2. Pressing <Esc>, you turn Vim to normal mode.  Now move the cursor to |}|
-as in the above, and turn Vim to insert mode by pressing |i|. Then a popup menu
+2. Pressing `<Esc>`, you turn Vim to normal mode.  Now move the cursor to `}`
+as in the above, and turn Vim to insert mode by pressing `i`. Then a popup menu
 appears showing available references.
 
 This might be somehow tedious.  In fact, you can add a file in
-|~/.vim/ftplugin/tex|.  Assume this file is |remap.vim|.  It makes all the above
-perfect to add the following six lines in it: >
-    inoremap \ref{ \ref{}<Esc>i
-    inoremap \eqref{ \eqref{}<Esc>i
-    inoremap \pageref{ \pageref{}<Esc>i
-    inoremap \label{ \label{}<Esc>i
-    inoremap \bibitem{ \bibitem{}<Esc>i
-    inoremap \tag{ \tag{}<Esc>i
+`~/.vim/ftplugin/tex`.  Assume this file is `remap.vim`.  It makes all the above
+perfect to add the following six lines in it:
+>
+  inoremap \ref{ \ref{}<Esc>i
+  inoremap \eqref{ \eqref{}<Esc>i
+  inoremap \pageref{ \pageref{}<Esc>i
+  inoremap \label{ \label{}<Esc>i
+  inoremap \bibitem{ \bibitem{}<Esc>i
+  inoremap \tag{ \tag{}<Esc>i
 <
-Save this file and restart your Vim.  From now on, inputting |\ref{| in your
-LaTeX file is equivalent to inputting |\ref{}| followed by <Esc> and |i|.
-That is, whenever you input |\ref{| into you LaTeX file, Vim automatically
-translates it to |\ref{}| and turns to normal mode, then enter insert mode
+Save this file and restart your Vim.  From now on, inputting `\ref{` in your
+LaTeX file is equivalent to inputting `\ref{}` followed by <Esc> and |i|.
+That is, whenever you input `\ref{` into your LaTeX file, Vim automatically
+translates it to `\ref{}` and turns to normal mode, then enter insert mode
 again.  This triggers a popup menu.
 
 3. Use navigation keys (see |tex-labels-navigation|) to select an item.
 
-4. Press <Enter> to insert the selected reference.
+4. Press `<Enter>` to insert the selected reference.
 
 Example workflow:
 >
@@ -183,30 +189,31 @@ NAVIGATION KEYS						*tex-labels-navigation*
 The following keys can be used in popup menus:
 
 							*tex-labels-popup-keys*
-    <Enter>         Insert selected reference and close popup
-    j or n          Move cursor down one line
-    k or p or N     Move cursor up one line
-    <Space>         Scroll down one page
-    <C-F>           Scroll down one page (alternative)
-    b               Scroll up one page
-    <C-B>           Scroll up one page (alternative)
-    G               Jump to last item
-    gg              Jump to first item
-    <Esc>           Close popup without selection
+    `<Enter>`         Insert selected reference and close popup
+    `j` or `n`          Move cursor down one line
+    `k` or `p` or `N`     Move cursor up one line
+    `<Space>`         Scroll down one page
+    `<C-F>`           Scroll down one page (alternative)
+    `b`               Scroll up one page
+    `<C-B>`           Scroll up one page (alternative)
+    `G`               Jump to last item
+    `gg`              Jump to first item
+    `<Esc>`           Close popup without selection
 
-Number prefixes work with movement commands (e.g., |5j| moves down 5 lines,
-|12G| goes to line 12).
+Number prefixes work with movement commands (e.g., `5j` moves down 5 lines,
+`12G` goes to line 12).
 
 SPECIAL NAVIGATION IN FILE-COUNTER MENU ~
 
 When the number of items exceeds |g:tex_labels_limit|, a special menu appears
-offering organization options. In this menu, pressing keys 1-5 directly
-selects the corresponding option without needing Enter: >
+offering organization options. In this menu, pressing keys `1`-`5` directly
+selects the corresponding option without needing Enter:
+>
     [1]  List all labels anyway
     [2]  Select according to files
     [3]  Select according to counters
-    [4]  Select through "file → counter"
-    [5]  Select through "counter → file"
+    [4]  Select through "file -> counter"
+    [5]  Select through "counter -> file"
 <
 
 MULTI-FILE PROJECTS					*tex-labels-multi-file*
@@ -222,13 +229,12 @@ environment.  In the `document` environment, subfiles are included by commands
 `\include` or `\input`, and subfiles may also includes subsubfiles, and so on.
 To specify a main file (useful for large projects), add this comment to the
 top of each LaTeX subfile and subsubfile:
-
 >
     %! Main file: main.tex
 <
 
 where `main.tex` is the name of the main file.  The plugin searches for this
-comment in the first `g:tex_labels_mainfile_scope` lines (default: 16) of each
+comment in the first `g:tex_labels_mainfile_scope` lines (default: `16`) of each
 file.  It's recommended to place this comment in line 1 or 2, but any line
 within the scope is acceptable.
 
@@ -241,36 +247,98 @@ available in the popup menus.
 Example structure:
 >
     main.tex:
-        \include{chapter1}
-        \include{chapter2}
+        \include{parts/chapter1}
+        \include{parts/chapter2}
 
-    chapter1.tex:
+    parts/chapter1.tex:
         \label{sec:intro}
-	\input{section1-1}
-	\input{section1-2}
-	\input{section1-3}
+	\input{parts/section1-1}
+	\input{parts/section1-2}
+	\input{parts/section1-3}
 
-    chapter2.tex:
+    parts/chapter2.tex:
         \label{sec:conclusion}
 <
+Assume that `book` is the top directory of all these files.  Then there are
+the main file `main.tex` and subdirectory `parts` in this directory.  In this
+case, subfiles (included/input files) `chapter1.tex`, `chater2.tex` and
+subsubfiles (files included/input into a subfile or a subsubfile)
+`section1-1.tex`, `section1-2.tex` and `section1-3.tex` are all in the subdirectory
+`parts` .  For LaTeX, all relative paths are with respect to the main file.
+Hence, in the above example, there are lines such as
+>
+  \input{parts/section1-1}
+<
+and so on, although both `chapter1.tex` and `section1-1.tex` are in the same
+subdirectory.
 
 When editing any file in this project, references from all included and input
 files will be available in popup menus, provided that all these subfiles and
 subsubfiles have specified their main file `main.tex` .
 
-By the command `\input{section1-1}`, the subsubfile `section1-1.tex` is as if
+In each subfile or subsubfile, there must be a comment line
+>
+  ---------------------------------------------
+  %! Main file: <path/to/mainfile>
+  ---------------------------------------------
+<
+to serve our plugin.  Such a line must begin with EXACTLY the string
+`"%! Main file: "`, with no other characters (such as white spaces or '`%`'s)
+before this string, and followed by `<path/to/mainfile>` specifying the main
+file.  Here `<path/to/mainfile>` is either an absolute path or a relative
+path.  When it is a relative path, it is relative to the directory of the
+subfile or subsubfile containing this line.  For example, in each subfile
+and/or subsubfile in the above example, such a line reads
+`%! Main file: ../main.tex`
+and located in the top 16 (including) lines, provided that
+`g:tex_labels_mainfile_scope`` is set to the default value `16`.
+
+By the command `\input{parts/section1-1}`, the subsubfile `section1-1.tex` is as if
 pasted into `chapter1.tex` .  This means that `latex` will not generate
-the auxiliary file `section1-1.aux`, with information of cross references in
-`section1-1.tex` stored in `chapter1.aux` instead.  For this reason,
-`tex-labels`generate a file `section1-1.supf` to indicate this situation.
-It is similar for `section1-2.tex` and `section1-3.tex` .
+the auxiliary file `parts/section1-1.aux`, with information of cross references
+in `parts/section1-1.tex` stored in `parts/chapter1.aux` instead.  For this reason,
+`tex-labels` generates a file `parts/section1-1.supf` to indicate this situation.
+It is similar for `parts/section1-2.tex` and `parts/section1-3.tex` .
+
+When Vim enters insert mode, with the cursor right after `\ref{` and before
+or at the closing brace `}`, say, a popup windo appears with contents like
+>
+  (equation: 1) {eq:einstein} {p.1} {l.18} {file: main.tex}
+  (chapter: 1)  {sec:intro}   {p.2} {l.3}  {file: parts/chapter1.tex}
+  ...
+<
+In this window, each line corresponds to a cross reference.  In the first
+column of the first line, `(equation: 1)` indicates that the cross reference
+is related to the counter `equation` having the value `1`.  Hence, in the
+compiled file `main.dvi` or `main.ps` or `main.pdf`, it appears as equation `(1)`
+at page 1.  This cross reference is defined as `\label{eq:einstein}` in line 18
+in the main file.  When this line is accepted by pressing `<Enter>`, the popup
+window disappears, and `eq:einstein` will be automatically filled into the
+braces around the cursor, turning the LaTeX text to
+>
+  \ref{eq:einstein}
+<
+In the above popup window, files are specified using relative paths.
+By default, `g:tex_labels_path_WRT` is set to `'CFD'`, meaning that all paths
+are relative to the directory of the current file Vim is editing.
+You may set `g:tex_labels_path_WRT` to `'PWD'`, meaning that all paths are
+relative to the working directory of the shell command `vim`; or to `'MFD'`,
+relative to the directory of the main file (the top level director `book`
+in the above example).  Suppose your working directory is `~` and you issue
+the shell command
+>
+    vim relpath/book/parts/section1-1.tex
+<
+Then the main file will be labelled as `../main.tex` when `g:tex_labels_path_WRT`
+equals `'CFD'`, or `main.tex` when `g:tex_labels_path_WRT` equals `'MFD'`, or
+`relpath/book/main.tex` when `g:tex_labels_path_WRT` equals `'PWD'`.
 
 ADVANCED FEATURES					*tex-labels-advanced*
 
 COUNTER-BASED ORGANIZATION ~
 
 When working with many labels, the plugin offers organized browsing by LaTeX
-counters (equation, figure, table, section, etc.).
+counters (`equation`, `figure`, `table`, `section`, etc.).
 
 When the number of labels exceeds `g:tex_labels_limit`, you'll be presented
 with options:
@@ -302,7 +370,7 @@ provide:
 
 - Up-to-date reference numbers
 - Page information
-- Counter types (equation, figure, table, etc.)
+- Counter types (`equation`, `figure`, `table`, etc.)
 
 Reading source files, the plugin also obtains the line number and the file
 name where a cross reference label or a bibliography item is defined.
@@ -327,7 +395,8 @@ make-style dependency checking.
 Test the popup functionality for labels. This command is only available in LaTeX
 buffers.
 
-Example: >
+Example:
+>
     :TestTexLabelsPopup
 <
 
@@ -335,7 +404,8 @@ Example: >
 Test the popup functionality for bibliography items. This command is only
 available in LaTeX buffers.
 
-Example: >
+Example:
+>
     :TestTexBibsPopup
 <
 
@@ -349,7 +419,7 @@ functions may be useful for debugging or advanced usage:
 Find main file specification in a given file.
 
 Parameters:
-    {filename} - Path to file to search
+    {`filename`} - Path to file to search
 
 Returns:
     Path to main file or empty string if not found
@@ -358,7 +428,7 @@ Returns:
 Get all relevant files to search for references.
 
 Parameters:
-    {mainfile} - Optional main file path
+    {`mainfile`} - Optional main file path
 
 Returns:
     List of file paths to search
@@ -367,40 +437,40 @@ Returns:
 Get all references of a specific type.
 
 Parameters:
-    {type}  - "label", "bibitem", or "tag"
-    {limit} - Maximum number of items (0 for unlimited)
+    {`type`}  - `"label"`, `"bibitem"`, or `"tag"`
+    {`limit`} - Maximum number of items (`0` for unlimited)
 
 Returns:
-    List of formatted reference strings
+    `List` of formatted reference strings
 
 							*s:GetAllCounters()*
 Get all LaTeX counters related to labels.
 
 Parameters:
-    {filename} - Optional file to search
+    {`filename`} - Optional file to search
 
 Returns:
-    List of counter names
+    `List` of counter names
 
 							*s:CompleteLabelInfo()*
 Extract and complete label information for a specific file.
 
 Parameters:
-    {file} - File path to process
-    {type} - "label", "bibitem", or "tag"
+    {`file`} - File path to process
+    {`type`} - `"label"`, `"bibitem"`, or `"tag"`
 
 Returns:
-    List of dictionaries containing label information
+    `List` of dictionaries containing label information
 
 							*s:Update_AuxFiles()*
 Update auxiliary cache files for labels, bibliography items, or tags.
 
 Parameters:
-    {type} - Optional: "label", "bibitem", or "tag"
-    {filename} - Optional: specific file to update
+    {`type`} - Optional: `"label"`, `"bibitem"`, or `"tag"`
+    {`filename`} - Optional: specific file to update
 
 Returns:
-    0 on success, -1 on error
+    `0` on success, `-1` on error
 
 ==============================================================================
 7. Troubleshooting				*tex-labels-troubleshooting*
@@ -408,9 +478,9 @@ Returns:
 COMMON ISSUES ~
 
 Popup doesn't appear:
-- Ensure you're using Vim 8.0+ or Neovim 0.4+
+- Ensure you're using |Vim| 8.0+ or |Neovim| 0.4+
 - Check popup support: `:echo has('popup')` should return 1
-- Verify file type: `:set ft?` should show "tex"
+- Verify file type: `:set ft?` should show "`tex`"
 - Check that plugin is loaded: `:echo b:loaded_tex_labels`
 
 References not found:
@@ -433,27 +503,33 @@ DEBUGGING ~
 
 Check plugin status:
 
-Plugin loaded: >
+Plugin loaded:
+>
     :echo b:loaded_tex_labels
 <
 
-Main file setting: >
+Main file setting:
+>
     :echo b:tex_labels_MainFile
 <
 
-Popup ID: >
+Popup ID:
+>
     :echo b:tex_labels_popup
 <
 
-Item overflow flag: >
+Item overflow flag:
+>
     :echo b:tex_labels_item_overflow
 <
 
-Test popup functionality: >
+Test popup functionality:
+>
     :TestTexLabelsPopup
 <
 
-Manually trigger updates: >
+Manually trigger updates:
+>
     :call s:Update_AuxFiles()
     :call s:Update_SubFiles()
 <
@@ -463,9 +539,9 @@ Manually trigger updates: >
 
 VERSION 1.0 ~
 - All variables in functions begin with "`l:`"
-- All warning message highlighed
+- All warning message highlighted
 - Screenshot of new version
-- Updating |doc/tex-labels.txt|
+- Updating `doc/tex-labels.txt`
 
 VERSION 0.9 ~
 - Configuration for relative paths
@@ -474,9 +550,9 @@ VERSION 0.9 ~
 VERSION 0.8 ~
 - Full paths contained in cache files
 - Displaying relative paths in popup windows
-- s:ParseAuxFile() searches ".aux" files recursively
-- |README.md| and help document |doc/tex-labels.txt| in English
-- Fix Ex command :TestTexLabelsPopup
+- `s:ParseAuxFile()` searches "`.aux`" files recursively
+- `README.md` and help document `doc/tex-labels.txt` (this file) in English
+- Fix Ex command `:TestTexLabelsPopup`
 
 VERSION 0.7.3 ~
 - Enhanced duplicate detection for labels and bibliography items
@@ -484,7 +560,7 @@ VERSION 0.7.3 ~
 - Better error handling and user feedback
 - Added support for main file specifications
 - Improved popup navigation and selection
-- Enhanced auxiliary file management with GNU make-style updates
+- Enhanced auxiliary file management with GNU `make`-style updates
 - Added hierarchical navigation through counters and files
 
 VERSION 0.7.2 ~
