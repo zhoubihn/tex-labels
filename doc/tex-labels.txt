@@ -247,29 +247,91 @@ available in the popup menus.
 Example structure:
 >
     main.tex:
-        \include{chapter1}
-        \include{chapter2}
+        \include{parts/chapter1}
+        \include{parts/chapter2}
 
-    chapter1.tex:
+    parts/chapter1.tex:
         \label{sec:intro}
-	\input{section1-1}
-	\input{section1-2}
-	\input{section1-3}
+	\input{parts/section1-1}
+	\input{parts/section1-2}
+	\input{parts/section1-3}
 
-    chapter2.tex:
+    parts/chapter2.tex:
         \label{sec:conclusion}
 <
+Assume that `book` is the top directory of all these files.  Then there are
+the main file `main.tex` and subdirectory `parts` in this directory.  In this
+case, subfiles (included/input files) `chapter1.tex`, `chater2.tex` and
+subsubfiles (files included/input into a subfile or a subsubfile)
+`section1-1.tex`, `section1-2.tex` and `section1-3.tex` are all in the subdirectory
+`parts` .  For LaTeX, all relative paths are with respect to the main file.
+Hence, in the above example, there are lines such as
+>
+  \input{parts/section1-1}
+<
+and so on, although both `chapter1.tex` and `section1-1.tex` are in the same
+subdirectory.
 
 When editing any file in this project, references from all included and input
 files will be available in popup menus, provided that all these subfiles and
 subsubfiles have specified their main file `main.tex` .
 
-By the command `\input{section1-1}`, the subsubfile `section1-1.tex` is as if
+In each subfile or subsubfile, there must be a comment line
+>
+  ---------------------------------------------
+  %! Main file: <path/to/mainfile>
+  ---------------------------------------------
+<
+to serve our plugin.  Such a line must begin with EXACTLY the string
+`"%! Main file: "`, with no other characters (such as white spaces or '`%`'s)
+before this string, and followed by `<path/to/mainfile>` specifying the main
+file.  Here `<path/to/mainfile>` is either an absolute path or a relative
+path.  When it is a relative path, it is relative to the directory of the
+subfile or subsubfile containing this line.  For example, in each subfile
+and/or subsubfile in the above example, such a line reads
+`%! Main file: ../main.tex`
+and located in the top 16 (including) lines, provided that
+`g:tex_labels_mainfile_scope`` is set to the default value `16`.
+
+By the command `\input{parts/section1-1}`, the subsubfile `section1-1.tex` is as if
 pasted into `chapter1.tex` .  This means that `latex` will not generate
-the auxiliary file `section1-1.aux`, with information of cross references in
-`section1-1.tex` stored in `chapter1.aux` instead.  For this reason,
-`tex-labels` generates a file `section1-1.supf` to indicate this situation.
-It is similar for `section1-2.tex` and `section1-3.tex` .
+the auxiliary file `parts/section1-1.aux`, with information of cross references
+in `parts/section1-1.tex` stored in `parts/chapter1.aux` instead.  For this reason,
+`tex-labels` generates a file `parts/section1-1.supf` to indicate this situation.
+It is similar for `parts/section1-2.tex` and `parts/section1-3.tex` .
+
+When Vim enters insert mode, with the cursor right after `\ref{` and before
+or at the closing brace `}`, say, a popup windo appears with contents like
+>
+  (equation: 1) {eq:einstein} {p.1} {l.18} {file: main.tex}
+  (chapter: 1)  {sec:intro}   {p.2} {l.3}  {file: parts/chapter1.tex}
+  ...
+<
+In this window, each line corresponds to a cross reference.  In the first
+column of the first line, `(equation: 1)` indicates that the cross reference
+is related to the counter `equation` having the value `1`.  Hence, in the
+compiled file `main.dvi` or `main.ps` or `main.pdf`, it appears as equation `(1)`
+at page 1.  This cross reference is defined as `\label{eq:einstein}` in line 18
+in the main file.  When this line is accepted by pressing `<Enter>`, the popup
+window disappears, and `eq:einstein` will be automatically filled into the
+braces around the cursor, turning the LaTeX text to
+>
+  \ref{eq:einstein}
+<
+In the above popup window, files are specified using relative paths.
+By default, `g:tex_labels_path_WRT` is set to `'CFD'`, meaning that all paths
+are relative to the directory of the current file Vim is editing.
+You may set `g:tex_labels_path_WRT` to `'PWD'`, meaning that all paths are
+relative to the working directory of the shell command `vim`; or to `'MFD'`,
+relative to the directory of the main file (the top level director `book`
+in the above example).  Suppose your working directory is `~` and you issue
+the shell command
+>
+    vim relpath/book/parts/section1-1.tex
+<
+Then the main file will be labelled as `../main.tex` when `g:tex_labels_path_WRT`
+equals `'CFD'`, or `main.tex` when `g:tex_labels_path_WRT` equals `'MFD'`, or
+`relpath/book/main.tex` when `g:tex_labels_path_WRT` equals `'PWD'`.
 
 ADVANCED FEATURES					*tex-labels-advanced*
 
