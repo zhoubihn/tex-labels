@@ -3,10 +3,10 @@
 " 	Provides popup menu for \ref, \eqref, \pageref, and \cite commands
 "
 " Maintainer:   Bin Zhou   <zhoub@bnu.edu.cn>
-" Version:      0.9.0
+" Version:      0.9.1
 "
-" Upgraded on: Fri 2025-11-14 20:12:39 CST (+0800)
-" Last change: Fri 2025-11-14 20:45:53 CST (+0800)
+" Upgraded on: Fri 2025-11-14 20:56:32 CST (+0800)
+" Last change: Sat 2025-11-15 13:30:23 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -24,14 +24,19 @@ endif
 let b:loaded_tex_labels = 1
 
 " Configuration options
+
+" Background color of popup windows (default: 'LightYellow')
 if !exists('g:tex_labels_popup_bg')
   let g:tex_labels_popup_bg = 'LightYellow'
 endif
 
+" Height of popup windows (default: 8)
 if !exists('g:tex_labels_popup_height')
   let g:tex_labels_popup_height = 8
 endif
 
+" Maximum number of labels to display
+" (default: 4 times of g:tex_labels_popup_height)
 if !exists('g:tex_labels_limit')
     let g:tex_labels_limit = 4 * g:tex_labels_popup_height
 elseif g:tex_labels_limit < max([g:tex_labels_popup_height, 8])
@@ -40,14 +45,16 @@ endif
 
 " Searching for '%! Main file: ...' only in the top
 " {g:tex_labels_mainfile_scope} lines of the current file.
+" (default: 16)
 if !exists('g:tex_labels_mainfile_scope')
     let g:tex_labels_mainfile_scope = 16
 endif
 
+" Which are file paths relative to (default: 'CFD')
 if !exists('g:tex_labels_path_WRT')
-    " CFD: directory of current file (Defalut)
-    " PWD: current working directory
-    " MFD: directory of the main file
+    " 'CFD': relative to directory of current file
+    " 'PWD': relative to current working directory
+    " 'MFD': relative to directory of the main file
     let g:tex_labels_path_WRT = 'CFD'
 endif
 
@@ -916,7 +923,7 @@ function! s:FormatMenuItem(item, type)
     endif
 
     if a:type == "label"
-	return "(" .. a:item.counter .. ": " .. a:item.idnum .. ")\t{" ..
+	return "(" .. a:item.counter .. ": " .. a:item.idnum .. ") {" ..
 		    \ a:item.idcode .. "} {page: " .. a:item.page ..
 		    \ "} {line: " .. a:item.line .. "} {file: " ..
 		    \ a:item.full_path .. "}"
@@ -927,7 +934,7 @@ function! s:FormatMenuItem(item, type)
 	    "return ''
 	endif
 
-	return "Ref. [" .. a:item.idnum .. "]\t{" ..
+	return "Ref. [" .. a:item.idnum .. "] {" ..
 		    \ a:item.idcode .. "} {line: " .. a:item.line ..
 		    \ "} {file: " .. a:item.full_path .. "}"
 
@@ -945,6 +952,92 @@ function! s:FormatMenuItem(item, type)
 		    \ ".  Nothing returned."
 	return ''
     endif
+endfunction
+
+" Function to align displayed contents.
+"   {data}	A List of strings returned from s:FormatMenuItem() .
+"   {type}	'label', 'bibitem' or 'tag'
+function! s:AlignMenuItem(data, type)
+    let l:output = []
+    let l:lengths = []
+    let l:curly_braces = []
+
+    if a:type != 'label' && a:type != 'bibitem' && a:type != 'tag'
+        echohl ErrorMsg
+	echo 's:AlignMenuItem: type "' .. a:type .. '" not supported.'
+	echohl None
+	return l:output
+    endif
+
+    if empty(a:data)
+	return l:output
+    endif
+    let l:data_len = len(a:data)
+
+    " The first round
+    for i in range(l:data_len)
+	let l:item = a:data[i]
+	let l:brace_position = s:MatchCurlyBrace(l:item)
+	if empty(l:brace_position)
+	    return []
+	endif
+
+	call add(l:curly_braces, l:brace_position)
+
+	if a:type == "label" || a:type == "bibitem"
+	    call add(l:lengths, l:brace_position[0] - 1)
+	else
+	    call add(l:lengths, l:brace_position[1] + 1)
+
+	    let l:brace_position = s:MatchCurlyBrace(l:item)
+	    if empty(l:brace_position)
+		return []
+	    endif
+
+	    let l:curly_braces[i] = l:brace_position
+	endif
+	call add(l:output, strpart(l:item, 0, l:lengths[i]))
+    endfor
+
+    if a:type == "label"
+	let l:round_num = 4
+    elseif a:type == "bibitem"
+	let l:round_num = 3
+    else
+	let l:round_num = 2
+    endif
+
+    for r in range(l:round_num)
+	let l:length_max = max(l:lengths)
+
+	for i in range(l:data_len)
+	    " Padding with spaces
+	    let l:padding = " "
+	    if l:length_max > l:lengths[i]
+		for j in range(l:length_max - l:lengths[i])
+		    let l:padding = l:padding .. " "
+		endfor
+	    endif
+	    let l:output[i] = l:output[i] .. l:padding
+
+	    let l:item = a:data[i]
+	    let l:lengths[i] = l:curly_braces[i][1] - l:curly_braces[i][0] + 1
+	    let l:output[i] = l:output[i] ..
+			\ strpart(l:item, l:curly_braces[i][0], l:lengths[i])
+
+	    if r < l:round_num - 1
+		let l:brace_position = s:MatchCurlyBrace(l:item,
+			    \ l:curly_braces[i][1])
+		if empty(l:brace_position)
+		    return []
+		endif
+
+		let l:curly_braces[i] = l:brace_position
+	    endif
+	endfor
+    endfor
+
+    return l:output
 endfunction
 
 " Function to replace filename with relative path
@@ -1582,6 +1675,8 @@ function! s:Popup_Main(type, limit, ...)
     for formatted_line in refs
 	call add(refs_relative, s:Refs_RelativePath(formatted_line, a:type))
     endfor
+
+    let refs_relative = s:AlignMenuItem(refs_relative, a:type)
 
     let b:tex_labels_popup = popup_create(refs_relative, popup_config)
     if b:tex_labels_popup < 0
