@@ -3,10 +3,10 @@
 " 	Provides popup menu for \ref, \eqref, \pageref, and \cite commands
 "
 " Maintainer:   Bin Zhou   <zhoub@bnu.edu.cn>
-" Version:      1.0.0
+" Version:      1.0.1
 "
-" Upgraded on: Sat 2025-11-15 15:02:14 CST (+0800)
-" Last change: Sat 2025-11-15 16:52:54 CST (+0800)
+" Upgraded on: Fri 2025-11-21 19:43:27 CST (+0800)
+" Last change: Fri 2025-11-21 20:11:55 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -1604,7 +1604,7 @@ function! s:PopupFilter(winid, key)
         let b:prev_popup_key = ''
     endif
 
-    "let l:type = getwinvar(a:winid, 'l:type', '')
+    "let l:type = getwinvar(a:winid, 'type', '')
 
     " Store a digital number for repeated command
     if !exists('b:count')
@@ -1731,7 +1731,7 @@ endfunction
 
 " Popup filter function for counter menu
 function! s:PopupFilter_counter(winid, key)
-    let l:counter_then_file = getwinvar(a:winid, 'l:counter_then_file')
+    let l:counter_then_file = getwinvar(a:winid, 'counter_then_file')
 
     if a:key == "\<CR>"
         let l:buf = winbufnr(a:winid)
@@ -1816,7 +1816,7 @@ function! s:Popup_Counters(type, ...)
     let b:tex_labels_popup = popup_create(l:counters, l:popup_config)
 
     if b:tex_labels_popup > 0
-	call setwinvar(b:tex_labels_popup, 'l:counter_then_file',
+	call setwinvar(b:tex_labels_popup, 'counter_then_file',
 		    \ l:counter_then_file)
 	return 0
     else
@@ -1827,8 +1827,8 @@ endfunction
 
 " Popup filter function for file selection
 function! s:PopupFilter_file(winid, key)
-    let l:type = getwinvar(a:winid, 'l:type')
-    let l:file_then_counter = getwinvar(a:winid, 'l:file_then_counter')
+    let l:type = getwinvar(a:winid, 'type')
+    let l:file_then_counter = getwinvar(a:winid, 'file_then_counter')
 
     " Store previous key for gg detection
     if !exists('b:prev_popup_key')
@@ -1972,9 +1972,9 @@ function! s:Popup_Files(type, ...)
     let b:tex_labels_popup = popup_create(l:files, l:popup_config)
     if b:tex_labels_popup > 0
 	call setwinvar(b:tex_labels_popup, 'type', a:type)
-	call setwinvar(b:tex_labels_popup, 'l:file_then_counter',
+	call setwinvar(b:tex_labels_popup, 'file_then_counter',
 		    \ l:file_then_counter)
-	"call setwinvar(b:tex_labels_popup, 'l:files', l:files)
+	"call setwinvar(b:tex_labels_popup, 'files', l:files)
 	return 0
     else
 	return -1
@@ -1983,8 +1983,8 @@ endfunction
 
 " Popup filter function
 function! s:PopupFilter_FileCounter(winid, key)
-    let l:involved_files = getwinvar(a:winid, 'l:involved_files')
-    let l:counters = getwinvar(a:winid, 'l:counters')
+    let l:involved_files = getwinvar(a:winid, 'involved_files')
+    let l:counters = getwinvar(a:winid, 'counters')
 
     " Handle different keys
     "if a:key =~# '^[1-3]'
@@ -2138,9 +2138,9 @@ function! s:Popup_FilesCounters()
 	let b:tex_labels_popup = popup_create(l:items, l:popup_config)
 	if b:tex_labels_popup > 0
 	    call win_execute(b:tex_labels_popup, 'normal! j')
-	    call setwinvar(b:tex_labels_popup, 'l:involved_files',
+	    call setwinvar(b:tex_labels_popup, 'involved_files',
 			\ l:involved_files)
-	    call setwinvar(b:tex_labels_popup, 'l:counters', l:counters)
+	    call setwinvar(b:tex_labels_popup, 'counters', l:counters)
 	    return 0
 	else
 	    return -1
@@ -2244,7 +2244,7 @@ function! s:Popup_LabelsOfCounter(counter_name, ...)
 
     let b:tex_labels_popup = popup_create(l:labels, l:popup_config)
     if b:tex_labels_popup > 0
-	"call setwinvar(b:tex_labels_popup, 'l:labels', l:labels)
+	"call setwinvar(b:tex_labels_popup, 'labels', l:labels)
 	return 0
     else
 	return -1
