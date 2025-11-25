@@ -3,10 +3,10 @@
 " 	Provides popup menu for \ref, \eqref, \pageref, and \cite commands
 "
 " Maintainer:   Bin Zhou   <zhoub@bnu.edu.cn>
-" Version:      1.0.1
+" Version:      1.1.0
 "
-" Upgraded on: Fri 2025-11-21 19:43:27 CST (+0800)
-" Last change: Fri 2025-11-21 20:11:55 CST (+0800)
+" Upgraded on: Tue 2025-11-25 19:20:36 CST (+0800)
+" Last change: Tue 2025-11-25 22:43:12 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -58,6 +58,12 @@ if !exists('g:tex_labels_path_WRT')
     let g:tex_labels_path_WRT = 'CFD'
 endif
 
+
+" Counter for s:Popup_CheckLabels()
+if !exists('g:tex_labels_check_length') || g:tex_labels_check_length < 1
+    let g:tex_labels_check_length = 3
+endif
+let b:tex_labels_counter = 0
 
 " Whether there are too many labels
 let b:tex_labels_item_overflow = 0
@@ -2252,10 +2258,10 @@ function! s:Popup_LabelsOfCounter(counter_name, ...)
 endfunction
 
 function! s:PopupFilter_CheckLabels(winid, key)
-    call popup_close(a:winid)
-    let b:tex_labels_popup = -1
-
     if a:key == "\<Esc>"
+	call popup_close(a:winid)
+	let b:tex_labels_popup = -1
+	let b:tex_labels_counter = 0
 	return 1
     else
 	return 0
@@ -2270,6 +2276,14 @@ function! s:Popup_CheckLabels()
 	return s:Popup_CheckInclude()
     elseif l:type != "label" && l:type != "bibitem" && l:type != "tag"
 	return -1
+    endif
+
+    let b:tex_labels_counter += 1
+    if b:tex_labels_counter < g:tex_labels_check_length
+	return 0
+    else
+        call s:CleanupPopup()
+	let b:tex_labels_counter = 0
     endif
 
     let l:line = getline('.')
