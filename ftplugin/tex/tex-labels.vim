@@ -3,10 +3,10 @@
 " 	Provides popup menu for \ref, \eqref, \pageref, and \cite commands
 "
 " Maintainer:   Bin Zhou   <zhoub@bnu.edu.cn>
-" Version:      1.1.0
+" Version:      1.2.0
 "
-" Upgraded on: Tue 2025-11-25 19:20:36 CST (+0800)
-" Last change: Tue 2025-11-25 22:43:12 CST (+0800)
+" Upgraded on: Wed 2025-11-26 14:11:04 CST (+0800)
+" Last change: Fri 2025-11-28 02:11:07 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -60,13 +60,17 @@ endif
 
 
 " Counter for s:Popup_CheckLabels()
-if !exists('g:tex_labels_check_length') || g:tex_labels_check_length < 1
-    let g:tex_labels_check_length = 3
-endif
-let b:tex_labels_counter = 0
+"if !exists('g:tex_labels_check_length') || g:tex_labels_check_length < 1
+"    let g:tex_labels_check_length = 3
+"endif
+"let b:tex_labels_counter = 0
 
 " Whether there are too many labels
 let b:tex_labels_item_overflow = 0
+
+" For s:Popup_CheckLabels()
+let b:all_labels = []
+let b:label_OK = 0
 
 
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -305,7 +309,7 @@ endfunction
 "   absolute_path: The absolute path to convert
 " Returns:
 "   Relative path from current working directory to absolute_path
-function! GetRelativeToCwd(absolute_path) abort
+function! s:GetRelativeToCwd(absolute_path) abort
     if empty(a:absolute_path)
         echohl ErrorMsg
         echo "Error: Absolute path not provided"
@@ -318,6 +322,10 @@ function! GetRelativeToCwd(absolute_path) abort
     " :~ means relative to home directory (optional)
     " :. means relative to current directory
     return fnamemodify(a:absolute_path, ':~:.')
+endfunction
+
+function! s:In_InsertMode()
+    let l:insert_modes = ['i', 'I', 'a', 'A', 'r', 'R']
 endfunction
 
 
@@ -2261,7 +2269,8 @@ function! s:PopupFilter_CheckLabels(winid, key)
     if a:key == "\<Esc>"
 	call popup_close(a:winid)
 	let b:tex_labels_popup = -1
-	let b:tex_labels_counter = 0
+	"let b:tex_labels_counter = 0
+	let b:all_labels = []
 	return 1
     else
 	return 0
@@ -2271,6 +2280,10 @@ endfunction
 " Function to check whether 'marker' in '\label{marker}', '\bibitem{marker}',
 " '\tag{marker}' or '\include{marker}' is duplicated.
 function! s:Popup_CheckLabels()
+    if b:label_OK
+	return 0
+    endif
+
     let l:type = s:TriggerCheck()
     if l:type == "subf" || l:type == "supf"
 	return s:Popup_CheckInclude()
@@ -2278,13 +2291,13 @@ function! s:Popup_CheckLabels()
 	return -1
     endif
 
-    let b:tex_labels_counter += 1
-    if b:tex_labels_counter < g:tex_labels_check_length
-	return 0
-    else
-        call s:CleanupPopup()
-	let b:tex_labels_counter = 0
-    endif
+    "let b:tex_labels_counter += 1
+    "if b:tex_labels_counter < g:tex_labels_check_length
+"	return 0
+    "else
+    "    call s:CleanupPopup()
+"	let b:tex_labels_counter = 0
+    "endif
 
     let l:line = getline('.')
     let l:line_number = line('.')
@@ -2317,14 +2330,18 @@ function! s:Popup_CheckLabels()
     endif
 
     " Get all label references
-    let l:all_refs = s:GetAllReferences(l:type, 0)
-    if empty(l:all_refs)
-        return -1
+    if empty(b:all_labels)
+	let b:label_OK = 0
+	let b:all_labels = s:GetAllReferences(l:type, 0)
+	if empty(b:all_labels)
+	    return -1
+	endif
     endif
 
     " Find labels that start with l:curr_marker
+
     let l:matching_refs = []
-    for ref in l:all_refs
+    for ref in b:all_labels
         " Extract label name from the formatted reference line
         let l:curlybrace_at_ref = s:MatchCurlyBrace(ref)
         if !empty(l:curlybrace_at_ref)
@@ -2368,9 +2385,74 @@ function! s:Popup_CheckLabels()
         else
             return -1
         endif
+    else
+	call s:CleanupPopup()
+	let b:all_labels = []
+	let b:label_OK = 1
     endif
 
     return -1
+endfunction
+
+" Routine function to check lables, tags, bibitems and included files.
+function! s:CheckLabels(type)
+    let l:line = getline('.')
+    let l:line_number = line('.')
+    let l:curr_offset = col('.') - 1
+
+    " Find the nearest '{' (not part of '\{') on the left of cursor
+    let l:open_brace_at = s:SearchOpenBrace_left(l:line, l:curr_offset)
+    if l:open_brace_at < 0
+        return -1
+    endif
+
+    " Check if cursor is between '{' and '}'
+    let l:curlybrace_at = s:MatchCurlyBrace(l:line, l:open_brace_at)
+    if empty(l:curlybrace_at)
+        return -1
+    endif
+
+    let l:close_brace_at = l:curlybrace_at[1]
+    if l:close_brace_at < l:curr_offset
+        return -1
+    endif
+
+    " Extract curr_marker: the string after the '{' and up to cursor position.
+
+    let l:curr_marker = strpart(l:line, l:open_brace_at + 1,
+		\ l:curr_offset - l:open_brace_at - 1)
+
+    " DEBUGGING:
+    call writefile([l:curr_marker], "_debug")
+
+    " Get all label references
+    if empty(b:all_labels)
+	let b:all_labels = s:GetAllReferences(a:type, 0)
+	if empty(b:all_labels)
+	    return -1
+	endif
+    endif
+
+    " DEBUGGING:
+    call writefile(b:all_labels, "_debug")
+
+    " Find labels that start with l:curr_marker
+    let l:matching_refs = []
+    for ref in b:all_labels
+        " Extract label name from the formatted reference line
+        let l:curlybrace_at_ref = s:MatchCurlyBrace(ref)
+        if !empty(l:curlybrace_at_ref)
+            let l:label_name = strpart(ref, l:curlybrace_at_ref[0] + 1,
+			\ l:curlybrace_at_ref[1] - l:curlybrace_at_ref[0] - 1)
+            if l:label_name =~ '^' .. l:curr_marker && (
+			\ s:GetLineNumber(ref) != l:line_number ||
+			\ s:GetAbsolutePath(s:GetFileName(ref)) !=
+			\ expand("%:p")
+			\ )
+                call add(l:matching_refs, ref)
+            endif
+        endif
+    endfor
 endfunction
 
 " Check included files
@@ -2417,6 +2499,7 @@ function! s:TriggerCheck()
 	return 'bibitem'
     elseif l:before_brace =~ '\v\\label\s*$'
 	call s:Update_AuxFiles()
+	"call s:CheckLabels("label")
 	return 'label'
     elseif l:before_brace =~ '\v\\tag\s*$'
 	call s:Update_AuxFiles()
