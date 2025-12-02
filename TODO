@@ -6,3 +6,4 @@ TODO:
 * Sort items in the menu
 * Sort labels of the same counter
 * Checking markers of \tag, \include and \input
+* Nonprintable characters for \label, and so on
