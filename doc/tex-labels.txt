@@ -13,9 +13,7 @@ CONTENTS				*tex-labels* *tex-labels-contents*
         4.4 Advanced Features ...... |tex-labels-advanced|
         4.5 Duplicate Detection .... |tex-labels-duplicate-detection|
     5. Commands .................... |tex-labels-commands|
-    6. Functions ................... |tex-labels-functions|
-    7. Troubleshooting ............. |tex-labels-troubleshooting|
-    8. Changelog ................... |tex-labels-changelog|
+    6. Troubleshooting ............. |tex-labels-troubleshooting|
 
 ==============================================================================
 1. Introduction						*tex-labels-introduction*
@@ -169,7 +167,7 @@ perfect to add the following six lines in it:
   inoremap \tag{ \tag{}<Esc>i
 <
 Save this file and restart your Vim.  From now on, inputting `\ref{` in your
-LaTeX file is equivalent to inputting `\ref{}` followed by <Esc> and |i|.
+LaTeX file is equivalent to inputting `\ref{}` followed by <Esc> and `i`.
 That is, whenever you input `\ref{` into your LaTeX file, Vim automatically
 translates it to `\ref{}` and turns to normal mode, then enter insert mode
 again.  This triggers a popup menu.
@@ -278,17 +276,16 @@ subsubfiles have specified their main file `main.tex` .
 
 In each subfile or subsubfile, there must be a comment line
 >
-  ---------------------------------------------
   %! Main file: <path/to/mainfile>
-  ---------------------------------------------
 <
 to serve our plugin.  Such a line must begin with EXACTLY the string
-`"%! Main file: "`, with no other characters (such as white spaces or '`%`'s)
+`"%! Main file: "` (without double quotation marks), with no other characters
+(such as white spaces or '`%`'s)
 before this string, and followed by `<path/to/mainfile>` specifying the main
 file.  Here `<path/to/mainfile>` is either an absolute path or a relative
 path.  When it is a relative path, it is relative to the directory of the
-subfile or subsubfile containing this line.  For example, in each subfile
-and/or subsubfile in the above example, such a line reads
+file containing this line.  For example, in each subfile and/or subsubfile
+in the above example, such a line reads
 `%! Main file: ../main.tex`
 and located in the top 16 (including) lines, provided that
 `g:tex_labels_mainfile_scope`` is set to the default value `16`.
@@ -323,13 +320,13 @@ By default, `g:tex_labels_path_WRT` is set to `'CFD'`, meaning that all paths
 are relative to the directory of the current file Vim is editing.
 You may set `g:tex_labels_path_WRT` to `'PWD'`, meaning that all paths are
 relative to the working directory of the shell command `vim`; or to `'MFD'`,
-relative to the directory of the main file (the top level director `book`
-in the above example).  Suppose your working directory is `~` and you issue
-the shell command
+relative to the directory of the main file (the top level directory `book`
+in the above example).  Suppose your working directory is `~` (your home directory)
+and you issue the shell command
 >
     vim relpath/book/parts/section1-1.tex
 <
-Then the main file will be labelled as `../main.tex` when `g:tex_labels_path_WRT`
+Then the main file will be labeled as `../main.tex` when `g:tex_labels_path_WRT`
 equals `'CFD'`, or `main.tex` when `g:tex_labels_path_WRT` equals `'MFD'`, or
 `relpath/book/main.tex` when `g:tex_labels_path_WRT` equals `'PWD'`.
 
@@ -337,17 +334,30 @@ ADVANCED FEATURES					*tex-labels-advanced*
 
 COUNTER-BASED ORGANIZATION ~
 
-When working with many labels, the plugin offers organized browsing by LaTeX
-counters (`equation`, `figure`, `table`, `section`, etc.).
+When the number of labels exceeds `g:tex_labels_limit`, the plugin offers a
+mechanism allowing users to browse labels by LaTeX counters (`equation`, `figure`,
+`table`, `section`, etc.).  In this case you'll see the following options:
+>
+  [1] List all labels anyway
+  [2] Select according to files
+  [3] Select according to counters
+  [4] Select through "file → counter"
+  [5] Select through "counter → file"
+<
+If you press the key `1`, all labels are listed one by one.  If the document is
+a large LaTeX project, consisting of several files, you can press the key `2`
+to select labels in certain a single LaTeX file.  If you press the key `3`,
+you are able to select labels related to certain a LaTeX counter (such as
+`equation` for mathematical formulae, `figure` for figures, and so on).
+For a large LaTeX project, labels related to a single counter may exist in
+several files.  In this case, you can press either the key `4` or `5`, which
+specify labels related to certain a counter within certain a file.  Options
+`[4]` and `[5]` differ from the order of choosing files and counters.
 
-When the number of labels exceeds `g:tex_labels_limit`, you'll be presented
-with options:
-
-1. List all labels anyway
-2. Select according to files
-3. Select according to counters
-4. Select through "file → counter"
-5. Select through "counter → file"
+When the above options appear, you can also press keys `k` or `j` to move
+the cursor up or down.  But commands such as `2j` or `3k` are not supported.
+When the cusor is in the option you want, you can press `<Enter>` to select
+this option.
 
 This hierarchical navigation makes it easy to find specific references in large
 documents.
@@ -355,13 +365,15 @@ documents.
 DUPLICATE DETECTION				*tex-labels-duplicate-detection*
 
 The plugin automatically checks for duplicate labels and bibliography items as
-you type. When potential duplicates are found, a warning popup appears showing
-matching references from other files or locations.
+you type. When potential duplicates are found, a warning popup window appears,
+showing matching references from other files or locations.
 
 This helps prevent common LaTeX errors where multiple labels share the same
-name.  The warning appears when typing within `\label{...}`, `\bibitem{...}`, or
-`\tag{...}` commands and shows existing items that match the partial text being
-entered.
+name.  The warning appears when typing within commands `\label{...}`,
+`\bibitem{...}`, `\tag{...}`, `\include` or `\input`, and shows existing items that
+match the partial text being entered.
+In this case you do not need to process the popup window and items in it.
+You just keep inputting your text, until the popup window does not appear again.
 
 AUXILIARY FILE INTEGRATION ~
 
@@ -375,8 +387,8 @@ provide:
 Reading source files, the plugin also obtains the line number and the file
 name where a cross reference label or a bibliography item is defined.
 
-For best results, compile your LaTeX document before using the plugin to ensure
-auxiliary files are current.
+In order to obtain updated information, compile your LaTeX document before
+using the plugin, and compile your LaTeX document often during editing.
 
 The plugin also maintains its own cache files for performance:
 - `.subf` files - Lists of files included/input by the file
@@ -385,8 +397,8 @@ The plugin also maintains its own cache files for performance:
 - `.bibitem` files - Cached bibliography items
 - `.tag` files - Cached tag information
 
-These files are automatically updated when source files change and follow GNU
-make-style dependency checking.
+These files are automatically updated when source files and `.aux` files
+are changed, following GNU make-style dependency checking.
 
 ==============================================================================
 5. Commands						*tex-labels-commands*
@@ -410,70 +422,7 @@ Example:
 <
 
 ==============================================================================
-6. Functions						*tex-labels-functions*
-
-Most functions are internal and not intended for direct use. However, some
-functions may be useful for debugging or advanced usage:
-
-							*s:FindMainFile()*
-Find main file specification in a given file.
-
-Parameters:
-    {`filename`} - Path to file to search
-
-Returns:
-    Path to main file or empty string if not found
-
-							*s:GetFilesToSearch()*
-Get all relevant files to search for references.
-
-Parameters:
-    {`mainfile`} - Optional main file path
-
-Returns:
-    List of file paths to search
-
-							*s:GetAllReferences()*
-Get all references of a specific type.
-
-Parameters:
-    {`type`}  - `"label"`, `"bibitem"`, or `"tag"`
-    {`limit`} - Maximum number of items (`0` for unlimited)
-
-Returns:
-    `List` of formatted reference strings
-
-							*s:GetAllCounters()*
-Get all LaTeX counters related to labels.
-
-Parameters:
-    {`filename`} - Optional file to search
-
-Returns:
-    `List` of counter names
-
-							*s:CompleteLabelInfo()*
-Extract and complete label information for a specific file.
-
-Parameters:
-    {`file`} - File path to process
-    {`type`} - `"label"`, `"bibitem"`, or `"tag"`
-
-Returns:
-    `List` of dictionaries containing label information
-
-							*s:Update_AuxFiles()*
-Update auxiliary cache files for labels, bibliography items, or tags.
-
-Parameters:
-    {`type`} - Optional: `"label"`, `"bibitem"`, or `"tag"`
-    {`filename`} - Optional: specific file to update
-
-Returns:
-    `0` on success, `-1` on error
-
-==============================================================================
-7. Troubleshooting				*tex-labels-troubleshooting*
+6. Troubleshooting				*tex-labels-troubleshooting*
 
 COMMON ISSUES ~
 
@@ -533,46 +482,6 @@ Manually trigger updates:
     :call s:Update_AuxFiles()
     :call s:Update_SubFiles()
 <
-
-==============================================================================
-8. Changelog					*tex-labels-changelog*
-
-VERSION 1.0 ~
-- All variables in functions begin with "`l:`"
-- All warning message highlighted
-- Screenshot of new version
-- Updating `doc/tex-labels.txt`
-
-VERSION 0.9 ~
-- Configuration for relative paths
-- Alignment of information in popup windows
-
-VERSION 0.8 ~
-- Full paths contained in cache files
-- Displaying relative paths in popup windows
-- `s:ParseAuxFile()` searches "`.aux`" files recursively
-- `README.md` and help document `doc/tex-labels.txt` (this file) in English
-- Fix Ex command `:TestTexLabelsPopup`
-
-VERSION 0.7.3 ~
-- Enhanced duplicate detection for labels and bibliography items
-- Improved performance with large document sets
-- Better error handling and user feedback
-- Added support for main file specifications
-- Improved popup navigation and selection
-- Enhanced auxiliary file management with GNU `make`-style updates
-- Added hierarchical navigation through counters and files
-
-VERSION 0.7.2 ~
-- Fixed issues with Windows file paths
-- Improved popup filter handling
-- Better support for different LaTeX distributions
-
-VERSION 0.7.1 ~
-- Initial public release
-- Basic reference completion functionality
-- File discovery and auxiliary file integration
-- Popup-based user interface
 
 ==============================================================================
 vim:tw=78:ts=8:ft=help:norl:
