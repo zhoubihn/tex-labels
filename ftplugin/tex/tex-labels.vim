@@ -3,10 +3,10 @@
 " 	Provides popup menu for \ref, \eqref, \pageref, and \cite commands
 "
 " Maintainer:   Bin Zhou   <zhoub@bnu.edu.cn>
-" Version:      1.0.0
+" Version:      1.3.0
 "
-" Upgraded on: Sat 2025-11-15 15:02:14 CST (+0800)
-" Last change: Sat 2025-11-15 16:52:54 CST (+0800)
+" Upgraded on: Sun 2025-11-30 20:55:29 CST (+0800)
+" Last change: Wed 2025-12-03 00:55:39 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -58,9 +58,12 @@ if !exists('g:tex_labels_path_WRT')
     let g:tex_labels_path_WRT = 'CFD'
 endif
 
-
 " Whether there are too many labels
 let b:tex_labels_item_overflow = 0
+
+" For s:Popup_CheckLabels()
+let b:all_labels = []
+let b:labels_check_type = ''
 
 
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -299,7 +302,7 @@ endfunction
 "   absolute_path: The absolute path to convert
 " Returns:
 "   Relative path from current working directory to absolute_path
-function! GetRelativeToCwd(absolute_path) abort
+function! s:GetRelativeToCwd(absolute_path) abort
     if empty(a:absolute_path)
         echohl ErrorMsg
         echo "Error: Absolute path not provided"
@@ -312,6 +315,10 @@ function! GetRelativeToCwd(absolute_path) abort
     " :~ means relative to home directory (optional)
     " :. means relative to current directory
     return fnamemodify(a:absolute_path, ':~:.')
+endfunction
+
+function! s:In_InsertMode()
+    let l:insert_modes = ['i', 'I', 'a', 'A', 'r', 'R']
 endfunction
 
 
@@ -435,6 +442,39 @@ function! s:SearchOpenBrace_left(expr, curr_offset)
 
     " Not found.
     return -1
+endfunction
+
+" Function to return part of the string just from the nearest '{' (but
+" not part of '\{'), not including the character '{', to the position of
+" the cursor.  If the cusor is not at or before '}' matching '{' in the above,
+" or if the cursor is just after '{', an empty string is returned.
+function! s:Get_MarkerPart()
+    let l:line = getline('.')
+    let l:line_number = line('.')
+    let l:curr_offset = col('.') - 1
+
+    " Find the nearest '{' (not part of '\{') on the left of cursor
+    let l:open_brace_at = s:SearchOpenBrace_left(l:line, l:curr_offset)
+    if l:open_brace_at < 0
+        return ''
+    endif
+
+    " Check if cursor is between '{' and '}'
+    let l:curlybrace_at = s:MatchCurlyBrace(l:line, l:open_brace_at)
+    if empty(l:curlybrace_at)
+        return ''
+    endif
+
+    let l:close_brace_at = l:curlybrace_at[1]
+    if l:close_brace_at < l:curr_offset
+        return ''
+    endif
+
+    " Extract curr_marker: the string after the '{' and up to cursor position.
+    let l:curr_marker = strpart(l:line, l:open_brace_at + 1,
+		\ l:curr_offset - l:open_brace_at - 1)
+
+    return l:curr_marker
 endfunction
 
 
@@ -1084,7 +1124,7 @@ function! s:Refs_RelativePath(fomatted_line, type)
 	let l:positions = s:MatchCurlyBrace(a:fomatted_line, l:positions[1] + 1)
 	if empty(l:positions)
 	    echohl ErrorMsg
-	    echo "s:Refs_RelativePath: incorrect format."
+	    echo "s:Refs_RelativePath: incorrect format. (1)"
 	    echohl None
 
 	    return ''
@@ -1094,7 +1134,7 @@ function! s:Refs_RelativePath(fomatted_line, type)
     if strpart(a:fomatted_line, l:positions[0],
 		\ l:positions[1] - l:positions[0] + 1) !~ '^{file: '
 	echohl ErrorMsg
-	echo "s:Refs_RelativePath: incorrect format."
+	echo "s:Refs_RelativePath: incorrect format. (2)"
 	echohl None
 
 	return ''
@@ -1604,7 +1644,7 @@ function! s:PopupFilter(winid, key)
         let b:prev_popup_key = ''
     endif
 
-    "let l:type = getwinvar(a:winid, 'l:type', '')
+    "let l:type = getwinvar(a:winid, 'type', '')
 
     " Store a digital number for repeated command
     if !exists('b:count')
@@ -1731,7 +1771,7 @@ endfunction
 
 " Popup filter function for counter menu
 function! s:PopupFilter_counter(winid, key)
-    let l:counter_then_file = getwinvar(a:winid, 'l:counter_then_file')
+    let l:counter_then_file = getwinvar(a:winid, 'counter_then_file')
 
     if a:key == "\<CR>"
         let l:buf = winbufnr(a:winid)
@@ -1816,7 +1856,7 @@ function! s:Popup_Counters(type, ...)
     let b:tex_labels_popup = popup_create(l:counters, l:popup_config)
 
     if b:tex_labels_popup > 0
-	call setwinvar(b:tex_labels_popup, 'l:counter_then_file',
+	call setwinvar(b:tex_labels_popup, 'counter_then_file',
 		    \ l:counter_then_file)
 	return 0
     else
@@ -1827,8 +1867,8 @@ endfunction
 
 " Popup filter function for file selection
 function! s:PopupFilter_file(winid, key)
-    let l:type = getwinvar(a:winid, 'l:type')
-    let l:file_then_counter = getwinvar(a:winid, 'l:file_then_counter')
+    let l:type = getwinvar(a:winid, 'type')
+    let l:file_then_counter = getwinvar(a:winid, 'file_then_counter')
 
     " Store previous key for gg detection
     if !exists('b:prev_popup_key')
@@ -1972,9 +2012,9 @@ function! s:Popup_Files(type, ...)
     let b:tex_labels_popup = popup_create(l:files, l:popup_config)
     if b:tex_labels_popup > 0
 	call setwinvar(b:tex_labels_popup, 'type', a:type)
-	call setwinvar(b:tex_labels_popup, 'l:file_then_counter',
+	call setwinvar(b:tex_labels_popup, 'file_then_counter',
 		    \ l:file_then_counter)
-	"call setwinvar(b:tex_labels_popup, 'l:files', l:files)
+	"call setwinvar(b:tex_labels_popup, 'files', l:files)
 	return 0
     else
 	return -1
@@ -1983,8 +2023,8 @@ endfunction
 
 " Popup filter function
 function! s:PopupFilter_FileCounter(winid, key)
-    let l:involved_files = getwinvar(a:winid, 'l:involved_files')
-    let l:counters = getwinvar(a:winid, 'l:counters')
+    let l:involved_files = getwinvar(a:winid, 'involved_files')
+    let l:counters = getwinvar(a:winid, 'counters')
 
     " Handle different keys
     "if a:key =~# '^[1-3]'
@@ -2138,9 +2178,9 @@ function! s:Popup_FilesCounters()
 	let b:tex_labels_popup = popup_create(l:items, l:popup_config)
 	if b:tex_labels_popup > 0
 	    call win_execute(b:tex_labels_popup, 'normal! j')
-	    call setwinvar(b:tex_labels_popup, 'l:involved_files',
+	    call setwinvar(b:tex_labels_popup, 'involved_files',
 			\ l:involved_files)
-	    call setwinvar(b:tex_labels_popup, 'l:counters', l:counters)
+	    call setwinvar(b:tex_labels_popup, 'counters', l:counters)
 	    return 0
 	else
 	    return -1
@@ -2244,7 +2284,7 @@ function! s:Popup_LabelsOfCounter(counter_name, ...)
 
     let b:tex_labels_popup = popup_create(l:labels, l:popup_config)
     if b:tex_labels_popup > 0
-	"call setwinvar(b:tex_labels_popup, 'l:labels', l:labels)
+	"call setwinvar(b:tex_labels_popup, 'labels', l:labels)
 	return 0
     else
 	return -1
@@ -2256,112 +2296,155 @@ function! s:PopupFilter_CheckLabels(winid, key)
     let b:tex_labels_popup = -1
 
     if a:key == "\<Esc>"
-	return 1
-    else
-	return 0
-    endif
-endfunction
-
-" Function to check whether 'marker' in '\label{marker}', '\bibitem{marker}',
-" '\tag{marker}' or '\include{marker}' is duplicated.
-function! s:Popup_CheckLabels()
-    let l:type = s:TriggerCheck()
-    if l:type == "subf" || l:type == "supf"
-	return s:Popup_CheckInclude()
-    elseif l:type != "label" && l:type != "bibitem" && l:type != "tag"
-	return -1
+	let b:all_labels = []
     endif
 
-    let l:line = getline('.')
-    let l:line_number = line('.')
-    let l:curr_offset = col('.') - 1
-
-    " Find the nearest '{' (not part of '\{') on the left of cursor
-    let l:open_brace_at = s:SearchOpenBrace_left(l:line, l:curr_offset)
-    if l:open_brace_at < 0
-        return -1
-    endif
-
-    " Check if cursor is between '{' and '}'
-    let l:curlybrace_at = s:MatchCurlyBrace(l:line, l:open_brace_at)
-    if empty(l:curlybrace_at)
-        return -1
-    endif
-
-    let l:close_brace_at = l:curlybrace_at[1]
-    if l:close_brace_at < l:curr_offset
-        return -1
-    endif
-
-    " Extract curr_marker: the string after the '{' and up to cursor position
-    let l:curr_marker = strpart(l:line, l:open_brace_at + 1,
-		\ l:curr_offset - l:open_brace_at - 1) .. v:char
-
-    " If l:curr_marker is empty, don't show popup
-    if empty(l:curr_marker)
-        return -1
-    endif
-
-    " Get all label references
-    let l:all_refs = s:GetAllReferences(l:type, 0)
-    if empty(l:all_refs)
-        return -1
-    endif
-
-    " Find labels that start with l:curr_marker
-    let l:matching_refs = []
-    for ref in l:all_refs
-        " Extract label name from the formatted reference line
-        let l:curlybrace_at_ref = s:MatchCurlyBrace(ref)
-        if !empty(l:curlybrace_at_ref)
-            let l:label_name = strpart(ref, l:curlybrace_at_ref[0] + 1,
-			\ l:curlybrace_at_ref[1] - l:curlybrace_at_ref[0] - 1)
-            if l:label_name =~ '^' .. l:curr_marker && (
-			\ s:GetLineNumber(ref) != l:line_number ||
-			\ s:GetAbsolutePath(s:GetFileName(ref)) !=
-			\ expand("%:p")
-			\ )
-                call add(l:matching_refs, ref)
-            endif
-        endif
-    endfor
-
-    " If there are matching labels, show them in a popup
-    if !empty(l:matching_refs)
-        " Close any existing popup first
-        call s:CleanupPopup()
-
-        let l:popup_config = {
-                    \ 'line': winline() + 1,
-                    \ 'col': wincol() + 2,
-                    \ 'pos': 'topleft',
-                    \ 'maxheight': g:tex_labels_popup_height,
-                    \ 'maxwidth': winwidth(0) - 8,
-                    \ 'highlight': 'TexLabelsPopup',
-                    \ 'border': [1, 1, 1, 1],
-                    \ 'borderhighlight': ['TexLabelsPopupBorder'],
-                    \ 'title': ' Matching Labels ',
-                    \ 'titlehighlight': 'TexLabelsPopupTitle',
-                    \ 'cursorline': 0,
-                    \ 'zindex': 200,
-                    \ 'filter': function('s:PopupFilter_CheckLabels')
-                    \ }
-
-        " Create popup menu
-        let b:tex_labels_popup = popup_create(l:matching_refs, l:popup_config)
-        if b:tex_labels_popup > 0
-            return 0
-        else
-            return -1
-        endif
-    endif
-
-    return -1
+    return 0
 endfunction
 
 " Check included files
 " ????????????????????????????????????????????
 function! s:Popup_CheckInclude()
+    return 0
+endfunction
+
+" Function to reduce b:all_labels
+function! s:LabelCollision(marker)
+    if empty(a:marker)
+	return -1
+    elseif empty(b:all_labels)
+	return 0
+    endif
+
+    let l:label_cardinal = len(b:all_labels)
+
+    " Find labels that start with l:curr_marker
+    let l:i = 0
+    while l:i < l:label_cardinal
+	let l:item_test = b:all_labels[l:i]
+	let l:curlybrace_test = s:MatchCurlyBrace(l:item_test)
+	if empty(l:curlybrace_test)
+	    call remove(b:all_labels, l:i)
+	    let l:label_cardinal -= 1
+	    continue
+	endif
+
+	let l:label_test = strpart(l:item_test, l:curlybrace_test[0] + 1,
+		    \ l:curlybrace_test[1] - l:curlybrace_test[0] - 1
+		    \ )
+	if l:label_test =~ '^' .. a:marker && (
+		    \ s:GetLineNumber(l:item_test) != line('.') ||
+		    \ s:GetAbsolutePath(s:GetFileName(l:item_test)) !=
+		    \ expand("%:p")
+		    \ )
+	    let l:i += 1
+	else
+	    call remove(b:all_labels, l:i)
+	    let l:label_cardinal -= 1
+	endif
+    endwhile
+
+    return 0
+endfunction
+
+" Function to check whether 'marker' in '\label{marker}', '\bibitem{marker}',
+" '\tag{marker}' or '\include{marker}' is duplicated.
+function! s:Popup_CheckLabels()
+    if empty(b:all_labels)
+	return 0
+    endif
+
+    let l:marker_part = s:Get_MarkerPart()
+    if empty(l:marker_part)
+	return 0
+    elseif empty(v:char)
+	call s:Check_LabelConflictions(b:labels_check_type)
+	return -1
+    endif
+
+    let l:marker_part = l:marker_part .. v:char
+    call s:LabelCollision(l:marker_part)
+    if empty(b:all_labels)
+	return 0
+    endif
+
+    let l:popup_config = {
+		\ 'line': winline() + 1,
+		\ 'col': wincol(),
+		\ 'pos': 'topleft',
+		\ 'maxheight': g:tex_labels_popup_height,
+		\ 'maxwidth': winwidth(0) - 8,
+		\ 'highlight': 'TexLabelsPopup',
+		\ 'border': [1, 1, 1, 1],
+		\ 'borderhighlight': ['TexLabelsPopupBorder'],
+		\ 'title': 'Potential concliction',
+		\ 'titlehighlight': 'TexLabelsPopupTitle',
+		\ 'zindex': 200,
+		\ 'filter': function('s:PopupFilter_CheckLabels')
+		\ }
+
+    " Create popup menu
+    let b:all_labels = s:AlignMenuItem(b:all_labels, b:labels_check_type)
+    let b:tex_labels_popup = popup_create(b:all_labels, l:popup_config)
+    if b:tex_labels_popup < 0
+	return -1
+    endif
+
+    return 0
+endfunction
+
+" Routines to end checking of label conflictions
+function! s:CheckLabels_Complete()
+    let b:all_labels = []
+
+    augroup tex_labels_LabelCheck
+	autocmd!
+    augroup END
+endfunction
+
+" Routines to check conflictions of labels
+"   {type}	"label", "tag", "bibitem", "include" or "input"
+function! s:Check_LabelConflictions(type)
+    if a:type != "label" && a:type != "tag" && a:type != "bibitem" &&
+		\ a:type != "include" && a:type != "input"
+        echohl ErrorMsg
+	echo "s:Check_LabelConflictions(" .. a:type .. ") - invalid argument"
+	echohl None
+
+	return -1
+    endif
+    let b:labels_check_type = a:type
+
+    if a:type == 'label' || a:type == 'tag' || a:type == 'bibitem'
+	let b:all_labels = s:GetAllReferences(a:type, 0)
+    elseif a:type == 'include' || a:type == 'input'
+	" TODO:
+        echohl ErrorMsg
+	echo "Codes not complimented."
+        echohl None
+
+	return -1
+    endif
+
+    " Relative paths for files:
+    let l:refs_relative = []
+    for formatted_line in b:all_labels
+	let revised_line = s:Refs_RelativePath(formatted_line, a:type)
+	if !empty(revised_line)
+	    call add(l:refs_relative, revised_line)
+	endif
+    endfor
+    let b:all_labels = l:refs_relative
+
+    " DEBUGGING:
+    call writefile(b:all_labels, "_debug")
+
+    augroup tex_labels_LabelCheck
+	autocmd!
+	autocmd InsertCharPre <buffer> call s:Popup_CheckLabels()
+	autocmd InsertLeavePre <buffer> call s:CheckLabels_Complete()
+    augroup END
+
     return 0
 endfunction
 
@@ -2403,18 +2486,30 @@ function! s:TriggerCheck()
 	return 'bibitem'
     elseif l:before_brace =~ '\v\\label\s*$'
 	call s:Update_AuxFiles()
+	let b:all_labels = []
+	"call remove(b:all_labels, 0, -1)
+	call s:Check_LabelConflictions("label")
 	return 'label'
     elseif l:before_brace =~ '\v\\tag\s*$'
 	call s:Update_AuxFiles()
+	let b:all_labels = []
+	"call remove(b:all_labels, 0, -1)
+	call s:Check_LabelConflictions("tag")
 	return 'tag'
     elseif l:before_brace =~ '\v\\bibitem\s*(\[[^\]]*\])?\s*$'
 	call s:Update_AuxFiles()
+	"call remove(b:all_labels, 0, -1)
+	call s:Check_LabelConflictions("bibitem")
 	return 'bibitem'
     elseif l:before_brace =~ '\v\\include\s*$'
 	call s:Update_AuxFiles()
+	"call remove(b:all_labels, 0, -1)
+	call s:Check_LabelConflictions("include")
 	return 'subf'
     elseif l:before_brace =~ '\v\\input\s*$'
 	call s:Update_AuxFiles()
+	"call remove(b:all_labels, 0, -1)
+	call s:Check_LabelConflictions("input")
 	return 'supf'
     endif
 
@@ -2442,9 +2537,6 @@ endif
 function! s:SetupTexLabels()
   " Trigger popup when entering insert mode
   autocmd InsertEnter <buffer> call s:TriggerCheck()
-
-  " Trigger label check on each character entered in insert mode
-  autocmd InsertCharPre <buffer> call s:Popup_CheckLabels()
 
   " Clean up popup when leaving buffer
   autocmd BufLeave <buffer> call s:CleanupPopup()

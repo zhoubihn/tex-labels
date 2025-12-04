@@ -1,7 +1,7 @@
 # TeX Labels: a Plugin for Vim
 
 This is a powerful Vim plugin for LaTeX reference completion and management.
-When Vim enters the insert mode withing the curly brace after a command `\ref`,
+When Vim enters the insert mode within the curly brace after a command `\ref`,
 `\eqref`, `\pageref` or `\cite`, this plugin provides intelligent popup menus,
 containing cross reference markers for selection.  The selected item is
 automatically inserted into the curly brace.  The old marker, if existing before
@@ -34,7 +34,7 @@ editing more efficient.
 
 ## Requirements
 
-- Vim 8.0+ or Neovim 0.4+ (with popup support)
+- Vim 8.0+ (with popup support)
 - LaTeX distribution (for compilation and auxiliary file generation)
 
 ## Installation
@@ -223,9 +223,11 @@ The plugin uses Vim's built-in popup functionality to create:
 ### Common Issues
 
 1. **Popup doesn't appear**:
-   - Ensure you're using Vim 8.0+ or Neovim 0.4+
-   - Check that popup support is enabled (`:echo has('popup')` should return 1)
-   - Verify the file is recognized as LaTeX (`:set ft?` should show `tex`)
+   - Ensure you're using Vim 8.0+
+   - Check that popup support is enabled (`:echo has('popupwin')` should return
+     `1`)
+   - Verify the file is recognized as LaTeX (`:set ft?` should show
+     `filetype=tex`)
 
 2. **References not found**:
    - Compile your LaTeX document first to generate `.aux` files
@@ -300,5 +302,5 @@ editor!
 For issues, questions, or contributions, please open an issue
 on the [project repository](https://github.com/zhoubihn/tex-labels).
 
-This plugin has not been tested for [neovim](https://neovim.io).
-Any information with the application in neovim is welcome.
+Currently [neovim](https://neovim.io) is not supported.  It will be supported
+in later versions.
