@@ -226,9 +226,15 @@ The plugin uses Vim's built-in popup functionality to create:
    - Ensure you're using Vim 8.0+
    - Check that popup support is enabled (`:echo has('popupwin')` should return
      `1`)
-   - Verify the file is recognized as LaTeX (`:set ft?` should show
+   - Verify the LaTeX file is recognized as LaTeX (`:set ft?` should show
      `filetype=tex`)
 
+     If current file is not automatically recognized as a TeX file, add
+     the following comment line
+     ```latex
+     %&tex
+     ```
+     as the first line of current file.
 2. **References not found**:
    - Compile your LaTeX document first to generate `.aux` files
    - Check that main file specification is correct if using multi-file projects
