@@ -3,10 +3,10 @@
 " 	Provides popup menu for \ref, \eqref, \pageref, and \cite commands
 "
 " Maintainer:   Bin Zhou   <zhoub@bnu.edu.cn>
-" Version:      1.3.0
+" Version:      1.3.1
 "
-" Upgraded on: Sun 2025-11-30 20:55:29 CST (+0800)
-" Last change: Wed 2025-12-03 00:55:39 CST (+0800)
+" Upgraded on: Wed 2025-12-17 14:39:22 CST (+0800)
+" Last change: Wed 2025-12-17 14:48:03 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -519,6 +519,7 @@ endfunction
 " Maybe always updated?
 if !exists('b:tex_labels_MainFile')
     let b:tex_labels_MainFile = s:FindMainFile(expand("%:p"))
+    let g:Main_LaTeX_File = b:tex_labels_MainFile
 endif
 
 " Function to obtain the name of auxiliary file
