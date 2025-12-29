@@ -3,10 +3,10 @@
 " 	Provides popup menu for \ref, \eqref, \pageref, and \cite commands
 "
 " Maintainer:   Bin Zhou   <zhoub@bnu.edu.cn>
-" Version:      1.3.1
+" Version:      1.3.2
 "
-" Upgraded on: Wed 2025-12-17 14:39:22 CST (+0800)
-" Last change: Wed 2025-12-17 14:48:03 CST (+0800)
+" Upgraded on: Tue 2025-12-30 02:23:32 CST (+0800)
+" Last change: Tue 2025-12-30 02:24:10 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -656,7 +656,7 @@ function! s:Update_SubFiles(...)
     elseif !filereadable(l:filename)
         echohl ErrorMsg
 	echo "s:Update_SubFiles: file <" .. l:filename .. "> not readable."
-	echo "s:Update_SubFiles stops."
+	echo "s:Update_SubFiles: stops."
         echohl None
 
 	return -1
@@ -2436,9 +2436,6 @@ function! s:Check_LabelConflictions(type)
 	endif
     endfor
     let b:all_labels = l:refs_relative
-
-    " DEBUGGING:
-    call writefile(b:all_labels, "_debug")
 
     augroup tex_labels_LabelCheck
 	autocmd!
