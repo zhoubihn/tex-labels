@@ -3,10 +3,10 @@
 " 	Provides popup menu for \ref, \eqref, \pageref, and \cite commands
 "
 " Maintainer:   Bin Zhou   <zhoub@bnu.edu.cn>
-" Version:      1.3.2
+" Version:      1.3.3
 "
-" Upgraded on: Tue 2025-12-30 02:23:32 CST (+0800)
-" Last change: Tue 2025-12-30 02:24:10 CST (+0800)
+" Upgraded on: Sat 2026-01-24 02:55:26 CST (+0800)
+" Last change: Sat 2026-01-24 02:55:54 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -573,7 +573,7 @@ function! s:FindSubFiles(file, ...)
 
         " Check for \include and \input
         for cmd in ['include', 'input']
-	    let l:start = match(l:clean_line, '\\' .. cmd)
+	    let l:start = match(l:clean_line, '\\' .. cmd .. '\\s*{')
 	    if l:start < 0
 		continue
 	    endif
