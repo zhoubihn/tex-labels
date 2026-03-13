@@ -3,10 +3,10 @@
 " 	Provides popup menu for \ref, \eqref, \pageref, and \cite commands
 "
 " Maintainer:   Bin Zhou   <zhoub@bnu.edu.cn>
-" Version:      1.3.4
+" Version:      1.4.0
 "
-" Upgraded on: Sat 2026-01-24 03:05:42 CST (+0800)
-" Last change: Sat 2026-01-24 03:05:59 CST (+0800)
+" Upgraded on: Fri 2026-03-13 21:51:04 CST (+0800)
+" Last change: Fri 2026-03-13 21:52:53 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -975,7 +975,7 @@ function! s:FormatMenuItem(item, type)
     endif
 
     if a:type == "label"
-	return "(" .. a:item.counter .. ": " .. a:item.idnum .. ") {" ..
+	return "{" .. a:item.counter .. ": " .. a:item.idnum .. "} {" ..
 		    \ a:item.idcode .. "} {p." .. a:item.page ..
 		    \ "} {l." .. a:item.line .. "} {file: " ..
 		    \ a:item.full_path .. "}"
@@ -989,7 +989,7 @@ function! s:FormatMenuItem(item, type)
 	    "return ''
 	endif
 
-	return "Ref. [" .. a:item.idnum .. "] {" ..
+	return "{Ref. [" .. a:item.idnum .. "]} {" ..
 		    \ a:item.idcode .. "} {l." .. a:item.line ..
 		    \ "} {file: " .. a:item.full_path .. "}"
 
@@ -1103,14 +1103,19 @@ function! s:AlignMenuItem(data, type)
 endfunction
 
 " Function to replace filename with relative path
+"   {formatted_line}		a string as those returned from the function
+"				    s:FormatMenuItem(item, type)
+"   {type}			'label', 'tag' or 'bibitem'
 function! s:Refs_RelativePath(fomatted_line, type)
     if empty(a:fomatted_line)
 	return ''
     endif
 
     if a:type == "label"
+	let l:num_bracePairs = 5
+    elseif a:type == "bibitem"
 	let l:num_bracePairs = 4
-    elseif a:type == "bibitem" || a:type == "tag"
+    elseif a:type == "tag"
 	let l:num_bracePairs = 3
     else
         echohl ErrorMsg
