@@ -3,10 +3,10 @@
 " 	Provides popup menu for \ref, \eqref, \pageref, and \cite commands
 "
 " Maintainer:   Bin Zhou   <zhoub@bnu.edu.cn>
-" Version:      1.3.0
+" Version:      1.4.1
 "
-" Upgraded on: Sun 2025-11-30 20:55:29 CST (+0800)
-" Last change: Wed 2025-12-03 00:55:39 CST (+0800)
+" Upgraded on: Sat 2026-03-14 08:47:11 CST (+0800)
+" Last change: Sat 2026-03-14 08:49:01 CST (+0800)
 "
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -519,6 +519,7 @@ endfunction
 " Maybe always updated?
 if !exists('b:tex_labels_MainFile')
     let b:tex_labels_MainFile = s:FindMainFile(expand("%:p"))
+    let g:Main_LaTeX_File = b:tex_labels_MainFile
 endif
 
 " Function to obtain the name of auxiliary file
@@ -572,7 +573,7 @@ function! s:FindSubFiles(file, ...)
 
         " Check for \include and \input
         for cmd in ['include', 'input']
-	    let l:start = match(l:clean_line, '\\' .. cmd)
+	    let l:start = match(l:clean_line, '\\' .. cmd .. '\s*{')
 	    if l:start < 0
 		continue
 	    endif
@@ -655,7 +656,7 @@ function! s:Update_SubFiles(...)
     elseif !filereadable(l:filename)
         echohl ErrorMsg
 	echo "s:Update_SubFiles: file <" .. l:filename .. "> not readable."
-	echo "s:Update_SubFiles stops."
+	echo "s:Update_SubFiles: stops."
         echohl None
 
 	return -1
@@ -825,7 +826,9 @@ function! s:ExtractLabelsBibitemsTags(filename, type)
     return l:items
 endfunction
 
-" Function to parse auxiliary file for numbering information.  Usage:
+" Function to extract information related to "\newlabel" or "\bibcite"
+" in the auxiliary file {aux_file}.
+" Usage:
 "   call s:ParseAuxFile(aux_file)
 "   {aux_file}		a file name with extension ".aux"
 function! s:ParseAuxFile(aux_file)
@@ -974,7 +977,7 @@ function! s:FormatMenuItem(item, type)
     endif
 
     if a:type == "label"
-	return "(" .. a:item.counter .. ": " .. a:item.idnum .. ") {" ..
+	return "{" .. a:item.counter .. ": " .. a:item.idnum .. "} {" ..
 		    \ a:item.idcode .. "} {p." .. a:item.page ..
 		    \ "} {l." .. a:item.line .. "} {file: " ..
 		    \ a:item.full_path .. "}"
@@ -988,7 +991,7 @@ function! s:FormatMenuItem(item, type)
 	    "return ''
 	endif
 
-	return "Ref. [" .. a:item.idnum .. "] {" ..
+	return "{Ref. [" .. a:item.idnum .. "]} {" ..
 		    \ a:item.idcode .. "} {l." .. a:item.line ..
 		    \ "} {file: " .. a:item.full_path .. "}"
 
@@ -1102,14 +1105,19 @@ function! s:AlignMenuItem(data, type)
 endfunction
 
 " Function to replace filename with relative path
+"   {formatted_line}		a string as those returned from the function
+"				    s:FormatMenuItem(item, type)
+"   {type}			'label', 'tag' or 'bibitem'
 function! s:Refs_RelativePath(fomatted_line, type)
     if empty(a:fomatted_line)
 	return ''
     endif
 
     if a:type == "label"
+	let l:num_bracePairs = 5
+    elseif a:type == "bibitem"
 	let l:num_bracePairs = 4
-    elseif a:type == "bibitem" || a:type == "tag"
+    elseif a:type == "tag"
 	let l:num_bracePairs = 3
     else
         echohl ErrorMsg
@@ -1344,7 +1352,7 @@ function! s:HasCounterLabels(filename, counter_name)
     endif
 
     for item in l:labels
-	let l:matched = matchlist(item, '^(\([^:]*\):.*)')
+	let l:matched = matchlist(item, '^{\([^:]*\):.*}')
 	if len(l:matched) < 2
 	    continue
 	endif
@@ -1451,7 +1459,7 @@ function! s:GetAllCounters(...)
 	    continue
 	endif
 
-	let l:counter_name = matchlist(item, '^(\([^:]*\):.*)')
+	let l:counter_name = matchlist(item, '^{\([^:]*\):.*}')
 	if !empty(l:counter_name) && !empty(l:counter_name[1])
 	    call add(l:counters, l:counter_name[1])
 	endif
@@ -1616,9 +1624,10 @@ function! s:Popup_KeyAction(winid, key, ...)
 endfunction
 
 " Insert selected reference
+" Usage:
+"   s:InsertReference(ref)
+"   {ref}	string to be inserted between '{' and '}' about the cursor
 function! s:InsertReference(ref)
-    let l:ref_name = a:ref
-
     " Find and replace reference in the triggering buffer
     let l:line = getline('.')
     let l:curr_offset = col('.') - 1
@@ -1630,11 +1639,11 @@ function! s:InsertReference(ref)
     let l:end_col = l:curlybrace_at[1]
 
     " Replace reference and position cursor
-    let l:new_line = strpart(l:line, 0, l:start_col) .. l:ref_name ..
+    let l:new_line = strpart(l:line, 0, l:start_col) .. a:ref ..
 		\ strpart(l:line, l:end_col)
     call setline('.', l:new_line)
     call feedkeys("\<Esc>", 'n')
-    call cursor(line('.'), l:start_col + len(l:ref_name) + 2)
+    call cursor(line('.'), l:start_col + len(a:ref) + 2)
 endfunction
 
 " Popup filter function
@@ -1663,6 +1672,10 @@ function! s:PopupFilter(winid, key)
             " Remove the braces
             "let l:label = substitute(l:label, '[{}]', '', 'g')
 	    let l:curlybrace_at = s:MatchCurlyBrace(l:cursor_line)
+	    if !empty(l:curlybrace_at)
+		let l:curlybrace_at = s:MatchCurlyBrace(l:cursor_line,
+			    \ l:curlybrace_at[1] + 1)
+	    endif
 	    if !empty(l:curlybrace_at)
 		let l:label = strpart(l:cursor_line, l:curlybrace_at[0] + 1,
 			    \ l:curlybrace_at[1] - l:curlybrace_at[0] - 1)
@@ -2215,6 +2228,10 @@ function! s:PopupFilter_CounterItems(winid, key)
 	    " s:FormatMenuItem
 	    let l:curlybrace_at = s:MatchCurlyBrace(l:cursor_line)
 	    if !empty(l:curlybrace_at)
+		let l:curlybrace_at = s:MatchCurlyBrace(l:cursor_line,
+			    \ l:curlybrace_at[1] + 1)
+	    endif
+	    if !empty(l:curlybrace_at)
 		let l:label = strpart(l:cursor_line, l:curlybrace_at[0] + 1,
 			    \ l:curlybrace_at[1] - l:curlybrace_at[0] - 1)
 	    else
@@ -2435,9 +2452,6 @@ function! s:Check_LabelConflictions(type)
 	endif
     endfor
     let b:all_labels = l:refs_relative
-
-    " DEBUGGING:
-    call writefile(b:all_labels, "_debug")
 
     augroup tex_labels_LabelCheck
 	autocmd!
