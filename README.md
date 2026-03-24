@@ -1,8 +1,8 @@
 # TeX Labels: a Plugin for Vim
 
-This is a powerful Vim plugin for LaTeX reference completion and management.
+This is a Vim plugin for LaTeX reference completion and management.
 When Vim enters the insert mode within the curly brace after a command `\ref`,
-`\eqref`, `\pageref` or `\cite`, this plugin provides intelligent popup menus,
+`\eqref`, `\pageref` or `\cite`, this plugin provides popup menus,
 containing cross reference markers for selection.  The selected item is
 automatically inserted into the curly brace.  The old marker, if existing before
 the popup menu was triggered, will be erased automatically.
@@ -12,7 +12,7 @@ the popup menu was triggered, will be erased automatically.
 When Vim is in insert mode within the curly brance after `\label`, `\cite` or
 `\tag`, the user is prompted if there are some potentially conflicting markers.
 
-Large project of LaTeX document, containing several LaTeX files included or
+Large project of LaTeX document, containing several LaTeX files included by or
 input into a main LaTeX file, is also supported.  These make LaTeX document
 editing more efficient.
 
@@ -20,15 +20,26 @@ editing more efficient.
 
 - **Intelligent Popup Menus**: Context-sensitive popup completion for LaTeX
   references
+  1. If there are not so many cross reference markers, popup menu as shown
+    in the above apears immediately when triggered.
+    <!-- In the following, such a popup menu is referred to as the "final menu".
+    -->
+  2. Otherwise, if there is only one LaTeX file for the compiled documentation,
+    cross reference markers are grouped according to LaTeX counters such as
+    `chapter`, `section`, `equation`, `figure`, `table`, and so on.
+  3. When there are more than one LaTeX files for the compiled documentation,
+    with too many cross reference markers, theses markers will be grouped
+    according to both file names and LaTeX counters.
 - **Multiple Reference Types**: Support for labels, bibliography items, and tags
 - **File Discovery**: Automatic detection of included LaTeX files
-- **Counter-based Organization**: Organize labels by LaTeX counters (equation,
-  figure, table, etc.)
-- **File-based Navigation**: Browse references by source file
 - **Duplicate Detection**: Real-time checking for duplicate labels and
   bibliography items
 - **Auxiliary File Integration**: Seamless integration with LaTeX auxiliary
-  files (.aux)
+  files (.aux).
+  Thus, for a cross reference marker (a label), the value of its LaTeX counter,
+  the marker itself, the page number, the line number (in the LaTeX file) and
+  the name of LaTeX fine containing this marker, are clearly listed in one row.
+  See, the above screenshot.
 - **Cross-file Search**: Search across multiple included LaTeX files
 - **Customizable Appearance**: Configurable popup colors and dimensions
 
@@ -55,6 +66,10 @@ of this plugin.
    If there are already the directories `~/.vim/ftplugin/tex` and `~/.vim/doc`,
    this step can be skipped.
 
+   In Windows 11, `~/.vim/ftplugin/tex/` will be `$HOME/vimfiles/ftplugin/tex/$`
+   for a typical installation of Vim.
+   In the following, this will not be repeated any more.
+
 2. Copy the file `tex-labels.vim` to your Vim configuration directory:
    ```
    cp ftplugin/tex/tex-labels.vim ~/.vim/ftplugin/tex/
@@ -67,7 +82,8 @@ of this plugin.
 
 ### Using a Plugin Manager
 
-Add the following to your `.vimrc` or `init.vim`:
+Add the following to your `.vimrc` (or `_vimrc` for a typical installation
+of Vim on Windows 11) or `init.vim`:
 
 #### vim-plug
 ```vim
